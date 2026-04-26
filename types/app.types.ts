@@ -65,3 +65,52 @@ export type ActionState = {
   success?: string
   fieldErrors?: Record<string, string[]>
 }
+
+// ── Admin Portal Types ───────────────────────────────────────────────────────
+
+export type AdminStats = {
+  totalRevenue: number
+  activeRequests: number
+  newShoppers: number
+  pendingVerifications: number
+  totalShoppers: number
+}
+
+export type ShopperVerificationRow = {
+  id: string
+  fullName: string | null
+  businessName: string | null
+  createdAt: string
+  idFrontUrl: string | null
+  idBackUrl: string | null
+}
+
+export type PendingPayoutRow = {
+  id: string
+  buyer: string
+  shopper: string
+  amount: number
+  commission_rate: number
+  created_at: string
+}
+
+export type AdminTrustRow = {
+  id: string
+  name: string
+  trustScore: number
+  avgRating: number
+  totalReviews: number
+  verificationStatus: VerificationStatus
+  totalOrders: number
+}
+
+export type OrderVolumePoint = {
+  date: string
+  revenue: number
+  orders: number
+}
+
+export type CategoryPoint = {
+  name: string
+  count: number
+}

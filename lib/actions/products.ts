@@ -11,44 +11,79 @@ export async function createProduct(
 ): Promise<ActionState> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
-
   if (!user) return { error: 'Not authenticated.' }
 
-  const name = formData.get('name') as string
-  const description = formData.get('description') as string
-  const price = Number(formData.get('price'))
-  const category_id = formData.get('category_id') as string
-  const file = formData.get('image') as File | null
+  // Guard: shopper must be verified
+  const { data: shopperProfile } = await supabase
+    .from('shopper_profiles')
+    .select('verification_status')
+    .eq('id', user.id)
+    .single()
 
-  if (!name || isNaN(price) || price < 0) {
-    return { error: 'Invalid name or price.' }
+  if (shopperProfile?.verification_status !== 'verified') {
+    return { error: 'You must be a verified shopper to create listings.' }
   }
 
-  // 1. Create the product
-  const { data: product, error: insertError } = await supabase
+  const rawName     = formData.get('name') as string
+  const customName  = formData.get('custom_name') as string | null
+  const description = formData.get('description') as string
+  const price       = Number(formData.get('price'))
+  const stock       = Number(formData.get('stock') ?? 1)
+  const category_id = formData.get('category_id') as string | null
+
+  // If "Other" category was selected, use custom_name as the product name
+  const name = customName?.trim() || rawName
+
+  if (!name || isNaN(price) || price < 0) {
+    return { error: 'Please provide a valid name and price.' }
+  }
+
+  // Multi-image upload: field name is "images" (multiple)
+  const imageFiles = formData.getAll('images') as File[]
+  const validImages = imageFiles.filter(f => f && f.size > 0)
+
+  if (validImages.length > 3) {
+    return { error: 'You can upload a maximum of 3 photos.' }
+  }
+
+  const MAX_BYTES = 5 * 1024 * 1024
+  const oversized = validImages.find(f => f.size > MAX_BYTES)
+  if (oversized) {
+    return { error: `"${oversized.name}" exceeds the 5 MB limit per image.` }
+  }
+
+  // 1. Insert product
+  const { data: productResult, error: insertError } = await supabase
     .from('products')
     .insert({
       shopper_id: user.id,
       name,
       description,
       price,
-      category_id: category_id || null, // Allow null if "other" is selected
+      stock,
+      category_id: category_id || null,
       is_available: true,
-      stock: 1, // Defaulting to 1 for now, can be expanded
-    })
+    } as any)
     .select()
     .single()
 
+  const product = productResult as any
+
   if (insertError) return { error: insertError.message }
 
-  // 2. Upload image if provided
-  if (file && file.size > 0 && product) {
+  // 2. Upload images
+  for (let i = 0; i < validImages.length; i++) {
+    const file = validImages[i]
     const fileExt = file.name.split('.').pop()
     const fileName = `${product.id}/${crypto.randomUUID()}.${fileExt}`
+    const fileBuffer = await file.arrayBuffer()
 
     const { error: uploadError } = await supabase.storage
       .from('products')
-      .upload(fileName, file)
+      .upload(fileName, fileBuffer, {
+        contentType: file.type,
+        upsert: true
+      })
 
     if (!uploadError) {
       const { data: publicUrl } = supabase.storage
@@ -58,50 +93,46 @@ export async function createProduct(
       await supabase.from('product_images').insert({
         product_id: product.id,
         url: publicUrl.publicUrl,
-        is_primary: true,
-      })
+        is_primary: i === 0, // first image is primary
+        sort_order: i,
+      } as any)
     }
   }
 
   revalidatePath('/dashboard/listings')
+  revalidatePath('/')
   revalidatePath('/products')
   redirect('/dashboard/listings')
 }
 
-export async function toggleProductAvailability(
-    productId: string, 
-    isAvailable: boolean
-) {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    
-    if (!user) throw new Error("Unauthorized")
-    
-    const { error } = await supabase
-      .from('products')
-      .update({ is_available: !isAvailable })
-      .eq('id', productId)
-      .eq('shopper_id', user.id) // Ensure owner
-      
-    if (error) throw new Error(error.message)
-    
-    revalidatePath('/dashboard/listings')
+export async function toggleProductAvailability(productId: string, isAvailable: boolean) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Unauthorized')
+
+  const { error } = await supabase
+    .from('products')
+    .update({ is_available: !isAvailable } as any)
+    .eq('id', productId)
+    .eq('shopper_id', user.id)
+
+  if (error) throw new Error(error.message)
+  revalidatePath('/dashboard/listings')
+  revalidatePath('/')
 }
 
 export async function deleteProduct(productId: string) {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    
-    if (!user) throw new Error("Unauthorized")
-    
-    const { error } = await supabase
-      .from('products')
-      .delete()
-      .eq('id', productId)
-      .eq('shopper_id', user.id) // Ensure owner
-      
-    if (error) throw new Error(error.message)
-    
-    revalidatePath('/dashboard/listings')
-    revalidatePath('/products')
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Unauthorized')
+
+  const { error } = await supabase
+    .from('products')
+    .delete()
+    .eq('id', productId)
+    .eq('shopper_id', user.id)
+
+  if (error) throw new Error(error.message)
+  revalidatePath('/dashboard/listings')
+  revalidatePath('/')
 }

@@ -23,18 +23,23 @@ export async function updateProfile(
 
   const { error: profileError } = await supabase
     .from('profiles')
-    .update({ full_name, location, phone } as any)
+    .update({
+      full_name,
+      phone: phone || null,
+      location: location || null,
+    } as any)
     .eq('id', user.id)
-
   if (profileError) return { error: profileError.message }
 
   // Check if shopper to update shopper_profiles
   if (bio !== null || business_name !== null) {
       const { error: shopperError } = await supabase
         .from('shopper_profiles')
-        .update({ bio, business_name } as any)
-        .eq('id', user.id)
-        
+        .update({
+        business_name: business_name || null,
+        bio: bio || null,
+      } as any)
+      .eq('id', user.id)
       if (shopperError) return { error: shopperError.message }
   }
 

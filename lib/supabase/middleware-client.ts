@@ -40,11 +40,49 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname
 
-  // Protect dashboard and admin routes
-  if (
-    !user &&
-    (pathname.startsWith('/dashboard') || pathname.startsWith('/admin'))
-  ) {
+  // ── Admin RBAC ──────────────────────────────────────────────────────────────
+  // All /admin/* routes except /admin/login require role = 'admin'
+  if (pathname.startsWith('/admin') && pathname !== '/admin/login') {
+    if (!user) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/admin/login'
+      return NextResponse.redirect(url)
+    }
+
+    // Fetch role — use the supabase client already created above
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (profile?.role !== 'admin') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/admin/login'
+      return NextResponse.redirect(url)
+    }
+
+    // Authenticated admin accessing /admin/login → send to dashboard
+    return supabaseResponse
+  }
+
+  // If authenticated admin tries to access /admin/login → redirect to dashboard
+  if (pathname === '/admin/login' && user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (profile?.role === 'admin') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/admin/dashboard'
+      return NextResponse.redirect(url)
+    }
+  }
+
+  // ── Shop routes ─────────────────────────────────────────────────────────────
+  if (!user && pathname.startsWith('/dashboard')) {
     const url = request.nextUrl.clone()
     url.pathname = '/auth/login'
     url.searchParams.set('redirectTo', pathname)

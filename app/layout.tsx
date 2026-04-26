@@ -1,9 +1,5 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
-import { createClient } from '@/lib/supabase/server'
-import { LayoutWrapper } from '@/components/layout/LayoutWrapper'
-import './globals.css'
-import type { Profile } from '@/types/app.types'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -11,7 +7,6 @@ const inter = Inter({
   display: 'swap',
 })
 
-// Ensures colors match theme
 export const viewport: Viewport = {
   themeColor: '#1a1f36',
 }
@@ -30,31 +25,18 @@ export const metadata: Metadata = {
   },
 }
 
-export default async function RootLayout({
+/**
+ * Thin root layout — provides <html> and <body> only.
+ * Section-specific UI (Navbar, Admin sidebar) is added by nested route-group layouts:
+ *   app/(shop)/layout.tsx  → buyer shop
+ *   app/(admin)/layout.tsx → admin portal
+ */
+export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
-  const supabase = await createClient()
-  
-  // Fetch user object directly to provide to Navbar
-  const { data: { user } } = await supabase.auth.getUser()
-  
-  let profile = null
-  if (user) {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', user.id)
-      .single()
-    profile = data as Profile | null
-  }
-
   return (
     <html lang="en" className={inter.variable}>
-      <body className="min-h-dvh flex flex-col bg-slate-50 antialiased selection:bg-amber-200 selection:text-amber-900">
-        <LayoutWrapper profile={profile}>
-          {children}
-        </LayoutWrapper>
-      </body>
+      <body>{children}</body>
     </html>
   )
 }

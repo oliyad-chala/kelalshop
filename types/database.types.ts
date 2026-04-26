@@ -59,6 +59,9 @@ export interface Database {
           delivery_time_days: number
           min_order_amount: number
           total_orders: number
+          wallet_balance: number
+          commission_rate: number
+          agreed_to_terms: boolean
           created_at: string
           updated_at: string
         }
@@ -72,6 +75,9 @@ export interface Database {
           delivery_time_days?: number
           min_order_amount?: number
           total_orders?: number
+          wallet_balance?: number
+          commission_rate?: number
+          agreed_to_terms?: boolean
         }
         Update: {
           bio?: string | null
@@ -82,6 +88,9 @@ export interface Database {
           delivery_time_days?: number
           min_order_amount?: number
           total_orders?: number
+          wallet_balance?: number
+          commission_rate?: number
+          agreed_to_terms?: boolean
           updated_at?: string
         }
       }
@@ -258,7 +267,9 @@ export interface Database {
           buyer_id: string
           shopper_id: string
           amount: number
+          commission_rate: number
           status: OrderStatus
+          payout_released: boolean
           notes: string | null
           created_at: string
           updated_at: string
@@ -270,11 +281,15 @@ export interface Database {
           buyer_id: string
           shopper_id: string
           amount: number
+          commission_rate?: number
           status?: OrderStatus
+          payout_released?: boolean
           notes?: string | null
         }
         Update: {
+          commission_rate?: number
           status?: OrderStatus
+          payout_released?: boolean
           notes?: string | null
           updated_at?: string
         }
@@ -310,6 +325,7 @@ export interface Database {
           order_id: string | null
           request_id: string | null
           content: string
+          image_url: string | null
           is_read: boolean
           created_at: string
         }
@@ -320,9 +336,11 @@ export interface Database {
           order_id?: string | null
           request_id?: string | null
           content: string
+          image_url?: string | null
           is_read?: boolean
         }
         Update: {
+          image_url?: string | null
           is_read?: boolean
         }
       }

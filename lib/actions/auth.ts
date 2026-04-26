@@ -60,7 +60,7 @@ export async function signIn(
     return { error: 'Invalid email or password.' }
   }
 
-  redirect('/dashboard')
+  return { success: 'true' }
 }
 
 export async function signOut() {

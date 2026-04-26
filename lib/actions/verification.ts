@@ -1,56 +1,68 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import type { ActionState } from '@/types/app.types'
 
 export async function submitVerification(
-  _prevState: ActionState,
   formData: FormData
-): Promise<ActionState> {
+): Promise<void> {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Not authenticated.')
 
-  if (!user) return { error: 'Not authenticated.' }
+  const file          = formData.get('id_document') as File | null
+  const phone         = (formData.get('phone') as string | null)?.trim() ?? ''
+  const agreedToTerms = formData.get('agreed_to_terms') === 'true'
 
-  const file = formData.get('id_document') as File | null
+  if (!file || file.size === 0) throw new Error('Please upload an ID document.')
+  if (file.size > 5 * 1024 * 1024) throw new Error('ID document exceeds the 5 MB size limit.')
+  if (!phone) throw new Error('Please enter your phone number.')
+  if (!agreedToTerms) throw new Error('You must agree to the Seller Contract before submitting.')
 
-  if (!file || file.size === 0) {
-    return { error: 'Please upload an ID document.' }
-  }
-
-  // Generate unique filename
-  const fileExt = file.name.split('.').pop()
-  const fileName = `${user.id}/${crypto.randomUUID()}.${fileExt}`
-
-  // Ensure user is shopper and unverified or rejected
   const { data: shopper } = await supabase
     .from('shopper_profiles')
     .select('verification_status')
     .eq('id', user.id)
     .single()
 
-  if (!shopper) return { error: 'Shopper profile not found.' }
-  if (shopper.verification_status === 'verified') return { error: 'Already verified.' }
-  if (shopper.verification_status === 'pending') return { error: 'Verification already pending.' }
+  if (!shopper) throw new Error('Shopper profile not found.')
+  if (shopper.verification_status === 'verified') throw new Error('Already verified.')
+  if (shopper.verification_status === 'pending') throw new Error('Verification already pending review.')
 
-  // Upload to secure bucket (this bucket should have restricted RLS reading)
+  const fileExt = file.name.split('.').pop()
+  const fileName = `${user.id}/${crypto.randomUUID()}.${fileExt}`
+  const fileBuffer = await file.arrayBuffer()
+
   const { error: uploadError } = await supabase.storage
-    .from('verifications')
-    .upload(fileName, file)
+    .from('id-documents')
+    .upload(fileName, fileBuffer, {
+      contentType: file.type,
+      upsert: true
+    })
 
-  if (uploadError) return { error: uploadError.message }
+  if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`)
 
-  // Update status
-  const { error: updateError } = await supabase
-    .from('shopper_profiles')
-    .update({ verification_status: 'pending' })
+  const { data: urlData } = supabase.storage
+    .from('id-documents')
+    .getPublicUrl(fileName)
+
+  await supabase
+    .from('profiles')
+    .update({ phone } as any)
     .eq('id', user.id)
 
-  if (updateError) return { error: updateError.message }
+  const { error: updateError } = await supabase
+    .from('shopper_profiles')
+    .update({
+      verification_status: 'pending',
+      id_document_url: urlData.publicUrl,
+    } as any)
+    .eq('id', user.id)
+
+  if (updateError) throw new Error(updateError.message)
 
   revalidatePath('/dashboard/verification')
   revalidatePath('/dashboard')
-  
-  return { success: 'Verification documents submitted successfully.' }
+  redirect('/dashboard/verification')
 }

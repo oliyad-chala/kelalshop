@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useState } from 'react'
 import { createRequest } from '@/lib/actions/requests'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Input, Textarea } from '@/components/ui/Input'
@@ -8,19 +8,23 @@ import { Button } from '@/components/ui/Button'
 
 interface RequestFormProps {
   categories: { id: string; name: string }[]
-  shopperId?: string // Optional specific shopper to request from
+  verifiedSellers?: { id: string; name: string }[]
+  shopperId?: string // Optional specific shopper to request from directly via URL
 }
 
 const initialState = {
   error: '',
 }
 
-export function RequestForm({ categories, shopperId }: RequestFormProps) {
+export function RequestForm({ categories, verifiedSellers = [], shopperId }: RequestFormProps) {
   const [state, formAction, pending] = useActionState(createRequest, initialState)
+  
+  // To handle the "Other" category logic
+  const [selectedCategory, setSelectedCategory] = useState<string>('')
+  const isOtherCategory = categories.find(c => c.id === selectedCategory)?.name.toLowerCase() === 'other'
 
   return (
     <form action={formAction} className="space-y-6 fade-in">
-      {shopperId && <input type="hidden" name="shopper_id" value={shopperId} />}
       {state?.error && (
         <div className="p-4 bg-red-50 text-red-700 rounded-xl border border-red-100 text-sm">
           {state.error}
@@ -31,12 +35,23 @@ export function RequestForm({ categories, shopperId }: RequestFormProps) {
         <CardHeader title="What do you want to buy?" subtitle="Provide details so shoppers can give you accurate quotes." />
         
         <div className="space-y-5">
-          <Input 
-            label="Title" 
-            name="title" 
-            placeholder="e.g. Need iPhone 15 Pro Max from Dubai" 
-            required 
-          />
+          
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="target_shopper" className="text-sm font-medium text-navy-900">
+               Target Seller (Optional)
+            </label>
+            <select
+               id="target_shopper"
+               name="shopper_id"
+               defaultValue={shopperId || ""}
+               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-navy-900 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 appearance-none"
+            >
+               <option value="">Broadcast to All Verified Sellers</option>
+               {verifiedSellers.map((seller) => (
+                  <option key={seller.id} value={seller.id}>{seller.name}</option>
+               ))}
+            </select>
+          </div>
 
           <div className="grid sm:grid-cols-2 gap-5">
              <div className="flex flex-col gap-1.5">
@@ -47,9 +62,11 @@ export function RequestForm({ categories, shopperId }: RequestFormProps) {
                      id="category_id"
                      name="category_id"
                      required
+                     defaultValue=""
+                     onChange={(e) => setSelectedCategory(e.target.value)}
                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-navy-900 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 appearance-none"
                   >
-                     <option value="" disabled selected>Select a category...</option>
+                     <option value="" disabled>Select a category...</option>
                      {categories.map((cat) => (
                         <option key={cat.id} value={cat.id}>{cat.name}</option>
                      ))}
@@ -76,6 +93,23 @@ export function RequestForm({ categories, shopperId }: RequestFormProps) {
                  </div>
                </div>
           </div>
+
+          {/* Conditional Product Name Input if "Other" is selected */}
+          {isOtherCategory ? (
+            <Input 
+              label="Product Name" 
+              name="title" 
+              placeholder="e.g. Need iPhone 15 Pro Max from Dubai" 
+              required 
+            />
+          ) : (
+            <Input 
+              label="Title" 
+              name="title" 
+              placeholder="e.g. Need iPhone 15 Pro Max from Dubai" 
+              required 
+            />
+          )}
 
           <Textarea 
             label="Details & Specifications" 

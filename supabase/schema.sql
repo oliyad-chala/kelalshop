@@ -42,6 +42,10 @@ create table shopper_profiles (
   delivery_time_days integer default 14,
   min_order_amount numeric(10,2) default 0,
   total_orders integer default 0,
+  -- Financial / Trust
+  wallet_balance numeric(12,2) not null default 0 check (wallet_balance >= 0),
+  commission_rate numeric(4,2) not null default 5 check (commission_rate between 5 and 15),
+  agreed_to_terms boolean not null default false,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -127,7 +131,9 @@ create table orders (
   buyer_id uuid references profiles(id) not null,
   shopper_id uuid references profiles(id) not null,
   amount numeric(10,2) not null check (amount >= 0),
+  commission_rate numeric(4,2) not null default 5,  -- snapshot of rate at time of order
   status order_status default 'pending',
+  payout_released boolean not null default false,   -- true once escrow releases to shopper
   notes text,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
@@ -152,6 +158,7 @@ create table messages (
   order_id uuid references orders(id),
   request_id uuid references requests(id),
   content text not null,
+  image_url text,
   is_read boolean default false,
   created_at timestamptz default now()
 );
@@ -373,7 +380,8 @@ create policy "Recipients can mark messages as read"
 insert into storage.buckets (id, name, public) values
   ('avatars', 'avatars', true),
   ('products', 'products', true),
-  ('id-documents', 'id-documents', false)
+  ('id-documents', 'id-documents', false),
+  ('messages', 'messages', true)
 on conflict (id) do nothing;
 
 -- Storage Policies
@@ -396,6 +404,14 @@ create policy "Product images are publicly accessible"
 create policy "Authenticated users can upload product images"
   on storage.objects for insert with check (
     bucket_id = 'products' and auth.uid() is not null
+  );
+
+create policy "Message images are publicly accessible"
+  on storage.objects for select using (bucket_id = 'messages');
+
+create policy "Authenticated users can upload message images"
+  on storage.objects for insert with check (
+    bucket_id = 'messages' and auth.uid() is not null
   );
 
 create policy "Users can manage own product images"
@@ -441,3 +457,34 @@ insert into import_sources (name, slug) values
   ('Local Market', 'local'),
   ('Other', 'other')
 on conflict (slug) do nothing;
+
+-- ============================================================
+-- MIGRATIONS (run these against an EXISTING database)
+-- Safe to run multiple times due to IF NOT EXISTS
+-- ============================================================
+
+alter table shopper_profiles
+  add column if not exists wallet_balance  numeric(12,2) not null default 0 check (wallet_balance >= 0),
+  add column if not exists commission_rate numeric(4,2)  not null default 5 check (commission_rate between 5 and 15),
+  add column if not exists agreed_to_terms boolean       not null default false;
+
+alter table orders
+  add column if not exists commission_rate  numeric(4,2) not null default 5,
+  add column if not exists payout_released  boolean      not null default false;
+
+alter table messages
+  add column if not exists image_url text;
+
+-- RPC: credit shopper wallet after buyer confirms delivery
+create or replace function credit_shopper_wallet(p_shopper_id uuid, p_amount numeric)
+returns void as $$
+begin
+  update shopper_profiles
+     set wallet_balance = wallet_balance + p_amount
+   where id = p_shopper_id;
+
+  -- Also mark the order's payout as released
+  -- (caller should pass order_id too in a real implementation)
+end;
+$$ language plpgsql security definer;
+

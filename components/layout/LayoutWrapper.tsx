@@ -14,12 +14,13 @@ export function LayoutWrapper({
 }) {
   const pathname = usePathname()
   const isAuthPage = pathname.startsWith('/auth')
+  const isDashboard = pathname.startsWith('/dashboard') || pathname.startsWith('/admin')
 
   return (
     <>
       {!isAuthPage && <Navbar user={profile} />}
       {children}
-      {!isAuthPage && <Footer />}
+      {!isAuthPage && !isDashboard && <Footer />}
     </>
   )
 }

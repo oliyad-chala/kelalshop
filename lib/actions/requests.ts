@@ -25,18 +25,22 @@ export async function createRequest(
     return { error: 'Title and description are required.' }
   }
 
-  const { error } = await supabase
+  const { data: requestResult, error } = await supabase
     .from('requests')
     .insert({
       buyer_id: user.id,
-      shopper_id: shopper_id || null, // NEW
+      shopper_id: shopper_id || null,
       title,
       description,
-      budget,
+      budget: budget && budget > 0 ? budget : null,
       source_url: source_url || null,
       category_id: category_id || null,
-      status: 'open',
-    })
+      status: shopper_id ? 'assigned' : 'open',
+    } as any)
+    .select()
+    .single()
+
+  const request = requestResult as any
 
   if (error) return { error: error.message }
 
