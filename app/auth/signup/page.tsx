@@ -14,6 +14,15 @@ export default function SignupPage() {
       <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-amber-100 rounded-full blur-[100px] opacity-50" />
       <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-100 rounded-full blur-[100px] opacity-50" />
 
+      <div className="absolute top-4 left-4 z-20">
+        <Link href="/" className="flex items-center gap-2 text-slate-600 hover:text-navy-900 transition-colors bg-white/80 backdrop-blur px-4 py-2 rounded-full shadow-sm border border-slate-200/50">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+          <span className="font-medium text-sm">Back to Home</span>
+        </Link>
+      </div>
+
       <div className="w-full max-w-[480px] bg-white rounded-[2rem] p-8 sm:p-10 shadow-2xl shadow-slate-200/50 relative z-10 fade-in border border-slate-100">
         <div className="text-center mb-8">
           <Link href="/" className="inline-block mb-6">

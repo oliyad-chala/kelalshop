@@ -4,12 +4,30 @@ import { Button } from '@/components/ui/Button'
 import Link from 'next/link'
 import type { RequestWithDetails } from '@/types/app.types'
 
+import { redirect } from 'next/navigation'
+
 export const metadata = {
   title: 'Buyer Requests | KelalShop',
 }
 
 export default async function RequestsFeedPage() {
   const supabase = await createClient()
+
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect('/auth/login')
+  }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (profile?.role === 'buyer') {
+    redirect('/shoppers') // Buyers should go find a shopper directly
+  }
 
   // Fetch all open requests, descending order
   const { data: requests } = await supabase

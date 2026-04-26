@@ -13,6 +13,7 @@ export async function signUp(
   const email = formData.get('email') as string
   const password = formData.get('password') as string
   const fullName = formData.get('full_name') as string
+  const phone = formData.get('phone') as string
   const role = formData.get('role') as string
 
   if (!email || !password || !fullName || !role) {
@@ -29,7 +30,7 @@ export async function signUp(
     email,
     password,
     options: {
-      data: { full_name: fullName, role },
+      data: { full_name: fullName, phone: phone || null, role },
     },
   })
 

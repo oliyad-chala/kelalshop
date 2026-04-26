@@ -74,13 +74,15 @@ export function getInitials(name: string): string {
 
 // Rating helpers
 export function formatRating(score: number): string {
-  return score.toFixed(1)
+  const normalizedScore = score > 5 ? score / 20 : score
+  return normalizedScore.toFixed(1)
 }
 
 export function getRatingStars(score: number): string {
-  const full = Math.floor(score)
-  const half = score - full >= 0.5 ? 1 : 0
-  const empty = 5 - full - half
+  const normalizedScore = score > 5 ? score / 20 : score
+  const full = Math.floor(normalizedScore)
+  const half = normalizedScore - full >= 0.5 ? 1 : 0
+  const empty = Math.max(0, 5 - full - half)
   return '★'.repeat(full) + (half ? '½' : '') + '☆'.repeat(empty)
 }
 

@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation'
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
@@ -80,8 +81,13 @@ export default async function ShopperDetailPage({ params }: { params: Promise<{ 
                   <span>{shopperData.total_orders} Orders</span>
                </div>
             </div>
-            <div className="shrink-0 flex gap-3 w-full md:w-auto mt-4 md:mt-0">
-               <Button size="lg" className="w-full md:w-auto bg-white text-navy-900 hover:bg-slate-100">
+            <div className="shrink-0 flex flex-col md:flex-row gap-3 w-full md:w-auto mt-4 md:mt-0">
+               <Link href={`/shoppers/${id}/request`} className="w-full md:w-auto">
+                 <Button size="lg" className="w-full bg-amber-500 text-navy-900 border-none hover:bg-amber-400 font-semibold shadow-md">
+                   Request Product
+                 </Button>
+               </Link>
+               <Button size="lg" className="w-full md:w-auto bg-white/10 text-white border border-white/20 hover:bg-white/20">
                   Message
                </Button>
             </div>

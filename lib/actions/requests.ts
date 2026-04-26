@@ -19,6 +19,7 @@ export async function createRequest(
   const budget = formData.get('budget') ? Number(formData.get('budget')) : null
   const source_url = formData.get('source_url') as string
   const category_id = formData.get('category_id') as string
+  const shopper_id = formData.get('shopper_id') as string // NEW
 
   if (!title || !description) {
     return { error: 'Title and description are required.' }
@@ -28,6 +29,7 @@ export async function createRequest(
     .from('requests')
     .insert({
       buyer_id: user.id,
+      shopper_id: shopper_id || null, // NEW
       title,
       description,
       budget,

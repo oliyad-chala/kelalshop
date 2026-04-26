@@ -76,9 +76,10 @@ export function ProductForm({ categories }: ProductFormProps) {
                   id="category"
                   name="category_id"
                   required
+                  defaultValue=""
                   className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-navy-900 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 appearance-none"
                >
-                  <option value="" disabled selected>Select a category...</option>
+                  <option value="" disabled>Select a category...</option>
                   {categories.map((cat) => (
                      <option key={cat.id} value={cat.id}>{cat.name}</option>
                   ))}

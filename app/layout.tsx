@@ -1,8 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import { createClient } from '@/lib/supabase/server'
-import { Navbar } from '@/components/layout/Navbar'
-import { Footer } from '@/components/layout/Footer'
+import { LayoutWrapper } from '@/components/layout/LayoutWrapper'
 import './globals.css'
 import type { Profile } from '@/types/app.types'
 
@@ -52,9 +51,9 @@ export default async function RootLayout({
   return (
     <html lang="en" className={inter.variable}>
       <body className="min-h-dvh flex flex-col bg-slate-50 antialiased selection:bg-amber-200 selection:text-amber-900">
-        <Navbar user={profile} />
-        {children}
-        <Footer />
+        <LayoutWrapper profile={profile}>
+          {children}
+        </LayoutWrapper>
       </body>
     </html>
   )

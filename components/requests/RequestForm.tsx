@@ -8,17 +8,19 @@ import { Button } from '@/components/ui/Button'
 
 interface RequestFormProps {
   categories: { id: string; name: string }[]
+  shopperId?: string // Optional specific shopper to request from
 }
 
 const initialState = {
   error: '',
 }
 
-export function RequestForm({ categories }: RequestFormProps) {
+export function RequestForm({ categories, shopperId }: RequestFormProps) {
   const [state, formAction, pending] = useActionState(createRequest, initialState)
 
   return (
     <form action={formAction} className="space-y-6 fade-in">
+      {shopperId && <input type="hidden" name="shopper_id" value={shopperId} />}
       {state?.error && (
         <div className="p-4 bg-red-50 text-red-700 rounded-xl border border-red-100 text-sm">
           {state.error}
