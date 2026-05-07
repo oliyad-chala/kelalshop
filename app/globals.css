@@ -115,3 +115,40 @@ body {
   outline-offset: 2px;
   border-radius: 4px;
 }
+
+/* Safe area bottom — used by MobileNav on iPhone */
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Hide scrollbar — used by horizontal category row */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Scroll snap — Flash Deals horizontal strip */
+.scroll-snap-x {
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+}
+.scroll-snap-item {
+  scroll-snap-align: start;
+}
+
+/* Flash pulse — countdown timer dot */
+@keyframes flash-pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
+}
+.flash-pulse {
+  animation: flash-pulse 1s ease-in-out infinite;
+}
+
+/* Mobile tap highlight */
+* {
+  -webkit-tap-highlight-color: transparent;
+}

@@ -88,3 +88,24 @@ export async function acceptOrder(orderId: string) {
   revalidatePath('/dashboard/orders')
   revalidatePath('/dashboard')
 }
+
+/**
+ * Buyer places an order for a product.
+ */
+export async function createOrder(productId: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Unauthorized')
+
+  const { data, error } = await supabase.rpc('create_order', {
+    p_product_id: productId,
+    p_quantity: 1,
+  })
+
+  if (error) throw new Error(error.message)
+
+  revalidatePath('/dashboard/orders')
+  revalidatePath('/dashboard')
+  
+  return data // returns the order_id
+}

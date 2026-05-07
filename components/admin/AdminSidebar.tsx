@@ -11,7 +11,6 @@ import {
   Star,
   LogOut,
   ChevronRight,
-  Zap,
 } from 'lucide-react'
 import { adminSignOut } from '@/lib/actions/admin-auth'
 import type { Profile } from '@/types/app.types'
@@ -46,18 +45,20 @@ export function AdminSidebar({ user }: { user: Profile }) {
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
           <div style={{
-            width: '2rem', height: '2rem',
-            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-            borderRadius: '7px',
+            width: '2.25rem', height: '2.25rem',
+            background: '#1a1a1a',
+            border: '1px solid #333',
+            borderRadius: '8px',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
+            flexShrink: 0,
           }}>
-            <Zap size={14} color="#fff" fill="#fff" />
+            <ShieldCheck size={15} color="#ededed" />
           </div>
           <div>
             <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--color-text-primary)', lineHeight: 1 }}>
               KelalShop
             </div>
-            <div style={{ fontSize: '0.65rem', color: 'var(--color-accent-400)', fontWeight: 600, letterSpacing: '0.08em', marginTop: '0.1rem' }}>
+            <div style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', fontWeight: 600, letterSpacing: '0.08em', marginTop: '0.1rem' }}>
               ADMIN PORTAL
             </div>
           </div>
@@ -80,26 +81,26 @@ export function AdminSidebar({ user }: { user: Profile }) {
                 borderRadius: '7px',
                 fontSize: '0.82rem',
                 fontWeight: active ? 600 : 400,
-                color: active ? 'var(--color-text-primary)' : 'var(--color-text-muted)',
+                color: active ? 'var(--color-text-primary)' : 'var(--color-text-secondary)',
                 background: active ? 'var(--color-admin-hover)' : 'transparent',
                 textDecoration: 'none',
-                transition: 'background 0.12s, color 0.12s',
+                transition: 'background 0.15s, color 0.15s',
                 position: 'relative',
               }}
             >
               <Icon
                 size={15}
-                style={{ color: active ? 'var(--color-accent-400)' : 'var(--color-text-muted)', flexShrink: 0 }}
+                style={{ color: active ? 'var(--color-text-primary)' : 'var(--color-text-muted)', flexShrink: 0 }}
               />
               <span style={{ flex: 1 }}>{label}</span>
               {active && (
-                <ChevronRight size={13} style={{ color: 'var(--color-accent-400)', opacity: 0.7 }} />
+                <ChevronRight size={13} style={{ color: 'var(--color-text-muted)', opacity: 0.6 }} />
               )}
               {active && (
                 <div style={{
                   position: 'absolute', left: 0, top: '20%', bottom: '20%',
-                  width: '3px', borderRadius: '0 3px 3px 0',
-                  background: 'var(--color-accent-500)',
+                  width: '2px', borderRadius: '0 2px 2px 0',
+                  background: 'var(--color-text-primary)',
                 }} />
               )}
             </Link>
@@ -115,9 +116,10 @@ export function AdminSidebar({ user }: { user: Profile }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '0.625rem' }}>
           <div style={{
             width: '2rem', height: '2rem', borderRadius: '50%',
-            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+            background: '#1a1a1a',
+            border: '1px solid #333',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: '0.75rem', fontWeight: 700, color: '#fff', flexShrink: 0,
+            fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-text-primary)', flexShrink: 0,
           }}>
             {user.full_name?.charAt(0)?.toUpperCase() ?? 'A'}
           </div>
@@ -125,7 +127,7 @@ export function AdminSidebar({ user }: { user: Profile }) {
             <div style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               {user.full_name ?? 'Admin'}
             </div>
-            <div style={{ fontSize: '0.65rem', color: 'var(--color-accent-400)', fontWeight: 600 }}>Administrator</div>
+            <div style={{ fontSize: '0.65rem', color: 'var(--color-text-muted)', fontWeight: 500 }}>Administrator</div>
           </div>
         </div>
         <form action={adminSignOut}>

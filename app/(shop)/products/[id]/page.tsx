@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Avatar } from '@/components/ui/Avatar'
 import { formatPrice, getRatingStars, formatRating } from '@/lib/utils/formatters'
 import { ShopperBadge } from '@/components/shoppers/ShopperBadge'
+import { BuyButton } from './BuyButton'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -19,6 +20,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 export default async function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
 
   const { data: productResult } = await supabase
     .from('products')
@@ -113,9 +115,12 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
             </div>
 
             <div className="flex flex-col gap-3 mt-auto">
-              <Button size="lg" variant="primary" className="w-full" disabled={!product.is_available}>
-                 Buy Now (Requires Auth)
-              </Button>
+              <BuyButton 
+                productId={product.id} 
+                isAvailable={product.is_available} 
+                isLoggedIn={!!user} 
+              />
+
               <Button size="lg" variant="outline" className="w-full">
                  Message Shopper
               </Button>
