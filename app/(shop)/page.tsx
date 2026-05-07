@@ -29,7 +29,7 @@ const MOCK_PRODUCTS = [
   { id: 'mock12', name: 'Anker 65W Nano USB-C Fast Charger', price: 2800, stock: 50, is_available: true, product_images: [], profiles: { full_name: 'Yonas Haile', trust_score: 78 }, shopper_profiles: { verification_status: 'verified' }, created_at: new Date().toISOString() },
 ]
 
-const FLASH_DISCOUNTS = [25, 15, 30, 20]
+const FLASH_DISCOUNTS = [25, 15, 30, 20, 10, 40, 35, 50]
 
 /* ─── Category definitions ───────────────────────────────────────────────── */
 
@@ -109,7 +109,7 @@ export default async function Home() {
       ? (recentProducts as ProductWithDetails[])
       : (MOCK_PRODUCTS as unknown as ProductWithDetails[])
 
-  const flashProducts = allProducts.slice(0, 4)
+  const flashProducts = allProducts.slice(0, 8)
   const trendingProducts = allProducts.slice(0, 12)
 
   return (
@@ -178,7 +178,7 @@ export default async function Home() {
             Browse All →
           </Link>
         </div>
-        <div className="flex gap-3 sm:gap-5 overflow-x-auto scrollbar-hide pb-1">
+        <div className="flex gap-3 sm:gap-5 md:justify-center md:gap-8 lg:gap-10 overflow-x-auto scrollbar-hide pb-1">
           {CATEGORIES.map((cat, i) => (
             <Link
               key={i}
