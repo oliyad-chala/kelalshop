@@ -28,7 +28,7 @@ export default async function AdminDashboardPage() {
 
   const quickLinks = [
     { href: '/admin/verifications', label: 'Review pending IDs', count: stats.pendingVerifications, color: '#f59e0b' },
-    { href: '/admin/payouts',       label: 'Release payouts',    count: null,                       color: '#6366f1' },
+    { href: '/admin/payouts',       label: 'Pending payments',   count: null,                       color: '#6366f1' },
     { href: '/admin/disputes',      label: 'Resolve disputes',   count: null,                       color: '#ef4444' },
   ]
 

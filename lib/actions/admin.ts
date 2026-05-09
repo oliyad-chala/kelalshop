@@ -33,6 +33,8 @@ export async function approveVerification(shopperId: string) {
     .eq('id', shopperId)
   if (error) throw new Error(error.message)
   revalidatePath('/admin/verifications')
+  revalidatePath('/dashboard')
+  revalidatePath('/dashboard/verification')
 }
 
 export async function rejectVerification(shopperId: string) {
@@ -43,36 +45,108 @@ export async function rejectVerification(shopperId: string) {
     .eq('id', shopperId)
   if (error) throw new Error(error.message)
   revalidatePath('/admin/verifications')
+  revalidatePath('/dashboard')
+  revalidatePath('/dashboard/verification')
 }
 
-// ── Payouts ──────────────────────────────────────────────────────────────────
+// ── Payments & Subscriptions ───────────────────────────────────────────────────
 
-export async function releasePayout(orderId: string) {
+export async function approvePayment(paymentId: string) {
   const admin = await requireAdmin()
-
-  const { data: order, error: fetchErr } = await admin
-    .from('orders')
-    .select('amount, shopper_id, commission_rate')
-    .eq('id', orderId)
-    .eq('status', 'delivered')
-    .eq('payout_released', false)
+  
+  // 1. Get payment details
+  const { data: payment, error: getError } = await admin
+    .from('payment_requests')
+    .select('*')
+    .eq('id', paymentId)
     .single()
 
-  if (fetchErr || !order) throw new Error('Order not found or payout already released.')
+  if (getError || !payment) throw new Error('Payment not found')
+  if (payment.status !== 'pending') throw new Error('Payment is not pending')
 
-  const payout = Number(order.amount) * (1 - (order.commission_rate ?? 0.05))
+  // 2. Apply the effect
+  if (payment.payment_type === 'pro_subscription') {
+    const expires = new Date()
+    expires.setDate(expires.getDate() + 30) // 30 days
+    
+    const { error } = await admin
+      .from('shopper_profiles')
+      .update({ 
+        subscription_plan: 'pro',
+        subscription_expires_at: expires.toISOString(),
+        updated_at: new Date().toISOString()
+      } as any)
+      .eq('id', payment.shopper_id)
+    
+    if (error) throw new Error(error.message)
+  } 
+  else if (payment.payment_type === 'boost_7_days' || payment.payment_type === 'boost_28_days') {
+    if (!payment.target_id) throw new Error('Missing product target ID')
+    
+    const days = payment.payment_type === 'boost_7_days' ? 7 : 28
+    const expires = new Date()
+    expires.setDate(expires.getDate() + days)
 
-  await admin
-    .rpc('credit_shopper_wallet', { p_shopper_id: order.shopper_id, p_amount: payout })
-    .maybeSingle()
+    const { error } = await admin
+      .from('products')
+      .update({
+        is_featured: true,
+        boosted_until: expires.toISOString(),
+        updated_at: new Date().toISOString()
+      } as any)
+      .eq('id', payment.target_id)
+    
+    if (error) throw new Error(error.message)
+  }
+  
+  // 3. Mark approved
+  await admin.from('payment_requests').update({ 
+    status: 'approved',
+    updated_at: new Date().toISOString()
+  } as any).eq('id', paymentId)
+  
+  revalidatePath('/admin/payouts')
+}
 
+export async function rejectPayment(paymentId: string) {
+  const admin = await requireAdmin()
   const { error } = await admin
-    .from('orders')
-    .update({ payout_released: true, updated_at: new Date().toISOString() } as any)
-    .eq('id', orderId)
+    .from('payment_requests')
+    .update({ 
+      status: 'rejected',
+      updated_at: new Date().toISOString()
+    } as any)
+    .eq('id', paymentId)
 
   if (error) throw new Error(error.message)
+  
   revalidatePath('/admin/payouts')
+}
+
+// ── Manual Subscriptions ──────────────────────────────────────────────────────
+
+export async function adminUpdateSubscription(shopperId: string, plan: 'free' | 'pro') {
+  const admin = await requireAdmin()
+  
+  let expiresAt = null
+  if (plan === 'pro') {
+    const expires = new Date()
+    expires.setDate(expires.getDate() + 30)
+    expiresAt = expires.toISOString()
+  }
+
+  const { error } = await admin
+    .from('shopper_profiles')
+    .update({ 
+      subscription_plan: plan,
+      subscription_expires_at: expiresAt,
+      updated_at: new Date().toISOString()
+    } as any)
+    .eq('id', shopperId)
+  
+  if (error) throw new Error(error.message)
+  
+  revalidatePath('/admin/sellers')
 }
 
 // ── Products ─────────────────────────────────────────────────────────────────
@@ -85,6 +159,31 @@ export async function toggleProductAvailability(productId: string, isAvailable: 
     .eq('id', productId)
   if (error) throw new Error(error.message)
   revalidatePath('/admin/products')
+}
+
+export async function adminToggleProductBoost(productId: string, boost: boolean) {
+  const admin = await requireAdmin()
+  
+  let boostedUntil = null
+  if (boost) {
+    const expires = new Date()
+    expires.setDate(expires.getDate() + 7)
+    boostedUntil = expires.toISOString()
+  }
+
+  const { error } = await admin
+    .from('products')
+    .update({ 
+      is_featured: boost,
+      boosted_until: boostedUntil,
+      updated_at: new Date().toISOString()
+    } as any)
+    .eq('id', productId)
+  
+  if (error) throw new Error(error.message)
+  
+  revalidatePath('/admin/products')
+  revalidatePath('/')
 }
 
 // ── Analytics ────────────────────────────────────────────────────────────────

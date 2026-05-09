@@ -1,27 +1,41 @@
+'use client'
+
+import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Card } from '@/components/ui/Card'
 import { formatPrice } from '@/lib/utils/formatters'
 import type { ProductWithDetails } from '@/types/app.types'
 import { toggleWishlist } from '@/lib/actions/wishlist'
+import { useRouter } from 'next/navigation'
 
 interface ProductCardProps {
   product: ProductWithDetails
 }
 
 export function ProductCard({ product }: ProductCardProps) {
+  const router = useRouter()
+  const [liked, setLiked] = useState(false)
   const primaryImage = product.product_images?.find((img) => img.is_primary)?.url || product.product_images?.[0]?.url
 
   return (
     <Card hover padding="none" className="h-full flex flex-col overflow-hidden bg-white border border-slate-100 rounded-2xl relative group">
       {/* Wishlist Heart Icon */}
-      <form action={toggleWishlist.bind(null, product.id)}>
-        <button type="submit" className="absolute top-3 right-3 z-10 p-1.5 rounded-full bg-white/50 backdrop-blur-sm shadow-sm hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors">
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-          </svg>
-        </button>
-      </form>
+      <button 
+        onClick={async (e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          setLiked(!liked)
+          await toggleWishlist(product.id)
+        }}
+        className={`absolute top-3 right-3 z-10 p-1.5 rounded-full backdrop-blur-sm shadow-sm transition-colors ${
+          liked ? 'bg-red-50 text-red-500' : 'bg-white/50 text-slate-400 hover:bg-red-50 hover:text-red-500'
+        }`}
+      >
+        <svg className="w-5 h-5 transition-transform active:scale-75" fill={liked ? 'currentColor' : 'none'} viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+        </svg>
+      </button>
 
       {/* Product Image Area */}
       <Link href={`/products/${product.id}`} className="block relative aspect-square bg-slate-50 overflow-hidden shrink-0">

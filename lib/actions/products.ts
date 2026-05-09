@@ -16,12 +16,29 @@ export async function createProduct(
   // Guard: shopper must be verified
   const { data: shopperProfile } = await supabase
     .from('shopper_profiles')
-    .select('verification_status')
+    .select('verification_status, subscription_plan, subscription_expires_at')
     .eq('id', user.id)
     .single()
 
   if (shopperProfile?.verification_status !== 'verified') {
     return { error: 'You must be a verified shopper to create listings.' }
+  }
+
+  // Check subscription limit
+  const plan = shopperProfile.subscription_plan || 'free'
+  const isExpired = shopperProfile.subscription_expires_at && new Date(shopperProfile.subscription_expires_at) < new Date()
+  const activePlan = isExpired ? 'free' : plan
+
+  if (activePlan === 'free') {
+    const { count, error: countError } = await supabase
+      .from('products')
+      .select('*', { count: 'exact', head: true })
+      .eq('shopper_id', user.id)
+    
+    if (countError) return { error: 'Failed to verify subscription limits.' }
+    if (count && count >= 3) {
+      return { error: 'You have reached the free limit of 3 listings. Please upgrade to post more.' }
+    }
   }
 
   const rawName     = formData.get('name') as string

@@ -11,6 +11,7 @@ import {
   Star,
   LogOut,
   ChevronRight,
+  Users,
 } from 'lucide-react'
 import { adminSignOut } from '@/lib/actions/admin-auth'
 import type { Profile } from '@/types/app.types'
@@ -18,8 +19,9 @@ import { ThemeToggle } from '@/components/admin/ThemeToggle'
 
 const navItems = [
   { href: '/admin/dashboard',      label: 'Dashboard',        icon: LayoutDashboard },
+  { href: '/admin/sellers',        label: 'Sellers',          icon: Users },
   { href: '/admin/verifications',  label: 'Verifications',    icon: ShieldCheck },
-  { href: '/admin/payouts',        label: 'Financial Monitor', icon: Wallet },
+  { href: '/admin/payouts',        label: 'Pending Payments', icon: Wallet },
   { href: '/admin/products',       label: 'Products',         icon: Package },
   { href: '/admin/disputes',       label: 'Dispute Center',   icon: MessageSquareWarning },
   { href: '/admin/trust',          label: 'Trust Scores',     icon: Star },

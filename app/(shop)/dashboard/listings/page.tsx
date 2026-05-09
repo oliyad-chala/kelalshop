@@ -125,7 +125,11 @@ export default async function ListingsPage() {
                         {formatDate(product.created_at)}
                       </td>
                       <td className="p-4 pr-6 text-right space-x-2">
-                        {/* Note: In a real app we'd use forms hitting server actions for these buttons */}
+                        <Link href={`/dashboard/billing?boostProductId=${product.id}`}>
+                          <Button variant="ghost" size="sm" className="text-amber-500 hover:text-amber-600 font-semibold bg-amber-50 hover:bg-amber-100 px-2 py-1 h-auto rounded">
+                            Boost 🚀
+                          </Button>
+                        </Link>
                         <Button variant="ghost" size="sm" className="text-slate-400 hover:text-blue-600">
                           Edit
                         </Button>

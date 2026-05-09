@@ -13,6 +13,7 @@ create type user_role as enum ('buyer', 'shopper', 'admin');
 create type verification_status as enum ('unverified', 'pending', 'verified', 'rejected');
 create type order_status as enum ('pending', 'accepted', 'shipped', 'delivered', 'cancelled', 'disputed');
 create type request_status as enum ('open', 'assigned', 'completed', 'cancelled');
+create type payment_request_status as enum ('pending', 'approved', 'rejected');
 
 -- ============================================================
 -- TABLES
@@ -42,10 +43,10 @@ create table shopper_profiles (
   delivery_time_days integer default 14,
   min_order_amount numeric(10,2) default 0,
   total_orders integer default 0,
-  -- Financial / Trust
-  wallet_balance numeric(12,2) not null default 0 check (wallet_balance >= 0),
-  commission_rate numeric(4,2) not null default 5 check (commission_rate between 5 and 15),
+  -- Removed financial/escrow columns
   agreed_to_terms boolean not null default false,
+  subscription_plan text default 'free',
+  subscription_expires_at timestamptz,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -94,6 +95,8 @@ create table products (
   location text,
   is_available boolean default true,
   source_url text,
+  is_featured boolean default false,
+  boosted_until timestamptz,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
@@ -131,9 +134,7 @@ create table orders (
   buyer_id uuid references profiles(id) not null,
   shopper_id uuid references profiles(id) not null,
   amount numeric(10,2) not null check (amount >= 0),
-  commission_rate numeric(4,2) not null default 5,  -- snapshot of rate at time of order
   status order_status default 'pending',
-  payout_released boolean not null default false,   -- true once escrow releases to shopper
   notes text,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
@@ -161,6 +162,20 @@ create table messages (
   image_url text,
   is_read boolean default false,
   created_at timestamptz default now()
+);
+
+-- Payment Requests (Admin Manual Verification)
+create table payment_requests (
+  id uuid default uuid_generate_v4() primary key,
+  shopper_id uuid references profiles(id) on delete cascade not null,
+  payment_type text not null, -- 'pro_subscription', 'boost_7_days', 'boost_28_days', 'banner_ad'
+  target_id uuid, -- optional product_id if boosting
+  amount numeric(10,2) not null check (amount >= 0),
+  reference_number text not null,
+  status payment_request_status default 'pending',
+  notes text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
 );
 
 -- ============================================================
@@ -194,6 +209,10 @@ create trigger requests_updated_at
 
 create trigger orders_updated_at
   before update on orders
+  for each row execute function handle_updated_at();
+
+create trigger payment_requests_updated_at
+  before update on payment_requests
   for each row execute function handle_updated_at();
 
 create or replace function public.handle_new_user()
@@ -261,6 +280,7 @@ alter table requests enable row level security;
 alter table orders enable row level security;
 alter table reviews enable row level security;
 alter table messages enable row level security;
+alter table payment_requests enable row level security;
 
 -- Profiles
 create policy "Public profiles are viewable by everyone"
@@ -373,6 +393,24 @@ create policy "Authenticated users can send messages"
 create policy "Recipients can mark messages as read"
   on messages for update using (auth.uid() = recipient_id);
 
+-- Payment Requests
+create policy "Shoppers can view own payment requests"
+  on payment_requests for select using (auth.uid() = shopper_id);
+
+create policy "Shoppers can insert own payment requests"
+  on payment_requests for insert with check (auth.uid() = shopper_id);
+
+-- Admins handle update/select all via service role or admin RLS
+create policy "Admins view all payment requests"
+  on payment_requests for select using (
+    exists (select 1 from profiles where id = auth.uid() and role = 'admin')
+  );
+
+create policy "Admins update all payment requests"
+  on payment_requests for update using (
+    exists (select 1 from profiles where id = auth.uid() and role = 'admin')
+  );
+
 -- ============================================================
 -- STORAGE BUCKETS
 -- ============================================================
@@ -464,27 +502,23 @@ on conflict (slug) do nothing;
 -- ============================================================
 
 alter table shopper_profiles
-  add column if not exists wallet_balance  numeric(12,2) not null default 0 check (wallet_balance >= 0),
-  add column if not exists commission_rate numeric(4,2)  not null default 5 check (commission_rate between 5 and 15),
-  add column if not exists agreed_to_terms boolean       not null default false;
+  drop column if exists wallet_balance,
+  drop column if exists commission_rate,
+  add column if not exists agreed_to_terms boolean not null default false,
+  add column if not exists subscription_plan text default 'free',
+  add column if not exists subscription_expires_at timestamptz;
 
 alter table orders
-  add column if not exists commission_rate  numeric(4,2) not null default 5,
-  add column if not exists payout_released  boolean      not null default false;
+  drop column if exists commission_rate,
+  drop column if exists payout_released;
+
+alter table products
+  add column if not exists is_featured boolean default false,
+  add column if not exists boosted_until timestamptz;
 
 alter table messages
   add column if not exists image_url text;
 
--- RPC: credit shopper wallet after buyer confirms delivery
-create or replace function credit_shopper_wallet(p_shopper_id uuid, p_amount numeric)
-returns void as $$
-begin
-  update shopper_profiles
-     set wallet_balance = wallet_balance + p_amount
-   where id = p_shopper_id;
-
-  -- Also mark the order's payout as released
-  -- (caller should pass order_id too in a real implementation)
-end;
-$$ language plpgsql security definer;
+-- Dropped credit_shopper_wallet as Escrow is removed.
+drop function if exists credit_shopper_wallet(uuid, numeric);
 

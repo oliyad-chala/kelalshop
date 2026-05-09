@@ -15,7 +15,7 @@ export default async function ProductsPage() {
   const { data } = await admin
     .from('products')
     .select(`
-      id, name, price, stock, is_available, created_at,
+      id, name, price, stock, is_available, created_at, is_featured, boosted_until,
       profiles!products_shopper_id_fkey(full_name),
       categories(name)
     `)
@@ -29,6 +29,8 @@ export default async function ProductsPage() {
     stock:       p.stock,
     category:    p.categories?.name ?? 'Uncategorised',
     is_available: p.is_available,
+    is_featured: p.is_featured,
+    boosted_until: p.boosted_until,
     created_at:  p.created_at,
   }))
 

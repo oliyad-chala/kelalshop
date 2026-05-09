@@ -6,8 +6,20 @@ import { ShieldCheck } from 'lucide-react'
 
 export const metadata = { title: 'Verifications' }
 
+/** Extract the storage path from a full public or signed URL */
+function extractStoragePath(url: string | null): string | null {
+  if (!url) return null
+  try {
+    const u = new URL(url)
+    // Path format: /storage/v1/object/(public|sign)/BUCKET/PATH
+    const match = u.pathname.match(/\/storage\/v1\/object\/(?:public|sign)\/[^/]+\/(.+)/)
+    return match ? match[1] : null
+  } catch {
+    return null
+  }
+}
+
 export default async function VerificationsPage() {
-  // Auth guard
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/admin/login')
@@ -27,7 +39,38 @@ export default async function VerificationsPage() {
     .eq('verification_status', 'pending')
     .order('created_at', { ascending: true })
 
-  const rows = (pending ?? []) as any[]
+  // Generate 1-hour signed URLs server-side for the private id-documents bucket
+  const rows = await Promise.all(
+    (pending ?? []).map(async (row: any) => {
+      const frontPath = extractStoragePath(row.id_document_url)
+      const backPath = extractStoragePath(row.id_document_back_url)
+
+      let signedFrontUrl: string | null = null
+      let signedBackUrl: string | null = null
+
+      if (frontPath) {
+        const { data } = await admin.storage
+          .from('id-documents')
+          .createSignedUrl(frontPath, 3600)
+        signedFrontUrl = data?.signedUrl ?? null
+      }
+      if (backPath) {
+        const { data } = await admin.storage
+          .from('id-documents')
+          .createSignedUrl(backPath, 3600)
+        signedBackUrl = data?.signedUrl ?? null
+      }
+
+      return {
+        id: row.id,
+        fullName: row.profiles?.full_name ?? null,
+        businessName: row.business_name,
+        createdAt: row.created_at,
+        idFrontUrl: signedFrontUrl,
+        idBackUrl: signedBackUrl,
+      }
+    })
+  )
 
   return (
     <div className="fade-in">
@@ -55,11 +98,11 @@ export default async function VerificationsPage() {
             <VerificationCard
               key={row.id}
               shopperId={row.id}
-              fullName={row.profiles?.full_name ?? null}
-              businessName={row.business_name}
-              createdAt={row.created_at}
-              idFrontUrl={row.id_document_url}
-              idBackUrl={row.id_document_back_url}
+              fullName={row.fullName}
+              businessName={row.businessName}
+              createdAt={row.createdAt}
+              idFrontUrl={row.idFrontUrl}
+              idBackUrl={row.idBackUrl}
             />
           ))}
         </div>

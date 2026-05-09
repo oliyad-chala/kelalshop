@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { HomeProductCard } from '@/components/products/HomeProductCard'
 import { FlashCountdown } from '@/components/home/FlashCountdown'
+import { HeroCarousel } from '@/components/home/HeroCarousel'
+import { MOCK_PRODUCTS } from '@/lib/constants/mock-data'
 import type { ProductWithDetails } from '@/types/app.types'
 
 export const metadata = {
@@ -11,25 +13,6 @@ export const metadata = {
 }
 
 export const dynamic = 'force-dynamic'
-
-/* ─── Mock data (used when DB is empty) ─────────────────────────────────── */
-
-const MOCK_PRODUCTS = [
-  { id: 'mock1', name: 'Apple AirPods Pro (2nd Generation)', price: 18500, stock: 12, is_available: true, product_images: [], profiles: { full_name: 'Dawit Tadesse', trust_score: 95 }, shopper_profiles: { verification_status: 'verified' }, created_at: new Date().toISOString() },
-  { id: 'mock2', name: 'Samsung 55" 4K Smart UHD TV', price: 65000, stock: 3, is_available: true, product_images: [], profiles: { full_name: 'Sara Mengistu', trust_score: 88 }, shopper_profiles: { verification_status: 'unverified' }, created_at: new Date().toISOString() },
-  { id: 'mock3', name: "Nike Air Force 1 '07 White Sneakers", price: 8200, stock: 25, is_available: true, product_images: [], profiles: { full_name: 'Dawit Tadesse', trust_score: 95 }, shopper_profiles: { verification_status: 'verified' }, created_at: new Date().toISOString() },
-  { id: 'mock4', name: 'MacBook Air M2 256GB Midnight', price: 115000, stock: 1, is_available: true, product_images: [], profiles: { full_name: 'Helen Bekele', trust_score: 100 }, shopper_profiles: { verification_status: 'verified' }, created_at: new Date().toISOString() },
-  { id: 'mock5', name: 'Sony WH-1000XM5 Wireless Headphones', price: 22000, stock: 8, is_available: true, product_images: [], profiles: { full_name: 'Abel Girma', trust_score: 91 }, shopper_profiles: { verification_status: 'verified' }, created_at: new Date().toISOString() },
-  { id: 'mock6', name: 'Dyson V15 Detect Cordless Vacuum', price: 48000, stock: 2, is_available: true, product_images: [], profiles: { full_name: 'Marta Alemu', trust_score: 84 }, shopper_profiles: { verification_status: 'unverified' }, created_at: new Date().toISOString() },
-  { id: 'mock7', name: 'Levi\'s 501 Original Fit Jeans', price: 5500, stock: 30, is_available: true, product_images: [], profiles: { full_name: 'Yonas Haile', trust_score: 78 }, shopper_profiles: { verification_status: 'verified' }, created_at: new Date().toISOString() },
-  { id: 'mock8', name: 'Instant Pot Duo 7-in-1 Pressure Cooker', price: 9800, stock: 7, is_available: true, product_images: [], profiles: { full_name: 'Helen Bekele', trust_score: 100 }, shopper_profiles: { verification_status: 'verified' }, created_at: new Date().toISOString() },
-  { id: 'mock9', name: 'GoPro HERO12 Black Action Camera', price: 32000, stock: 4, is_available: true, product_images: [], profiles: { full_name: 'Sara Mengistu', trust_score: 88 }, shopper_profiles: { verification_status: 'unverified' }, created_at: new Date().toISOString() },
-  { id: 'mock10', name: 'KitchenAid Stand Mixer 5Qt', price: 27000, stock: 5, is_available: true, product_images: [], profiles: { full_name: 'Dawit Tadesse', trust_score: 95 }, shopper_profiles: { verification_status: 'verified' }, created_at: new Date().toISOString() },
-  { id: 'mock11', name: 'Adidas Ultraboost 22 Running Shoes', price: 12500, stock: 14, is_available: true, product_images: [], profiles: { full_name: 'Abel Girma', trust_score: 91 }, shopper_profiles: { verification_status: 'verified' }, created_at: new Date().toISOString() },
-  { id: 'mock12', name: 'Anker 65W Nano USB-C Fast Charger', price: 2800, stock: 50, is_available: true, product_images: [], profiles: { full_name: 'Yonas Haile', trust_score: 78 }, shopper_profiles: { verification_status: 'verified' }, created_at: new Date().toISOString() },
-]
-
-const FLASH_DISCOUNTS = [25, 15, 30, 20, 10, 40, 35, 50]
 
 /* ─── Category definitions ───────────────────────────────────────────────── */
 
@@ -72,7 +55,7 @@ const CATEGORIES = [
   },
 ]
 
-/* ─── Trust strip items ──────────────────────────────────────────────────── */
+/* ─── Trust strip ────────────────────────────────────────────────────────── */
 
 const TRUST = [
   {
@@ -81,8 +64,8 @@ const TRUST = [
     icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" /></svg>,
   },
   {
-    title: 'Secure Payments',
-    desc: 'Pay in ETB, funds held safely',
+    title: 'Direct Payments',
+    desc: 'Pay sellers directly on delivery',
     icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>,
   },
   {
@@ -96,78 +79,77 @@ const TRUST = [
 
 export default async function Home() {
   const supabase = await createClient()
+  const now = new Date().toISOString()
 
-  const { data: recentProducts } = await supabase
-    .from('products')
-    .select('*, product_images(*), profiles:shopper_id(id, full_name, avatar_url, trust_score), shopper_profiles:shopper_id(verification_status)')
-    .eq('is_available', true)
-    .order('created_at', { ascending: false })
-    .limit(16)
+  const [
+    { data: activeBoosts },
+    { data: recentProducts },
+    { data: flashDealsRaw },
+  ] = await Promise.all([
+    // Get active boosts
+    supabase
+      .from('products')
+      .select('*, product_images(*), profiles:shopper_id(id, full_name, avatar_url, trust_score, role), shopper_profiles:shopper_id(verification_status)')
+      .eq('is_available', true)
+      .gt('boosted_until', now)
+      .order('boosted_until', { ascending: false })
+      .limit(16),
+
+    // Get recent normal products
+    supabase
+      .from('products')
+      .select('*, product_images(*), profiles:shopper_id(id, full_name, avatar_url, trust_score, role), shopper_profiles:shopper_id(verification_status)')
+      .eq('is_available', true)
+      .or(`boosted_until.lt.${now},boosted_until.is.null`)
+      .order('created_at', { ascending: false })
+      .limit(16),
+
+    // Real flash deals from DB
+    supabase
+      .from('flash_deals')
+      .select('*, products(*, product_images(*), profiles:shopper_id(id, full_name, avatar_url, trust_score), shopper_profiles:shopper_id(verification_status))')
+      .eq('is_active', true)
+      .gt('ends_at', now)
+      .order('created_at', { ascending: false })
+      .limit(6),
+  ])
+
+  // Combine boosts and recent products
+  const combinedProducts = [...(activeBoosts ?? []), ...(recentProducts ?? [])]
+
+  // Filter to verified shoppers and admins only
+  const verifiedProducts = combinedProducts.filter(
+    (p: any) => p.shopper_profiles?.verification_status === 'verified' || p.profiles?.role === 'admin'
+  )
 
   const allProducts =
-    recentProducts && recentProducts.length > 0
-      ? (recentProducts as ProductWithDetails[])
+    verifiedProducts.length > 0
+      ? (verifiedProducts as unknown as ProductWithDetails[])
       : (MOCK_PRODUCTS as unknown as ProductWithDetails[])
 
-  const flashProducts = allProducts.slice(0, 5)
   const trendingProducts = allProducts.slice(0, 12)
+
+  // Build flash deal items: real DB deals first, fall back to trending products with mock discounts
+  type FlashItem = { product: ProductWithDetails; discount: number }
+  const MOCK_DISCOUNTS = [25, 15, 30, 20, 10, 40]
+
+  const flashItems: FlashItem[] =
+    flashDealsRaw && flashDealsRaw.length > 0
+      ? (flashDealsRaw as any[]).map((d) => ({
+          product: d.products as ProductWithDetails,
+          discount: d.discount_percent as number,
+        }))
+      : allProducts.slice(0, 5).map((p, i) => ({
+          product: p,
+          discount: MOCK_DISCOUNTS[i % MOCK_DISCOUNTS.length],
+        }))
 
   return (
     <main className="flex-1 bg-slate-50 pb-20">
 
       {/* ── 1. HERO BANNER ─────────────────────────────────────────────── */}
       <section className="px-3 sm:px-4 pt-2 pb-2 max-w-[1400px] mx-auto">
-        <div className="relative w-full h-[200px] sm:h-[240px] md:h-[260px] rounded-xl overflow-hidden bg-gradient-to-r from-amber-50 via-orange-50 to-orange-100 flex shadow-sm border border-orange-200/40 group">
-
-          {/* Text content */}
-          <div className="relative z-10 p-5 sm:p-8 flex flex-col justify-center h-full w-full md:w-[60%]">
-            <span className="inline-block px-2 py-0.5 mb-2 text-[10px] font-bold tracking-wider text-amber-700 bg-amber-200/60 rounded-full w-fit">
-              GLOBAL IMPORT MADE EASY
-            </span>
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-extrabold text-navy-950 tracking-tight leading-tight mb-2">
-              Shop the world.<br className="hidden sm:block" />
-              <span className="text-amber-600"> Pay locally.</span>
-            </h1>
-            <p className="text-slate-500 text-xs sm:text-sm mb-4 max-w-xs hidden sm:block leading-relaxed">
-              Connect with verified Ethiopian importers. Pay securely in ETB.
-            </p>
-            <div className="flex gap-2 flex-wrap">
-              <Link
-                href="/products"
-                className="inline-flex items-center px-4 py-2 bg-navy-900 hover:bg-navy-800 text-white text-xs sm:text-sm font-bold rounded-lg shadow-md transition-colors"
-              >
-                Discover Products
-              </Link>
-              <Link
-                href="/shoppers"
-                className="inline-flex items-center px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-navy-900 text-xs sm:text-sm font-bold rounded-lg shadow-sm transition-colors"
-              >
-                Find an Importer
-              </Link>
-            </div>
-          </div>
-
-          {/* Right graphic */}
-          <div className="hidden md:flex absolute right-0 top-0 bottom-0 w-[40%] items-center justify-center pointer-events-none overflow-hidden">
-            <div className="absolute w-48 h-48 bg-amber-300/20 rounded-full blur-3xl" />
-            <svg className="w-36 h-36 text-amber-400/25" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-            </svg>
-          </div>
-
-          {/* Slider controls */}
-          <button className="absolute left-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 hover:bg-white text-slate-700 rounded-full shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-          </button>
-          <button className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 bg-white/80 hover:bg-white text-slate-700 rounded-full shadow-md flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-          </button>
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5">
-            <div className="w-5 h-1 bg-amber-500 rounded-full" />
-            <div className="w-1 h-1 bg-white/60 rounded-full cursor-pointer hover:bg-white" />
-            <div className="w-1 h-1 bg-white/60 rounded-full cursor-pointer hover:bg-white" />
-          </div>
-        </div>
+        <HeroCarousel />
       </section>
 
       {/* ── 2. CATEGORIES ──────────────────────────────────────────────── */}
@@ -210,17 +192,14 @@ export default async function Home() {
               See All →
             </Link>
           </div>
-          {/* Scroll strip (Flex on mobile, Grid on desktop) */}
+          {/* Scroll strip */}
           <div className="flex lg:grid lg:grid-cols-6 gap-3 md:gap-4 lg:gap-5 overflow-x-auto lg:overflow-visible scrollbar-hide p-3 md:p-5 scroll-snap-x lg:scroll-snap-none">
-            {flashProducts.map((product, i) => (
-              <div key={product.id} className="shrink-0 w-[140px] sm:w-[160px] md:w-[200px] lg:w-auto scroll-snap-item">
-                <HomeProductCard
-                  product={product}
-                  discount={FLASH_DISCOUNTS[i % FLASH_DISCOUNTS.length]}
-                />
+            {flashItems.map(({ product, discount }, i) => (
+              <div key={`${product.id}-${i}`} className="shrink-0 w-[140px] sm:w-[160px] md:w-[200px] lg:w-auto scroll-snap-item">
+                <HomeProductCard product={product} discount={discount} />
               </div>
             ))}
-            {/* Placeholder "See More" card */}
+            {/* See More card */}
             <div className="shrink-0 w-[100px] sm:w-[120px] md:w-[160px] lg:w-auto scroll-snap-item">
               <Link
                 href="/products"
@@ -260,7 +239,6 @@ export default async function Home() {
       {/* ── 5. MID-PAGE PROMO BANNERS ──────────────────────────────────── */}
       <section className="max-w-[1400px] mx-auto px-3 sm:px-4 py-3">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {/* Import banner */}
           <Link
             href="/products"
             className="relative rounded-xl overflow-hidden h-24 sm:h-28 bg-gradient-to-r from-amber-400 to-orange-500 flex items-center px-5 group hover:from-amber-500 hover:to-orange-600 transition-all shadow-sm"
@@ -271,7 +249,7 @@ export default async function Home() {
                 Import Anything<br />From Anywhere
               </div>
               <div className="mt-1.5 text-[10px] font-semibold text-amber-900/70">
-                Shop → Pay ETB →  Receive
+                Shop → Pay ETB → Receive
               </div>
             </div>
             <div className="absolute right-4 top-1/2 -translate-y-1/2 text-white/15 group-hover:text-white/25 transition-colors pointer-events-none">
@@ -281,7 +259,6 @@ export default async function Home() {
             </div>
           </Link>
 
-          {/* Shoppers banner */}
           <Link
             href="/shoppers"
             className="relative rounded-xl overflow-hidden h-24 sm:h-28 bg-gradient-to-r from-navy-700 to-navy-900 flex items-center px-5 group hover:from-navy-800 hover:to-navy-950 transition-all shadow-sm"
@@ -292,7 +269,7 @@ export default async function Home() {
                 Find a Trusted<br />Shopper Near You
               </div>
               <div className="mt-1.5 text-[10px] font-semibold text-blue-300/70">
-                ID-verified • Escrow-secured
+                ID-verified • Direct Connection
               </div>
             </div>
             <div className="absolute right-4 top-1/2 -translate-y-1/2 text-white/10 group-hover:text-white/20 transition-colors pointer-events-none">

@@ -1,9 +1,11 @@
+import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { getOrderStatusColor, formatPrice, formatDate } from '@/lib/utils/formatters'
-import { acceptOrder, markOrderShipped, confirmDelivery } from '@/lib/actions/orders'
+import { acceptOrder, markOrderShipped, confirmDelivery, cancelOrder } from '@/lib/actions/orders'
 import { RealtimeListener } from '@/components/dashboard/RealtimeListener'
+import { RateSellerButton } from '@/components/orders/RateSellerButton'
 import type { OrderWithDetails } from '@/types/app.types'
 
 export const metadata = {
@@ -106,15 +108,6 @@ export default async function DashboardOrdersPage() {
                 </div>
               </div>
 
-              {/* Escrow notice */}
-              {order.status !== 'delivered' && order.status !== 'cancelled' && (
-                <div className="px-6 py-3 bg-blue-50/60 border-b border-blue-100 flex items-center gap-2 text-xs text-blue-700">
-                  <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                  </svg>
-                  Payment is held in escrow and will be released to the shopper after delivery is confirmed.
-                </div>
-              )}
 
               {/* Actions */}
               <div className="px-6 py-4 flex flex-wrap gap-3 items-center justify-end">
@@ -152,6 +145,16 @@ export default async function DashboardOrdersPage() {
                 )}
 
                 {/* Buyer actions */}
+                {!isShopper && order.status === 'pending' && (
+                  <form action={async () => { 'use server'; await cancelOrder(order.id) }}>
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm font-semibold hover:bg-red-100 transition-colors"
+                    >
+                      Cancel Order
+                    </button>
+                  </form>
+                )}
                 {!isShopper && order.status === 'shipped' && (
                   <form action={async () => { 'use server'; await confirmDelivery(order.id) }}>
                     <button
@@ -164,12 +167,17 @@ export default async function DashboardOrdersPage() {
                 )}
 
                 {order.status === 'delivered' && (
-                  <span className="text-sm text-green-600 font-medium flex items-center gap-1">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                    Completed — payout released
-                  </span>
+                  <div className="flex items-center gap-4 w-full sm:w-auto">
+                    <span className="text-sm text-green-600 font-medium flex items-center gap-1">
+                      <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Completed
+                    </span>
+                    {!isShopper && (
+                      <RateSellerButton shopperName={order.shopper?.full_name || 'Seller'} />
+                    )}
+                  </div>
                 )}
               </div>
             </div>
