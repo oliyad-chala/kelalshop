@@ -109,7 +109,7 @@ export default async function Home() {
       ? (recentProducts as ProductWithDetails[])
       : (MOCK_PRODUCTS as unknown as ProductWithDetails[])
 
-  const flashProducts = allProducts.slice(0, 8)
+  const flashProducts = allProducts.slice(0, 5)
   const trendingProducts = allProducts.slice(0, 12)
 
   return (
@@ -210,10 +210,10 @@ export default async function Home() {
               See All →
             </Link>
           </div>
-          {/* Scroll strip */}
-          <div className="flex gap-3 overflow-x-auto scrollbar-hide p-3 scroll-snap-x">
+          {/* Scroll strip (Flex on mobile, Grid on desktop) */}
+          <div className="flex lg:grid lg:grid-cols-6 gap-3 md:gap-4 lg:gap-5 overflow-x-auto lg:overflow-visible scrollbar-hide p-3 md:p-5 scroll-snap-x lg:scroll-snap-none">
             {flashProducts.map((product, i) => (
-              <div key={product.id} className="shrink-0 w-[140px] sm:w-[160px] scroll-snap-item">
+              <div key={product.id} className="shrink-0 w-[140px] sm:w-[160px] md:w-[200px] lg:w-auto scroll-snap-item">
                 <HomeProductCard
                   product={product}
                   discount={FLASH_DISCOUNTS[i % FLASH_DISCOUNTS.length]}
@@ -221,10 +221,10 @@ export default async function Home() {
               </div>
             ))}
             {/* Placeholder "See More" card */}
-            <div className="shrink-0 w-[100px] sm:w-[120px] scroll-snap-item">
+            <div className="shrink-0 w-[100px] sm:w-[120px] md:w-[160px] lg:w-auto scroll-snap-item">
               <Link
                 href="/products"
-                className="h-full min-h-[180px] flex flex-col items-center justify-center gap-2 rounded-xl bg-amber-50 border border-amber-100 hover:bg-amber-100 transition-colors text-amber-600 font-bold text-xs text-center p-3"
+                className="h-full min-h-[180px] md:min-h-[200px] lg:min-h-full flex flex-col items-center justify-center gap-2 md:gap-3 rounded-xl bg-amber-50 border border-amber-100 hover:bg-amber-100 transition-colors text-amber-600 font-bold text-xs md:text-sm text-center p-3"
               >
                 <svg className="w-8 h-8 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
