@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 
 export async function submitVerification(
   formData: FormData
@@ -11,16 +12,19 @@ export async function submitVerification(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Not authenticated.')
 
-  const file          = formData.get('id_document') as File | null
+  // The file is now uploaded client-side from the browser directly to Supabase Storage.
+  // We only receive the resulting storage path + form data here.
+  const storagePath   = (formData.get('storage_path') as string | null)?.trim() ?? ''
   const phone         = (formData.get('phone') as string | null)?.trim() ?? ''
   const agreedToTerms = formData.get('agreed_to_terms') === 'true'
 
-  if (!file || file.size === 0) throw new Error('Please upload an ID document.')
-  if (file.size > 5 * 1024 * 1024) throw new Error('ID document exceeds the 5 MB size limit.')
+  if (!storagePath) throw new Error('No document path received. Please re-upload your ID.')
   if (!phone) throw new Error('Please enter your phone number.')
   if (!agreedToTerms) throw new Error('You must agree to the Seller Contract before submitting.')
 
-  const { data: shopper } = await supabase
+  // Check current verification status via service-role client to bypass RLS
+  const admin = createAdminClient()
+  const { data: shopper } = await admin
     .from('shopper_profiles')
     .select('verification_status')
     .eq('id', user.id)
@@ -30,33 +34,26 @@ export async function submitVerification(
   if (shopper.verification_status === 'verified') throw new Error('Already verified.')
   if (shopper.verification_status === 'pending') throw new Error('Verification already pending review.')
 
-  const fileExt = file.name.split('.').pop()
-  const fileName = `${user.id}/${crypto.randomUUID()}.${fileExt}`
-  const fileBuffer = await file.arrayBuffer()
-
-  const { error: uploadError } = await supabase.storage
+  // Generate a signed URL (1 year) to store — admin will use createSignedUrl at view time anyway
+  // We store the path itself so the admin page can always generate fresh signed URLs
+  const { data: urlData } = admin.storage
     .from('id-documents')
-    .upload(fileName, fileBuffer, {
-      contentType: file.type,
-      upsert: true
-    })
+    .getPublicUrl(storagePath)
 
-  if (uploadError) throw new Error(`Upload failed: ${uploadError.message}`)
-
-  const { data: urlData } = supabase.storage
-    .from('id-documents')
-    .getPublicUrl(fileName)
+  // Store the storage path in id_document_url field so the admin extractStoragePath() still works
+  // The admin page generates fresh 1-hour signed URLs from this path on every load
+  const documentRef = urlData?.publicUrl ?? storagePath
 
   await supabase
     .from('profiles')
     .update({ phone } as any)
     .eq('id', user.id)
 
-  const { error: updateError } = await supabase
+  const { error: updateError } = await admin
     .from('shopper_profiles')
     .update({
       verification_status: 'pending',
-      id_document_url: urlData.publicUrl,
+      id_document_url: documentRef,
     } as any)
     .eq('id', user.id)
 

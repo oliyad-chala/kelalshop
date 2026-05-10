@@ -13,8 +13,12 @@ export const metadata = {
 export default async function BillingPage({
   searchParams,
 }: {
-  searchParams: { boostProductId?: string }
+  searchParams: Promise<{ boostProductId?: string }>
 }) {
+  // In Next.js 15+, searchParams is a Promise — must be awaited
+  const resolvedParams = await searchParams
+  const boostProductId = resolvedParams.boostProductId
+
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
@@ -27,7 +31,7 @@ export default async function BillingPage({
     .maybeSingle()
 
   if (error) {
-    // Supabase returns an error if the migration hasn't run yet. 
+    // Supabase returns an error if the migration hasn't run yet.
     // We suppress the console.error here to prevent the Next.js error overlay.
   }
 
@@ -35,6 +39,7 @@ export default async function BillingPage({
     // Not a shopper
     redirect('/dashboard')
   }
+
 
   const plan = profile?.subscription_plan || 'free'
   const expiresAt = profile?.subscription_expires_at ? new Date(profile.subscription_expires_at) : null
@@ -46,8 +51,6 @@ export default async function BillingPage({
     .select('id, name, price')
     .eq('shopper_id', user.id)
     .order('created_at', { ascending: false })
-
-  const boostProductId = searchParams.boostProductId
 
   return (
     <div className="space-y-6 fade-in max-w-4xl mx-auto">

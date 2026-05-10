@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { AdminSidebar } from '@/components/admin/AdminSidebar'
 import { AdminInactivityGuard } from '@/components/admin/AdminInactivityGuard'
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
@@ -30,11 +31,21 @@ export default async function AdminProtectedLayout({
 
   if (profile?.role !== 'admin') redirect('/admin/login')
 
+  const admin = createAdminClient()
+  const [{ count: pendingVerifications }, { count: pendingPayments }] = await Promise.all([
+    admin.from('shopper_profiles').select('*', { count: 'exact', head: true }).eq('verification_status', 'pending'),
+    admin.from('payment_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+  ])
+
   return (
     <div className="admin-shell">
       {/* Auto-signs out after 30 minutes of inactivity */}
       <AdminInactivityGuard />
-      <AdminSidebar user={profile as Profile} />
+      <AdminSidebar
+        user={profile as Profile}
+        pendingVerifications={pendingVerifications ?? 0}
+        pendingPayments={pendingPayments ?? 0}
+      />
       <main className="admin-main fade-in">
         {/* Auto-generated breadcrumb — renders on pages deeper than /admin/dashboard */}
         <AdminBreadcrumb />

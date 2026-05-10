@@ -5,18 +5,48 @@ import { submitVerification } from '@/lib/actions/verification'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
+import { createClient } from '@/lib/supabase/client'
 
-export function VerificationForm({ defaultPhone, isRejected }: { defaultPhone: string, isRejected: boolean }) {
+/**
+ * Uploads the file directly from the browser to Supabase Storage.
+ * This bypasses Vercel's serverless body-size limits (which would reject
+ * large files sent through a Server Action).
+ */
+async function uploadIdToStorage(file: File, userId: string): Promise<string> {
+  const supabase = createClient()
+  const fileExt = file.name.split('.').pop()
+  const path = `${userId}/${crypto.randomUUID()}.${fileExt}`
+
+  const { error } = await supabase.storage
+    .from('id-documents')
+    .upload(path, file, { contentType: file.type, upsert: true })
+
+  if (error) throw new Error(`Upload failed: ${error.message}`)
+  return path
+}
+
+export function VerificationForm({
+  defaultPhone,
+  isRejected,
+  userId,
+}: {
+  defaultPhone: string
+  isRejected: boolean
+  userId: string
+}) {
   const [preview, setPreview] = useState<string | null>(null)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
+      setSelectedFile(file)
       const url = URL.createObjectURL(file)
       setPreview(url)
     } else {
+      setSelectedFile(null)
       setPreview(null)
     }
   }
@@ -25,15 +55,61 @@ export function VerificationForm({ defaultPhone, isRejected }: { defaultPhone: s
     e.preventDefault()
     setLoading(true)
     setError(null)
-    const formData = new FormData(e.currentTarget)
+
     try {
-      await submitVerification(formData)
-      // On success, submitVerification throws a redirect which will navigate away.
-    } catch (err: any) {
-      if (err.message !== 'NEXT_REDIRECT') {
-        setError(err.message)
+      const formEl = e.currentTarget
+
+      // Validate locally before uploading
+      if (!selectedFile) {
+        setError('Please upload an ID document.')
         setLoading(false)
+        return
       }
+      if (selectedFile.size > 5 * 1024 * 1024) {
+        setError('ID document exceeds the 5 MB size limit.')
+        setLoading(false)
+        return
+      }
+
+      const phone = (formEl.querySelector('[name="phone"]') as HTMLInputElement)?.value?.trim()
+      if (!phone) {
+        setError('Please enter your phone number.')
+        setLoading(false)
+        return
+      }
+
+      const agreedCheckbox = formEl.querySelector('[name="agreed_to_terms"]') as HTMLInputElement
+      if (!agreedCheckbox?.checked) {
+        setError('You must agree to the Seller Contract before submitting.')
+        setLoading(false)
+        return
+      }
+
+      // Step 1: Upload file directly from the browser → Supabase Storage
+      // This bypasses Vercel's 4.5 MB serverless body limit
+      const storagePath = await uploadIdToStorage(selectedFile, userId)
+
+      // Step 2: Pass only the path + form data to the server action
+      const formData = new FormData()
+      formData.set('storage_path', storagePath)
+      formData.set('phone', phone)
+      formData.set('agreed_to_terms', 'true')
+
+      await submitVerification(formData)
+      // submitVerification calls redirect() which throws — caught below
+    } catch (err: any) {
+      // Next.js redirect throws a special error — don't show it as a user error
+      const msg: string = err?.message ?? ''
+      if (
+        msg === 'NEXT_REDIRECT' ||
+        msg.includes('NEXT_REDIRECT') ||
+        err?.digest?.startsWith('NEXT_REDIRECT')
+      ) {
+        // This is a successful redirect — do nothing, page will navigate away
+        return
+      }
+      setError(msg || 'Something went wrong. Please try again.')
+      setLoading(false)
     }
   }
 
@@ -71,7 +147,6 @@ export function VerificationForm({ defaultPhone, isRejected }: { defaultPhone: s
             </div>
             <input
               type="file"
-              name="id_document"
               accept="image/*,.pdf"
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
               onChange={handleImageChange}
@@ -86,10 +161,8 @@ export function VerificationForm({ defaultPhone, isRejected }: { defaultPhone: s
             <span className="text-xs text-slate-500">JPG, PNG or PDF — max 5 MB</span>
             <input
               type="file"
-              name="id_document"
               accept="image/*,.pdf"
               className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-              required
               onChange={handleImageChange}
             />
           </div>
@@ -161,7 +234,7 @@ export function VerificationForm({ defaultPhone, isRejected }: { defaultPhone: s
 
       <div className="flex justify-end pt-2">
         <Button type="submit" variant="primary" size="lg" disabled={loading}>
-          {loading ? 'Submitting...' : 'Submit for Verification'}
+          {loading ? 'Uploading & Submitting...' : 'Submit for Verification'}
         </Button>
       </div>
     </form>

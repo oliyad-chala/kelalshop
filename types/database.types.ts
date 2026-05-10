@@ -10,6 +10,8 @@ export type UserRole = 'buyer' | 'shopper' | 'admin'
 export type VerificationStatus = 'unverified' | 'pending' | 'verified' | 'rejected'
 export type OrderStatus = 'pending' | 'accepted' | 'shipped' | 'delivered' | 'cancelled' | 'disputed'
 export type RequestStatus = 'open' | 'assigned' | 'completed' | 'cancelled'
+export type PaymentRequestStatus = 'pending' | 'approved' | 'rejected'
+export type SubscriptionPlan = 'free' | 'pro'
 
 export interface Database {
   public: {
@@ -59,9 +61,9 @@ export interface Database {
           delivery_time_days: number
           min_order_amount: number
           total_orders: number
-          wallet_balance: number
-          commission_rate: number
           agreed_to_terms: boolean
+          subscription_plan: SubscriptionPlan
+          subscription_expires_at: string | null
           created_at: string
           updated_at: string
         }
@@ -75,9 +77,9 @@ export interface Database {
           delivery_time_days?: number
           min_order_amount?: number
           total_orders?: number
-          wallet_balance?: number
-          commission_rate?: number
           agreed_to_terms?: boolean
+          subscription_plan?: SubscriptionPlan
+          subscription_expires_at?: string | null
         }
         Update: {
           bio?: string | null
@@ -88,9 +90,9 @@ export interface Database {
           delivery_time_days?: number
           min_order_amount?: number
           total_orders?: number
-          wallet_balance?: number
-          commission_rate?: number
           agreed_to_terms?: boolean
+          subscription_plan?: SubscriptionPlan
+          subscription_expires_at?: string | null
           updated_at?: string
         }
       }
@@ -173,6 +175,8 @@ export interface Database {
           stock: number
           location: string | null
           is_available: boolean
+          is_featured: boolean
+          boosted_until: string | null
           source_url: string | null
           created_at: string
           updated_at: string
@@ -187,6 +191,8 @@ export interface Database {
           stock?: number
           location?: string | null
           is_available?: boolean
+          is_featured?: boolean
+          boosted_until?: string | null
           source_url?: string | null
         }
         Update: {
@@ -197,6 +203,8 @@ export interface Database {
           stock?: number
           location?: string | null
           is_available?: boolean
+          is_featured?: boolean
+          boosted_until?: string | null
           source_url?: string | null
           updated_at?: string
         }
@@ -267,9 +275,7 @@ export interface Database {
           buyer_id: string
           shopper_id: string
           amount: number
-          commission_rate: number
           status: OrderStatus
-          payout_released: boolean
           notes: string | null
           created_at: string
           updated_at: string
@@ -281,15 +287,11 @@ export interface Database {
           buyer_id: string
           shopper_id: string
           amount: number
-          commission_rate?: number
           status?: OrderStatus
-          payout_released?: boolean
           notes?: string | null
         }
         Update: {
-          commission_rate?: number
           status?: OrderStatus
-          payout_released?: boolean
           notes?: string | null
           updated_at?: string
         }
@@ -342,6 +344,35 @@ export interface Database {
         Update: {
           image_url?: string | null
           is_read?: boolean
+        }
+      }
+      payment_requests: {
+        Row: {
+          id: string
+          shopper_id: string
+          payment_type: string
+          target_id: string | null
+          amount: number
+          reference_number: string
+          status: PaymentRequestStatus
+          notes: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          shopper_id: string
+          payment_type: string
+          target_id?: string | null
+          amount: number
+          reference_number: string
+          status?: PaymentRequestStatus
+          notes?: string | null
+        }
+        Update: {
+          status?: PaymentRequestStatus
+          notes?: string | null
+          updated_at?: string
         }
       }
     }

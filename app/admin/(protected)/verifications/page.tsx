@@ -6,16 +6,18 @@ import { ShieldCheck } from 'lucide-react'
 
 export const metadata = { title: 'Verifications' }
 
-/** Extract the storage path from a full public or signed URL */
+/** Extract the storage path from a full public or signed URL, or return the string if it's already a path */
 function extractStoragePath(url: string | null): string | null {
   if (!url) return null
+  if (!url.startsWith('http')) return url // Already a path
+  
   try {
     const u = new URL(url)
     // Path format: /storage/v1/object/(public|sign)/BUCKET/PATH
     const match = u.pathname.match(/\/storage\/v1\/object\/(?:public|sign)\/[^/]+\/(.+)/)
-    return match ? match[1] : null
+    return match ? decodeURIComponent(match[1]) : null
   } catch {
-    return null
+    return url // Fallback to returning the string
   }
 }
 

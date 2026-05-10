@@ -27,7 +27,15 @@ const navItems = [
   { href: '/admin/trust',          label: 'Trust Scores',     icon: Star },
 ]
 
-export function AdminSidebar({ user }: { user: Profile }) {
+export function AdminSidebar({ 
+  user,
+  pendingVerifications = 0,
+  pendingPayments = 0,
+}: { 
+  user: Profile,
+  pendingVerifications?: number,
+  pendingPayments?: number,
+}) {
   const pathname = usePathname()
 
   return (
@@ -71,6 +79,11 @@ export function AdminSidebar({ user }: { user: Profile }) {
       <nav style={{ flex: 1, padding: '0.75rem 0.625rem', display: 'flex', flexDirection: 'column', gap: '2px' }}>
         {navItems.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || (href !== '/admin/dashboard' && pathname.startsWith(href))
+          
+          let count = 0
+          if (href === '/admin/verifications') count = pendingVerifications
+          if (href === '/admin/payouts') count = pendingPayments
+
           return (
             <Link
               key={href}
@@ -95,7 +108,23 @@ export function AdminSidebar({ user }: { user: Profile }) {
                 style={{ color: active ? 'var(--color-text-primary)' : 'var(--color-text-muted)', flexShrink: 0 }}
               />
               <span style={{ flex: 1 }}>{label}</span>
-              {active && (
+              
+              {count > 0 && (
+                <span style={{
+                  background: '#ef4444',
+                  color: 'white',
+                  fontSize: '0.65rem',
+                  fontWeight: 700,
+                  padding: '1px 6px',
+                  borderRadius: '10px',
+                  minWidth: '18px',
+                  textAlign: 'center',
+                }}>
+                  {count > 99 ? '99+' : count}
+                </span>
+              )}
+
+              {active && !count && (
                 <ChevronRight size={13} style={{ color: 'var(--color-text-muted)', opacity: 0.6 }} />
               )}
               {active && (

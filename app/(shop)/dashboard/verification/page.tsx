@@ -97,7 +97,7 @@ export default async function VerificationPage() {
 
       /* ── Form (unverified / rejected) ──────────────────────── */
       ) : (
-        <VerificationForm defaultPhone={profile?.phone ?? ''} isRejected={status === 'rejected'} />
+      <VerificationForm defaultPhone={profile?.phone ?? ''} isRejected={status === 'rejected'} userId={user.id} />
       )}
     </div>
   )

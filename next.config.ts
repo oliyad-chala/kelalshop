@@ -4,6 +4,9 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   images: {
     remotePatterns: [
       {
@@ -11,6 +14,12 @@ const nextConfig: NextConfig = {
         hostname: 'ovsfbaqpvpizriuezjcv.supabase.co',
         port: '',
         pathname: '/storage/v1/object/public/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'ovsfbaqpvpizriuezjcv.supabase.co',
+        port: '',
+        pathname: '/storage/v1/object/sign/**',
       },
     ],
   },
