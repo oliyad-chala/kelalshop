@@ -102,6 +102,7 @@ export type AdminTrustRow = {
   totalReviews: number
   verificationStatus: VerificationStatus
   totalOrders: number
+  isTopShopper: boolean
 }
 
 export type OrderVolumePoint = {

@@ -39,4 +39,5 @@ export async function toggleWishlist(productId: string) {
 
   revalidatePath('/products')
   revalidatePath(`/products/${productId}`)
+  revalidatePath('/favorites')
 }

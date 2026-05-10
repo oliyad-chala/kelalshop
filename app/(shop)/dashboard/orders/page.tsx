@@ -175,7 +175,11 @@ export default async function DashboardOrdersPage() {
                       Completed
                     </span>
                     {!isShopper && (
-                      <RateSellerButton shopperName={order.shopper?.full_name || 'Seller'} />
+                      <RateSellerButton 
+                        shopperName={order.shopper?.full_name || 'Seller'} 
+                        orderId={order.id}
+                        shopperId={order.shopper_id as string}
+                      />
                     )}
                   </div>
                 )}

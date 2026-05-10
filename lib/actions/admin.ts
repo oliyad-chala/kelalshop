@@ -149,6 +149,25 @@ export async function adminUpdateSubscription(shopperId: string, plan: 'free' | 
   revalidatePath('/admin/sellers')
 }
 
+// ── Top Shoppers ─────────────────────────────────────────────────────────────
+
+export async function toggleTopShopper(shopperId: string, isTop: boolean) {
+  const admin = await requireAdmin()
+  
+  const { error } = await admin
+    .from('shopper_profiles')
+    .update({ 
+      is_top_shopper: isTop,
+      updated_at: new Date().toISOString()
+    } as any)
+    .eq('id', shopperId)
+
+  if (error) throw new Error(error.message)
+  
+  revalidatePath('/admin/trust')
+  revalidatePath('/shoppers')
+}
+
 // ── Products ─────────────────────────────────────────────────────────────────
 
 export async function toggleProductAvailability(productId: string, isAvailable: boolean) {

@@ -7,6 +7,7 @@ import { Avatar } from '@/components/ui/Avatar'
 import { Button } from '@/components/ui/Button'
 import { signOut } from '@/lib/actions/auth'
 import { useCart } from '@/lib/context/CartContext'
+import { useWishlist } from '@/lib/context/WishlistContext'
 import type { Profile } from '@/types/app.types'
 
 interface NavbarProps {
@@ -28,6 +29,7 @@ export function Navbar({ user }: NavbarProps) {
   const dropdownRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
   const { totalItems, openCart } = useCart()
+  const { wishlistCount } = useWishlist()
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -256,8 +258,13 @@ export function Navbar({ user }: NavbarProps) {
               aria-label="My Favorites"
             >
               <svg className="w-6 h-6 group-hover:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
               </svg>
+              {wishlistCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-4.5 h-4.5 min-w-[1.1rem] px-1 bg-amber-500 text-white text-[9px] font-extrabold rounded-full flex items-center justify-center leading-none shadow-sm">
+                  {wishlistCount > 99 ? '99+' : wishlistCount}
+                </span>
+              )}
             </Link>
 
             {/* Cart icon — opens drawer */}

@@ -12,6 +12,7 @@ interface TrustRow {
   totalReviews: number
   verificationStatus: string
   totalOrders: number
+  isTopShopper: boolean
 }
 
 function VerifBadge({ status }: { status: string }) {
@@ -83,6 +84,39 @@ const columns: ColumnDef<TrustRow, any>[] = [
     header: 'Status',
     cell: ({ getValue }) => <VerifBadge status={getValue()} />,
   },
+  {
+    id: 'topShopper',
+    header: 'Top Shopper',
+    cell: ({ row }) => {
+      const isTop = row.original.isTopShopper
+      return (
+        <button
+          onClick={async () => {
+            try {
+              const { toggleTopShopper } = await import('@/lib/actions/admin')
+              await toggleTopShopper(row.original.id, !isTop)
+            } catch (err) {
+              console.error(err)
+              alert('Failed to toggle Top Shopper status')
+            }
+          }}
+          style={{
+            background: isTop ? 'var(--color-success)' : 'var(--color-admin-border)',
+            color: isTop ? '#fff' : 'var(--color-text-secondary)',
+            border: 'none',
+            padding: '4px 12px',
+            borderRadius: '12px',
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+          }}
+        >
+          {isTop ? 'Promoted' : 'Promote'}
+        </button>
+      )
+    }
+  }
 ]
 
 export function TrustTable({ rows }: { rows: TrustRow[] }) {

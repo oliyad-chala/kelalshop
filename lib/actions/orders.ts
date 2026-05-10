@@ -143,3 +143,41 @@ export async function createOrder(productId: string) {
   
   return data // returns the order_id
 }
+
+/**
+ * Buyer submits a review for a completed order.
+ */
+export async function submitReview(orderId: string, revieweeId: string, rating: number) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Unauthorized')
+
+  if (rating < 1 || rating > 5) throw new Error('Rating must be between 1 and 5')
+
+  // Check if review already exists to prevent duplicates
+  const { data: existingReview } = await supabase
+    .from('reviews')
+    .select('id')
+    .eq('order_id', orderId)
+    .eq('reviewer_id', user.id)
+    .single()
+
+  if (existingReview) {
+    throw new Error('You have already reviewed this order.')
+  }
+
+  // Insert the review
+  const { error } = await supabase
+    .from('reviews')
+    .insert({
+      order_id: orderId,
+      reviewer_id: user.id,
+      reviewee_id: revieweeId,
+      rating: Math.floor(rating)
+    })
+
+  if (error) throw new Error(error.message)
+
+  revalidatePath('/dashboard/orders')
+  revalidatePath('/admin/trust')
+}

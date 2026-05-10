@@ -9,8 +9,9 @@ interface ShopperCardProps {
 }
 
 export function ShopperCard({ shopper }: ShopperCardProps) {
-  const { shopper_profiles: profile } = shopper
-  const { shopper_categories: categories } = profile
+  const profileArray = shopper.shopper_profiles as any
+  const profile = Array.isArray(profileArray) ? profileArray[0] : profileArray
+  const categories = profile?.shopper_categories || []
 
   return (
     <Link href={`/shoppers/${shopper.id}`} className="group block h-full">

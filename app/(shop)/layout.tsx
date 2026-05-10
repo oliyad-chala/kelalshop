@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { CartProvider } from '@/lib/context/CartContext'
+import { WishlistProvider } from '@/lib/context/WishlistContext'
 import { CartDrawer } from '@/components/cart/CartDrawer'
 import { LayoutWrapper } from '@/components/layout/LayoutWrapper'
 import type { Profile } from '@/types/app.types'
@@ -17,9 +18,10 @@ export default async function ShopLayout({
 
   let profile = null
   let initialCartItems: CartItem[] = []
+  let initialWishlistItems: string[] = []
 
   if (user) {
-    const [profileResult, cartResult] = await Promise.all([
+    const [profileResult, cartResult, wishlistResult] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', user.id).single(),
       supabase
         .from('cart_items')
@@ -34,6 +36,10 @@ export default async function ShopLayout({
         `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false }),
+      supabase
+        .from('wishlists')
+        .select('product_id')
+        .eq('user_id', user.id)
     ])
 
     profile = profileResult.data as Profile | null
@@ -63,16 +69,20 @@ export default async function ShopLayout({
         },
       }
     })
+
+    initialWishlistItems = (wishlistResult.data ?? []).map((row) => row.product_id)
   }
 
   return (
     <div className="min-h-dvh flex flex-col bg-slate-50 antialiased selection:bg-amber-200 selection:text-amber-900">
-      <CartProvider initialItems={initialCartItems}>
-        <LayoutWrapper profile={profile}>
-          {children}
-        </LayoutWrapper>
-        <CartDrawer />
-      </CartProvider>
+      <WishlistProvider initialItems={initialWishlistItems}>
+        <CartProvider initialItems={initialCartItems}>
+          <LayoutWrapper profile={profile}>
+            {children}
+          </LayoutWrapper>
+          <CartDrawer />
+        </CartProvider>
+      </WishlistProvider>
     </div>
   )
 }

@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation'
 import { formatETB } from '@/lib/utils/formatters'
 import type { ProductWithDetails } from '@/types/app.types'
 import { useCart } from '@/lib/context/CartContext'
-import { toggleWishlist } from '@/lib/actions/wishlist'
+import { useWishlist } from '@/lib/context/WishlistContext'
 
 interface HomeProductCardProps {
   product: ProductWithDetails
@@ -17,9 +17,11 @@ interface HomeProductCardProps {
 
 export function HomeProductCard({ product, discount }: HomeProductCardProps) {
   const { addItem } = useCart()
+  const { wishlistItems, toggleWishlistItem } = useWishlist()
   const router = useRouter()
   const [added, setAdded] = useState(false)
-  const [liked, setLiked] = useState(false)
+
+  const isSaved = wishlistItems.includes(product.id)
 
   const primaryImage =
     product.product_images?.find((img) => img.is_primary)?.url ||
@@ -32,9 +34,10 @@ export function HomeProductCard({ product, discount }: HomeProductCardProps) {
 
   const fmtPrice = (n: number) => formatETB(n).replace('ETB', '').trim()
 
-  const rating = product.profiles?.trust_score
-    ? (product.profiles.trust_score / 20).toFixed(1)
-    : '4.8'
+  const trustScore = product.profiles?.trust_score
+  const rating = trustScore !== undefined && trustScore > 0
+    ? (trustScore / 20).toFixed(1)
+    : '0.0'
 
   const handleAddToCart = async (e: React.MouseEvent) => {
     e.preventDefault()
@@ -58,22 +61,20 @@ export function HomeProductCard({ product, discount }: HomeProductCardProps) {
   return (
     <div className="bg-white rounded-xl overflow-hidden border border-slate-100 hover:border-amber-200 hover:shadow-lg transition-all duration-200 flex flex-col group relative h-full">
 
-      {/* Wishlist */}
+      {/* Save for later */}
       <button
         onClick={async (e) => {
           e.preventDefault()
           e.stopPropagation()
-          setLiked(!liked)
-          await toggleWishlist(product.id)
+          await toggleWishlistItem(product.id)
         }}
-        className={`absolute top-2 right-2 z-10 p-1 rounded-full backdrop-blur-sm shadow-sm transition-colors ${
-          liked ? 'bg-red-50 text-red-500' : 'bg-white/80 text-slate-300 hover:bg-red-50 hover:text-red-500'
+        className={`absolute top-2 right-2 z-10 p-1.5 rounded-full backdrop-blur-sm shadow-sm transition-colors ${
+          isSaved ? 'bg-amber-50 text-amber-500' : 'bg-white/80 text-slate-400 hover:bg-amber-50 hover:text-amber-500'
         }`}
-        aria-label="Add to wishlist"
+        aria-label="Save for later"
       >
-        <svg className="w-3.5 h-3.5 transition-transform active:scale-75" fill={liked ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-            d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+        <svg className="w-4 h-4 transition-transform active:scale-75" fill={isSaved ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
         </svg>
       </button>
 
@@ -105,7 +106,9 @@ export function HomeProductCard({ product, discount }: HomeProductCardProps) {
         )}
 
         {/* Verified badge overlay */}
-        {product.shopper_profiles?.verification_status === 'verified' && (
+        {(product.shopper_profiles?.verification_status === 'verified' || 
+          (product.profiles as any)?.shopper_profiles?.verification_status === 'verified' ||
+          (product.profiles as any)?.shopper_profiles?.[0]?.verification_status === 'verified') && (
           <div className="absolute bottom-1.5 left-1.5 bg-white/90 backdrop-blur px-1.5 py-0.5 rounded text-[9px] font-bold text-emerald-600 flex items-center gap-0.5 shadow-sm border border-emerald-100">
             <svg className="w-2.5 h-2.5" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd"

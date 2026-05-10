@@ -43,6 +43,7 @@ create table shopper_profiles (
   delivery_time_days integer default 14,
   min_order_amount numeric(10,2) default 0,
   total_orders integer default 0,
+  is_top_shopper boolean default false,
   -- Removed financial/escrow columns
   agreed_to_terms boolean not null default false,
   subscription_plan text default 'free',
@@ -251,7 +252,7 @@ returns trigger as $$
 begin
   update profiles
   set trust_score = (
-    select coalesce(round(avg(rating)::numeric, 0)::integer, 0)
+    select coalesce(round(avg(rating)::numeric * 20, 0)::integer, 0)
     from reviews
     where reviewee_id = new.reviewee_id
   )
@@ -506,7 +507,8 @@ alter table shopper_profiles
   drop column if exists commission_rate,
   add column if not exists agreed_to_terms boolean not null default false,
   add column if not exists subscription_plan text default 'free',
-  add column if not exists subscription_expires_at timestamptz;
+  add column if not exists subscription_expires_at timestamptz,
+  add column if not exists is_top_shopper boolean default false;
 
 alter table orders
   drop column if exists commission_rate,

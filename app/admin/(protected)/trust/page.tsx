@@ -13,17 +13,20 @@ export default async function TrustScoresPage() {
   const admin = createAdminClient()
 
   // trust_score lives on `profiles`; shopper-specific fields on `shopper_profiles`
-  const [{ data: profileRows }, { data: reviews }] = await Promise.all([
+  const [{ data: profileRows, error: profileError }, { data: reviews }] = await Promise.all([
     admin
       .from('profiles')
       .select(`
         id, full_name, trust_score, role,
-        shopper_profiles!inner(total_orders, verification_status)
+        shopper_profiles!inner(total_orders, verification_status, is_top_shopper)
       `)
-      .eq('role', 'shopper')
       .order('trust_score', { ascending: false }),
     admin.from('reviews').select('reviewee_id, rating'),
   ])
+
+  if (profileError) {
+    console.error('Failed to fetch profiles in Admin Trust Page:', profileError)
+  }
 
   // Build avg-rating map keyed by reviewee_id (shopper's profile id)
   const ratingMap: Record<string, { sum: number; count: number }> = {}
@@ -44,6 +47,7 @@ export default async function TrustScoresPage() {
       totalReviews:       rData.count,
       verificationStatus: sp?.verification_status ?? 'unverified',
       totalOrders:        sp?.total_orders ?? 0,
+      isTopShopper:       sp?.is_top_shopper ?? false,
     }
   })
 

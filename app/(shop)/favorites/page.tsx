@@ -21,7 +21,7 @@ export default async function FavoritesPage() {
   // Fetch wishlisted items
   const { data: wishlists } = await supabase
     .from('wishlists')
-    .select('*, products(*, product_images(*), profiles:shopper_id(*), shopper_profiles:shopper_id(verification_status))')
+    .select('*, products(*, product_images(*), profiles:shopper_id(id, full_name, avatar_url, trust_score, role, shopper_profiles(verification_status)))')
     .eq('user_id', user.id)
     .order('created_at', { ascending: false })
 

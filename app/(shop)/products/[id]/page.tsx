@@ -9,6 +9,7 @@ import { formatPrice, getRatingStars, formatRating } from '@/lib/utils/formatter
 import { ShopperBadge } from '@/components/shoppers/ShopperBadge'
 import { BuyButton } from './BuyButton'
 import { MOCK_PRODUCTS } from '@/lib/constants/mock-data'
+import { ProductGallery } from '@/components/products/ProductGallery'
 import { HomeProductCard } from '@/components/products/HomeProductCard'
 import type { ProductWithDetails } from '@/types/app.types'
 
@@ -72,11 +73,12 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
   const primaryImage = product.product_images?.find((img: any) => img.is_primary)?.url || product.product_images?.[0]?.url || null
 
   return (
-    <main className="flex-1 bg-slate-50 py-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+    <main className="flex-1 bg-slate-50 py-8 md:py-12">
+      {/* Reduced max-width from 7xl to 5xl for a more compact UI */}
+      <div className="max-w-5xl mx-auto px-4 sm:px-6">
         
         {/* Breadcrumbs */}
-        <nav className="flex items-center gap-2 text-sm text-slate-500 mb-8 w-full overflow-x-auto pb-2">
+        <nav className="flex items-center gap-2 text-sm text-slate-500 mb-6 md:mb-8 w-full overflow-x-auto pb-2">
            <Link href="/" className="hover:text-navy-900 shrink-0">Home</Link>
            <span className="shrink-0">/</span>
            <Link href="/products" className="hover:text-navy-900 shrink-0">Products</Link>
@@ -92,59 +94,45 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
            <span className="text-navy-900 font-medium truncate">{product.name}</span>
         </nav>
 
-        <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm flex flex-col md:flex-row mb-16">
+        <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm flex flex-col md:flex-row mb-12">
           
-          {/* Photos */}
-          <div className="w-full md:w-1/2 lg:w-1/2 bg-slate-100 relative min-h-[400px]">
-             {primaryImage ? (
-                <Image 
-                  src={primaryImage} 
-                  alt={product.name} 
-                  fill 
-                  className="object-cover" 
-                  priority 
-                />
-             ) : (
-                <div className="absolute inset-0 flex items-center justify-center">
-                   <svg className="w-20 h-20 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                   </svg>
-                </div>
-             )}
+          {/* Photos Area (Gallery) */}
+          <div className="w-full md:w-[55%] p-4 sm:p-6 border-b md:border-b-0 md:border-r border-slate-100 bg-white">
+             <ProductGallery images={product.product_images || []} productName={product.name} />
           </div>
 
-          {/* Details */}
-          <div className="w-full md:w-1/2 lg:w-1/2 p-8 lg:p-10 flex flex-col">
-            <div className="flex flex-col gap-3 items-start mb-6">
+          {/* Details Area */}
+          <div className="w-full md:w-[45%] p-6 sm:p-8 flex flex-col bg-white">
+            <div className="flex flex-col gap-2.5 items-start mb-5">
               <Badge variant={product.is_available ? 'success' : 'danger'}>
                  {product.is_available ? 'In Stock' : 'Out of Stock'}
               </Badge>
-              <h1 className="text-2xl sm:text-3xl font-bold text-navy-900 leading-tight">
+              <h1 className="text-xl sm:text-2xl font-bold text-navy-900 leading-tight">
                 {product.name}
               </h1>
             </div>
 
-            <div className="text-3xl font-bold text-amber-600 mb-8 border-b border-slate-100 pb-8">
+            <div className="text-2xl font-bold text-amber-600 mb-6 border-b border-slate-100 pb-6">
               {formatPrice(product.price)}
             </div>
 
-            <div className="prose prose-sm text-slate-600 mb-8 flex-1">
-              <p className="whitespace-pre-line">{product.description}</p>
+            <div className="prose prose-sm text-slate-600 mb-6 flex-1 text-sm">
+              <p className="whitespace-pre-line leading-relaxed">{product.description}</p>
             </div>
             
             {/* Shopper Card Summary */}
-            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-8">
-               <h4 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-4">Imported By</h4>
-               <Link href={`/shoppers/${product.shopper_id || 'mock'}`} className="flex items-center gap-4 group">
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-6">
+               <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Imported By</h4>
+               <Link href={`/shoppers/${product.shopper_id || 'mock'}`} className="flex items-center gap-3 group">
                   <Avatar src={product.profiles?.avatar_url} name={product.profiles?.full_name || 'Shopper'} size="md" />
                   <div className="flex-1">
-                     <div className="font-semibold text-navy-900 group-hover:text-amber-600 transition-colors">
+                     <div className="text-sm font-bold text-navy-900 group-hover:text-amber-600 transition-colors">
                         {product.profiles?.full_name || 'Verified Shopper'}
                      </div>
-                     <div className="flex items-center gap-2 mt-1">
+                     <div className="flex items-center gap-2 mt-0.5">
                         <ShopperBadge status={product.shopper_profiles?.verification_status || 'unverified'} showText={false} />
                         {(product.profiles?.trust_score > 0 || product.shopper_profiles?.trust_score > 0) && (
-                          <span className="text-xs font-medium text-amber-600 flex items-center gap-0.5">
+                          <span className="text-[11px] font-bold text-amber-600 flex items-center gap-0.5">
                             {getRatingStars(product.profiles?.trust_score || product.shopper_profiles?.trust_score)} 
                             {formatRating(product.profiles?.trust_score || product.shopper_profiles?.trust_score)}
                           </span>
@@ -154,7 +142,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                </Link>
             </div>
 
-            <div className="flex flex-col gap-3 mt-auto">
+            <div className="flex flex-col gap-2 mt-auto">
               {/* Client Component for cart/buy actions */}
               <BuyButton 
                 product={{

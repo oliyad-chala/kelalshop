@@ -2,12 +2,15 @@
 
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
+import { submitReview } from '@/lib/actions/orders'
 
-export function RateSellerButton({ shopperName }: { shopperName: string }) {
+export function RateSellerButton({ shopperName, orderId, shopperId }: { shopperName: string, orderId: string, shopperId: string }) {
   const [isOpen, setIsOpen] = useState(false)
   const [rating, setRating] = useState(0)
   const [hoveredRating, setHoveredRating] = useState(0)
   const [submitted, setSubmitted] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [errorMsg, setErrorMsg] = useState('')
 
   if (submitted) {
     return (
@@ -38,6 +41,12 @@ export function RateSellerButton({ shopperName }: { shopperName: string }) {
             <h3 className="text-xl font-bold text-navy-900 mb-2">Rate {shopperName}</h3>
             <p className="text-slate-500 text-sm mb-6">How was your experience buying from this seller? Your feedback helps build trust in our community.</p>
             
+            {errorMsg && (
+              <div className="mb-4 p-3 text-sm text-red-600 bg-red-50 rounded-lg">
+                {errorMsg}
+              </div>
+            )}
+
             <div className="flex justify-center gap-2 mb-8">
               {[1, 2, 3, 4, 5].map((star) => (
                 <button
@@ -66,16 +75,22 @@ export function RateSellerButton({ shopperName }: { shopperName: string }) {
               <Button 
                 variant="primary" 
                 className="flex-1 bg-amber-500 hover:bg-amber-400 text-navy-950 font-bold"
-                disabled={rating === 0}
-                onClick={() => {
-                  // Mock rating submission
-                  setTimeout(() => {
+                disabled={rating === 0 || isSubmitting}
+                onClick={async () => {
+                  setIsSubmitting(true)
+                  setErrorMsg('')
+                  try {
+                    await submitReview(orderId, shopperId, rating)
                     setSubmitted(true)
                     setIsOpen(false)
-                  }, 500)
+                  } catch (err: any) {
+                    setErrorMsg(err.message || 'Failed to submit review')
+                  } finally {
+                    setIsSubmitting(false)
+                  }
                 }}
               >
-                Submit Rating
+                {isSubmitting ? 'Submitting...' : 'Submit Rating'}
               </Button>
             </div>
           </div>
