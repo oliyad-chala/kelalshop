@@ -34,15 +34,9 @@ export async function submitVerification(
   if (shopper.verification_status === 'verified') throw new Error('Already verified.')
   if (shopper.verification_status === 'pending') throw new Error('Verification already pending review.')
 
-  // Generate a signed URL (1 year) to store — admin will use createSignedUrl at view time anyway
-  // We store the path itself so the admin page can always generate fresh signed URLs
-  const { data: urlData } = admin.storage
-    .from('id-documents')
-    .getPublicUrl(storagePath)
-
   // Store the storage path in id_document_url field so the admin extractStoragePath() still works
   // The admin page generates fresh 1-hour signed URLs from this path on every load
-  const documentRef = urlData?.publicUrl ?? storagePath
+  const documentRef = storagePath
 
   await supabase
     .from('profiles')

@@ -6,6 +6,7 @@ import { Card, CardHeader } from '@/components/ui/Card'
 import { Input } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { createClient } from '@/lib/supabase/client'
+import { isRedirectError } from 'next/dist/client/components/redirect'
 
 /**
  * Uploads the file directly from the browser to Supabase Storage.
@@ -98,17 +99,10 @@ export function VerificationForm({
       await submitVerification(formData)
       // submitVerification calls redirect() which throws — caught below
     } catch (err: any) {
-      // Next.js redirect throws a special error — don't show it as a user error
-      const msg: string = err?.message ?? ''
-      if (
-        msg === 'NEXT_REDIRECT' ||
-        msg.includes('NEXT_REDIRECT') ||
-        err?.digest?.startsWith('NEXT_REDIRECT')
-      ) {
-        // This is a successful redirect — do nothing, page will navigate away
+      if (isRedirectError(err)) {
         return
       }
-      setError(msg || 'Something went wrong. Please try again.')
+      setError(err?.message || 'Something went wrong. Please try again.')
       setLoading(false)
     }
   }
