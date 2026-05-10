@@ -117,10 +117,8 @@ export default async function Home() {
   // Combine boosts and recent products
   const combinedProducts = [...(activeBoosts ?? []), ...(recentProducts ?? [])]
 
-  // Filter to verified shoppers and admins only
-  const verifiedProducts = combinedProducts.filter(
-    (p: any) => p.shopper_profiles?.verification_status === 'verified' || p.profiles?.role === 'admin'
-  )
+  // Show all products regardless of verification status
+  const verifiedProducts = combinedProducts
 
   const allProducts =
     verifiedProducts.length > 0
