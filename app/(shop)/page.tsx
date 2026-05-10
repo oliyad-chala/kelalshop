@@ -89,7 +89,7 @@ export default async function Home() {
     // Get active boosts
     supabase
       .from('products')
-      .select('*, product_images(*), profiles:shopper_id(id, full_name, avatar_url, trust_score, role), shopper_profiles:shopper_id(verification_status)')
+      .select('*, product_images(*), profiles:shopper_id(id, full_name, avatar_url, trust_score, role, shopper_profiles(verification_status))')
       .eq('is_available', true)
       .gt('boosted_until', now)
       .order('boosted_until', { ascending: false })
@@ -98,7 +98,7 @@ export default async function Home() {
     // Get recent normal products
     supabase
       .from('products')
-      .select('*, product_images(*), profiles:shopper_id(id, full_name, avatar_url, trust_score, role), shopper_profiles:shopper_id(verification_status)')
+      .select('*, product_images(*), profiles:shopper_id(id, full_name, avatar_url, trust_score, role, shopper_profiles(verification_status))')
       .eq('is_available', true)
       .or(`boosted_until.lt.${now},boosted_until.is.null`)
       .order('created_at', { ascending: false })
@@ -107,7 +107,7 @@ export default async function Home() {
     // Real flash deals from DB
     supabase
       .from('flash_deals')
-      .select('*, products(*, product_images(*), profiles:shopper_id(id, full_name, avatar_url, trust_score), shopper_profiles:shopper_id(verification_status))')
+      .select('*, products(*, product_images(*), profiles:shopper_id(id, full_name, avatar_url, trust_score, shopper_profiles(verification_status)))')
       .eq('is_active', true)
       .gt('ends_at', now)
       .order('created_at', { ascending: false })

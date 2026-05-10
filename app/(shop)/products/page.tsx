@@ -18,7 +18,7 @@ export default async function ProductsFeedPage({
 
   let query = supabase
     .from('products')
-    .select('*, product_images(*), profiles:shopper_id(*), shopper_profiles:shopper_id(verification_status)')
+    .select('*, product_images(*), profiles:shopper_id(*, shopper_profiles(verification_status))')
     .eq('is_available', true)
     
   if (params.q) {
