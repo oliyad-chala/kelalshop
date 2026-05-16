@@ -157,9 +157,17 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                 }}
               />
 
-              <Button size="lg" variant="outline" className="w-full">
-                 Message Shopper
-              </Button>
+              <Link
+                href={user
+                  ? `/dashboard/chat/dm/${product.shopper_id}`
+                  : `/auth/login?redirect=/products/${product.id}`}
+                className="flex items-center justify-center gap-2 w-full rounded-2xl border-2 border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-navy-900 hover:border-amber-400 hover:text-amber-600 transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                </svg>
+                Message Shopper
+              </Link>
             </div>
           </div>
         </div>

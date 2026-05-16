@@ -1,46 +1,37 @@
 'use client'
 
-import { useActionState, useEffect, useRef, useState } from 'react'
-import { sendMessage } from '@/lib/actions/messages'
+import { useActionState, useEffect, useRef } from 'react'
+import { sendDirectMessage } from '@/lib/actions/messages'
 import { MessageBubble } from './MessageBubble'
-import { useMessages } from '@/lib/hooks/useRealtime'
+import { useDirectMessages } from '@/lib/hooks/useRealtime'
 import { Button } from '@/components/ui/Button'
 import type { Message } from '@/types/app.types'
 
-interface ChatWindowProps {
-  orderId: string
+interface DirectChatWindowProps {
+  recipientId: string
   currentUserId: string
   initialMessages: Message[]
 }
 
-const initialState = {
-  error: '',
-  success: '',
-}
+const initialState = { error: '', success: '' }
 
-export function ChatWindow({ orderId, currentUserId, initialMessages }: ChatWindowProps) {
-  const { messages, appendMessage } = useMessages(orderId, initialMessages)
+export function DirectChatWindow({ recipientId, currentUserId, initialMessages }: DirectChatWindowProps) {
+  const { messages } = useDirectMessages(recipientId, currentUserId, initialMessages)
 
-  const [state, formAction, pending] = useActionState(sendMessage, initialState)
+  const [state, formAction, pending] = useActionState(sendDirectMessage, initialState)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const formRef = useRef<HTMLFormElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
-
-  const [selectedFile, setSelectedFile] = useState<File | null>(null)
 
   // Scroll to bottom when messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  // On success: clear the form and optimistically append the message
+  // Clear form on success
   useEffect(() => {
     if (state?.success) {
-      // The realtime hook will append the message via postgres_changes.
-      // We just need to reset the form.
       formRef.current?.reset()
-      setSelectedFile(null)
-      // Re-focus the input for fast follow-up typing
       inputRef.current?.focus()
     }
   }, [state])
@@ -73,39 +64,8 @@ export function ChatWindow({ orderId, currentUserId, initialMessages }: ChatWind
 
       {/* Input Area */}
       <div className="shrink-0 p-3 sm:p-4 bg-white border-t border-slate-200">
-
-        {/* File preview */}
-        {selectedFile && (
-          <div className="mb-3 flex items-center justify-between bg-blue-50 border border-blue-100 rounded-xl px-3 py-2 text-sm text-blue-800">
-            <div className="flex items-center gap-2 truncate">
-              <svg className="w-4 h-4 shrink-0 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-              </svg>
-              <span className="truncate">{selectedFile.name}</span>
-            </div>
-            <button type="button" onClick={() => setSelectedFile(null)} className="text-blue-500 hover:text-blue-700 ml-3 shrink-0">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        )}
-
         <form ref={formRef} action={formAction} className="flex items-center gap-2">
-          <input type="hidden" name="order_id" value={orderId} />
-
-          <label className="shrink-0 p-2 text-slate-400 hover:text-amber-500 hover:bg-slate-50 rounded-xl cursor-pointer transition-colors" title="Attach an image">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
-            </svg>
-            <input
-              type="file"
-              name="image"
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-            />
-          </label>
+          <input type="hidden" name="recipient_id" value={recipientId} />
 
           <input
             ref={inputRef}

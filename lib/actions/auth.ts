@@ -4,6 +4,44 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import type { ActionState } from '@/types/app.types'
 
+// ── Google OAuth ─────────────────────────────────────────────────────────────
+
+export async function signInWithGoogle(
+  redirectTo?: string
+): Promise<{ url: string } | { error: string }> {
+  const supabase = await createClient()
+
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
+
+  // Safe path only — guard against open redirects
+  const safePath =
+    redirectTo && redirectTo.startsWith('/') && !redirectTo.startsWith('//')
+      ? redirectTo
+      : '/dashboard'
+
+  const callbackUrl = `${siteUrl}/auth/callback?next=${encodeURIComponent(safePath)}`
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: callbackUrl,
+      queryParams: {
+        access_type: 'offline',
+        prompt: 'consent',
+      },
+    },
+  })
+
+  if (error || !data.url) {
+    return { error: 'Failed to start Google sign-in. Please try again.' }
+  }
+
+  return { url: data.url }
+}
+
+// ── Email sign-up ─────────────────────────────────────────────────────────────
+
 export async function signUp(
   _prevState: ActionState,
   formData: FormData
@@ -40,7 +78,7 @@ export async function signUp(
     return { error: 'Invalid role selected.' }
   }
 
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -52,8 +90,16 @@ export async function signUp(
     return { error: error.message }
   }
 
-  redirect('/dashboard')
+  // If Supabase issued a session immediately (email confirm disabled),
+  // redirect to dashboard. Otherwise show the "check your inbox" screen.
+  if (data.session) {
+    redirect('/dashboard')
+  }
+
+  return { success: 'confirm-email' }
 }
+
+// ── Email sign-in ─────────────────────────────────────────────────────────────
 
 export async function signIn(
   _prevState: ActionState,
@@ -74,7 +120,7 @@ export async function signIn(
     return { error: 'Invalid email or password.' }
   }
 
-  // ── Role guard — admins must use the admin portal ───────────────────
+  // ── Role guard — admins must use the admin portal ─────────────────
   const { data: profile } = await supabase
     .from('profiles')
     .select('role')
@@ -82,22 +128,24 @@ export async function signIn(
     .single()
 
   if (profile?.role === 'admin') {
-    // Sign out immediately — admin should not be in the shopper session
     await supabase.auth.signOut()
     return {
       error: 'Admin accounts cannot sign in here. Please use the Admin Portal.',
     }
   }
-  // ────────────────────────────────────────────────────────────────────
 
   return { success: 'true' }
 }
+
+// ── Sign-out ──────────────────────────────────────────────────────────────────
 
 export async function signOut() {
   const supabase = await createClient()
   await supabase.auth.signOut()
   redirect('/')
 }
+
+// ── Password reset ────────────────────────────────────────────────────────────
 
 export async function resetPassword(
   _prevState: ActionState,
@@ -110,8 +158,10 @@ export async function resetPassword(
     return { error: 'Email is required.' }
   }
 
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
+
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'}/auth/update-password`,
+    redirectTo: `${siteUrl}/auth/update-password`,
   })
 
   if (error) {

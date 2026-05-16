@@ -7,6 +7,7 @@ import type { Profile } from '@/types/app.types'
 
 interface MobileNavProps {
   user: Profile | null
+  unreadMessages?: number
 }
 
 const buyerTabs = [
@@ -18,6 +19,7 @@ const buyerTabs = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
       </svg>
     ),
+    isMessages: false,
   },
   {
     href: '/dashboard/orders',
@@ -27,6 +29,7 @@ const buyerTabs = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
       </svg>
     ),
+    isMessages: false,
   },
   {
     href: '/dashboard/requests',
@@ -36,6 +39,7 @@ const buyerTabs = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
       </svg>
     ),
+    isMessages: false,
   },
   {
     href: '/dashboard/chat',
@@ -45,6 +49,7 @@ const buyerTabs = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
       </svg>
     ),
+    isMessages: true,
   },
   {
     href: '/dashboard/profile',
@@ -54,6 +59,7 @@ const buyerTabs = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
       </svg>
     ),
+    isMessages: false,
   },
 ]
 
@@ -66,6 +72,7 @@ const shopperTabs = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
       </svg>
     ),
+    isMessages: false,
   },
   {
     href: '/dashboard/listings',
@@ -75,6 +82,7 @@ const shopperTabs = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
       </svg>
     ),
+    isMessages: false,
   },
   {
     href: '/dashboard/flash-deals',
@@ -84,6 +92,7 @@ const shopperTabs = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
       </svg>
     ),
+    isMessages: false,
   },
   {
     href: '/dashboard/orders',
@@ -93,6 +102,7 @@ const shopperTabs = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
       </svg>
     ),
+    isMessages: false,
   },
   {
     href: '/dashboard/chat',
@@ -102,10 +112,11 @@ const shopperTabs = [
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
       </svg>
     ),
+    isMessages: true,
   },
 ]
 
-export function MobileNav({ user }: MobileNavProps) {
+export function MobileNav({ user, unreadMessages = 0 }: MobileNavProps) {
   const pathname = usePathname()
   if (!user) return null
 
@@ -133,8 +144,14 @@ export function MobileNav({ user }: MobileNavProps) {
               {isActive && (
                 <span className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-amber-500 rounded-full" />
               )}
-              <span className={clsx('transition-transform', isActive && 'scale-110')}>
+              {/* Icon wrapper with badge */}
+              <span className={clsx('transition-transform relative', isActive && 'scale-110')}>
                 {tab.icon}
+                {tab.isMessages && unreadMessages > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 border border-white flex items-center justify-center text-[8px] font-bold text-white leading-none">
+                    {unreadMessages > 9 ? '9+' : unreadMessages}
+                  </span>
+                )}
               </span>
               <span>{tab.label}</span>
             </Link>

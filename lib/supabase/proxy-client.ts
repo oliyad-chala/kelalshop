@@ -112,8 +112,12 @@ export async function updateSession(request: NextRequest) {
       "script-src 'self' 'unsafe-eval' 'unsafe-inline'", // Next.js requires these
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
-      `img-src 'self' data: blob: ${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''}`,
-      `connect-src 'self' ${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''} wss:`,
+      // Supabase storage + Google profile images
+      `img-src 'self' data: blob: ${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''} https://lh3.googleusercontent.com https://googleusercontent.com`,
+      // Supabase API/realtime + Google OAuth endpoints
+      `connect-src 'self' ${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''} wss: https://accounts.google.com https://oauth2.googleapis.com`,
+      // Google OAuth consent page runs in a redirect (not iframe), but allow accounts.google.com for any popup flows
+      "frame-src 'none'",
       "frame-ancestors 'none'",
     ].join('; ')
   )
