@@ -1,0 +1,218 @@
+'use client'
+
+import { useState, useTransition, useMemo } from 'react'
+import { type ColumnDef } from '@tanstack/react-table'
+import { Crown, UserX, ShieldBan, ShieldCheck, Eye } from 'lucide-react'
+import { DataTable } from '@/components/admin/DataTable'
+import { adminUpdateSubscription, approveVerification, rejectVerification } from '@/lib/actions/admin'
+import Link from 'next/link'
+
+interface SellerRow {
+  id: string
+  full_name: string
+  business_name: string
+  subscription_plan: string
+  subscription_expires_at: string | null
+  created_at: string
+  verification_status: string
+}
+
+function SellerActions({ sellerId, currentPlan, verificationStatus }: { sellerId: string; currentPlan: string; verificationStatus: string }) {
+  const [pending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
+
+  const isPro = currentPlan === 'pro'
+  const isSuspended = verificationStatus === 'rejected' || verificationStatus === 'unverified'
+
+  const toggleSubscription = () => {
+    setError(null)
+    const action = isPro ? 'Downgrade to Free' : 'Upgrade to Pro'
+    if (!confirm(`Are you sure you want to ${action} this seller?`)) return;
+
+    startTransition(async () => {
+      try {
+        const res = await adminUpdateSubscription(sellerId, isPro ? 'free' : 'pro')
+        // if (res?.error) throw new Error(res.error)
+      } catch (e: any) {
+        setError(e.message ?? 'Failed')
+      }
+    })
+  }
+
+  const toggleSuspension = () => {
+    setError(null)
+    const action = isSuspended ? 'Reactivate' : 'Suspend'
+    if (!confirm(`Are you sure you want to ${action} this seller?`)) return;
+
+    startTransition(async () => {
+      try {
+        if (isSuspended) {
+          await approveVerification(sellerId)
+        } else {
+          await rejectVerification(sellerId)
+        }
+      } catch (e: any) {
+        setError(e.message ?? 'Failed')
+      }
+    })
+  }
+
+  return (
+    <div style={{ position: 'relative', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+      <button
+        className={`admin-btn ${isPro ? 'admin-btn-outline' : 'admin-btn-primary'}`}
+        disabled={pending}
+        onClick={toggleSubscription}
+        title={isPro ? 'Revoke Pro' : 'Grant Pro'}
+      >
+        {isPro ? <UserX size={14} /> : <Crown size={14} />}
+      </button>
+
+      <button
+        className={`admin-btn ${isSuspended ? 'admin-btn-primary' : 'admin-btn-outline'}`}
+        disabled={pending}
+        onClick={toggleSuspension}
+        title={isSuspended ? 'Reactivate Seller' : 'Suspend Seller'}
+        style={{ borderColor: !isSuspended ? 'var(--color-danger)' : undefined, color: !isSuspended ? 'var(--color-danger)' : undefined }}
+      >
+        {isSuspended ? <ShieldCheck size={14} /> : <ShieldBan size={14} />}
+      </button>
+
+      <Link href={`/admin/sellers/${sellerId}`} className="admin-btn admin-btn-outline" title="View Details">
+        <Eye size={14} />
+      </Link>
+
+      {error && <span style={{ fontSize: '0.68rem', color: 'var(--color-danger)', position: 'absolute', bottom: '-20px', left: 0, whiteSpace: 'nowrap' }}>{error}</span>}
+    </div>
+  )
+}
+
+const columns: ColumnDef<SellerRow, any>[] = [
+  { 
+    accessorKey: 'full_name', 
+    header: 'Name', 
+    cell: ({ row, getValue }) => (
+      <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <Link href={`/admin/sellers/${row.original.id}`} className="td-primary" style={{ textDecoration: 'none' }}>
+          {getValue()}
+        </Link>
+      </div>
+    ) 
+  },
+  { accessorKey: 'business_name', header: 'Business Name' },
+  { 
+    accessorKey: 'verification_status',
+    header: 'Status',
+    cell: ({ getValue }) => {
+      const status = getValue()
+      if (status === 'verified') return <span className="admin-badge badge-verified">Active</span>
+      if (status === 'rejected') return <span className="admin-badge badge-danger">Suspended</span>
+      if (status === 'pending') return <span className="admin-badge badge-warning">Pending</span>
+      return <span className="admin-badge badge-default">Unverified</span>
+    }
+  },
+  { 
+    accessorKey: 'subscription_plan',
+    header: 'Plan',
+    cell: ({ row }) => {
+      const plan = row.original.subscription_plan
+      const expiresAt = row.original.subscription_expires_at ? new Date(row.original.subscription_expires_at) : null
+      const isExpired = expiresAt && expiresAt < new Date()
+      const activePlan = isExpired ? 'free' : plan
+
+      if (activePlan === 'pro') {
+        return <span className="admin-badge badge-verified">Pro</span>
+      }
+      return <span className="admin-badge badge-default">Free</span>
+    }
+  },
+  {
+    accessorKey: 'subscription_expires_at',
+    header: 'Expires',
+    cell: ({ getValue }) => {
+      const val = getValue()
+      if (!val) return '—'
+      const date = new Date(val)
+      const isExpired = date < new Date()
+      return (
+        <span style={{ color: isExpired ? 'var(--color-danger)' : 'var(--color-text-secondary)' }}>
+          {date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+          {isExpired && ' (Expired)'}
+        </span>
+      )
+    },
+  },
+  {
+    accessorKey: 'created_at',
+    header: 'Joined',
+    cell: ({ getValue }) => new Date(getValue()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+  },
+  {
+    id: 'action',
+    header: 'Actions',
+    enableSorting: false,
+    cell: ({ row }) => {
+      const plan = row.original.subscription_plan
+      const expiresAt = row.original.subscription_expires_at ? new Date(row.original.subscription_expires_at) : null
+      const isExpired = expiresAt && expiresAt < new Date()
+      const activePlan = isExpired ? 'free' : plan
+      
+      return (
+        <SellerActions 
+          sellerId={row.original.id} 
+          currentPlan={activePlan} 
+          verificationStatus={row.original.verification_status} 
+        />
+      )
+    },
+  },
+]
+
+export function SellerDataTable({ rows }: { rows: SellerRow[] }) {
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+
+  const filteredRows = useMemo(() => {
+    if (statusFilter === 'all') return rows
+    if (statusFilter === 'active') return rows.filter(r => r.verification_status === 'verified')
+    if (statusFilter === 'suspended') return rows.filter(r => r.verification_status === 'rejected')
+    if (statusFilter === 'pending') return rows.filter(r => r.verification_status === 'pending')
+    return rows
+  }, [rows, statusFilter])
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+        <button 
+          className={`admin-btn ${statusFilter === 'all' ? 'admin-btn-primary' : 'admin-btn-outline'}`}
+          onClick={() => setStatusFilter('all')}
+        >
+          All Sellers
+        </button>
+        <button 
+          className={`admin-btn ${statusFilter === 'active' ? 'admin-btn-primary' : 'admin-btn-outline'}`}
+          onClick={() => setStatusFilter('active')}
+        >
+          Active
+        </button>
+        <button 
+          className={`admin-btn ${statusFilter === 'pending' ? 'admin-btn-primary' : 'admin-btn-outline'}`}
+          onClick={() => setStatusFilter('pending')}
+        >
+          Pending
+        </button>
+        <button 
+          className={`admin-btn ${statusFilter === 'suspended' ? 'admin-btn-primary' : 'admin-btn-outline'}`}
+          onClick={() => setStatusFilter('suspended')}
+        >
+          Suspended
+        </button>
+      </div>
+
+      <DataTable
+        data={filteredRows}
+        columns={columns}
+        searchPlaceholder="Search name, business…"
+      />
+    </div>
+  )
+}

@@ -11,6 +11,8 @@ import {
   BarChart,
   Bar,
   Cell,
+  LineChart,
+  Line,
 } from 'recharts'
 
 interface OrderVolumePoint {
@@ -24,7 +26,14 @@ interface CategoryPoint {
   count: number
 }
 
+interface TopSellerPoint {
+  name: string
+  revenue: number
+}
+
 const ACCENT = '#6366f1'
+const SUCCESS = '#10b981'
+const WARNING = '#f59e0b'
 const SURFACE = '#161d2e'
 const BORDER = '#1e2a3d'
 const TEXT_MUTED = '#64748b'
@@ -100,7 +109,7 @@ export function CategoryChart({ data }: { data: CategoryPoint[] }) {
   return (
     <div className="admin-card" style={{ height: '260px' }}>
       <div style={{ fontSize: '0.8rem', fontWeight: 600, color: TEXT_SEC, marginBottom: '1rem' }}>
-        Products by Category
+        Top Selling Categories
       </div>
       <ResponsiveContainer width="100%" height="85%">
         <BarChart data={data} layout="vertical" margin={{ top: 0, right: 8, left: 0, bottom: 0 }}>
@@ -121,6 +130,67 @@ export function CategoryChart({ data }: { data: CategoryPoint[] }) {
             ))}
           </Bar>
         </BarChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
+export function TopSellersChart({ data }: { data: TopSellerPoint[] }) {
+  return (
+    <div className="admin-card" style={{ height: '260px' }}>
+      <div style={{ fontSize: '0.8rem', fontWeight: 600, color: TEXT_SEC, marginBottom: '1rem' }}>
+        Seller Performance (Revenue)
+      </div>
+      <ResponsiveContainer width="100%" height="85%">
+        <BarChart data={data} margin={{ top: 0, right: 8, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke={BORDER} vertical={false} />
+          <XAxis dataKey="name" tick={{ fontSize: 11, fill: TEXT_MUTED }} axisLine={false} tickLine={false} />
+          <YAxis
+            tickFormatter={formatCurrency}
+            tick={{ fontSize: 11, fill: TEXT_MUTED }}
+            axisLine={false}
+            tickLine={false}
+            width={68}
+          />
+          <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => [formatCurrency(v), 'Revenue']} />
+          <Bar dataKey="revenue" radius={[4, 4, 0, 0]}>
+            {data.map((_, i) => (
+              <Cell key={i} fill={SUCCESS} fillOpacity={0.85} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
+export function VisitorChart() {
+  // Mock data for Visitor Analytics
+  const mockData = [
+    { name: 'Mon', visitors: 4000, conversion: 2.4 },
+    { name: 'Tue', visitors: 3000, conversion: 2.2 },
+    { name: 'Wed', visitors: 5000, conversion: 2.8 },
+    { name: 'Thu', visitors: 4500, conversion: 2.6 },
+    { name: 'Fri', visitors: 6000, conversion: 3.1 },
+    { name: 'Sat', visitors: 7000, conversion: 3.4 },
+    { name: 'Sun', visitors: 6500, conversion: 3.2 },
+  ];
+
+  return (
+    <div className="admin-card" style={{ height: '260px' }}>
+      <div style={{ fontSize: '0.8rem', fontWeight: 600, color: TEXT_SEC, marginBottom: '1rem' }}>
+        Visitor & Conversion Analytics (This Week)
+      </div>
+      <ResponsiveContainer width="100%" height="85%">
+        <LineChart data={mockData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke={BORDER} vertical={false} />
+          <XAxis dataKey="name" tick={{ fontSize: 11, fill: TEXT_MUTED }} axisLine={false} tickLine={false} />
+          <YAxis yAxisId="left" tick={{ fontSize: 11, fill: TEXT_MUTED }} axisLine={false} tickLine={false} width={40} />
+          <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11, fill: TEXT_MUTED }} axisLine={false} tickLine={false} width={40} tickFormatter={(v) => `${v}%`} />
+          <Tooltip contentStyle={tooltipStyle} />
+          <Line yAxisId="left" type="monotone" dataKey="visitors" stroke={WARNING} strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} name="Visitors" />
+          <Line yAxisId="right" type="monotone" dataKey="conversion" stroke={ACCENT} strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} name="Conversion Rate" />
+        </LineChart>
       </ResponsiveContainer>
     </div>
   )

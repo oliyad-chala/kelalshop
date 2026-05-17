@@ -285,3 +285,43 @@ export async function getCategoryChart() {
     .sort((a, b) => b.count - a.count)
     .slice(0, 8)
 }
+
+export async function getTopSellersChart() {
+  const admin = await requireAdmin()
+  const { data: orders } = await admin
+    .from('orders')
+    .select('amount, shopper_id, shopper:profiles!orders_shopper_id_fkey(full_name)')
+    .eq('status', 'delivered')
+
+  if (!orders) return []
+
+  const revenueBySeller: Record<string, { name: string; revenue: number }> = {}
+  for (const o of orders as any[]) {
+    const sId = o.shopper_id
+    if (!revenueBySeller[sId]) {
+      revenueBySeller[sId] = { name: o.shopper?.full_name ?? 'Unknown', revenue: 0 }
+    }
+    revenueBySeller[sId].revenue += Number(o.amount)
+  }
+
+  return Object.values(revenueBySeller)
+    .sort((a, b) => b.revenue - a.revenue)
+    .slice(0, 5)
+}
+
+// ── Orders ───────────────────────────────────────────────────────────────────
+
+export async function adminUpdateOrderStatus(orderId: string, status: string) {
+  const admin = await requireAdmin()
+  const { error } = await admin
+    .from('orders')
+    .update({ 
+      status: status, 
+      updated_at: new Date().toISOString() 
+    } as any)
+    .eq('id', orderId)
+  
+  if (error) throw new Error(error.message)
+  
+  revalidatePath('/admin/orders')
+}

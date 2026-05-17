@@ -1,7 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { ProductsTable } from '@/components/admin/ProductsTable'
+import { ProductDataTable } from '@/components/admin/products/ProductDataTable'
+import { PackageSearch } from 'lucide-react'
 
 export const metadata = { title: 'Product Moderation' }
 
@@ -34,17 +35,22 @@ export default async function ProductsPage() {
     created_at:  p.created_at,
   }))
 
+  const activeCount = rows.filter((r: any) => r.is_available).length
+
   return (
     <div className="fade-in">
       <div className="page-header">
         <div>
           <h1 className="section-title">Product Moderation</h1>
-          <p className="section-subtitle">Toggle availability to hide listings that violate marketplace terms</p>
+          <p className="section-subtitle">Manage all products, categories, and remove listings that violate terms</p>
         </div>
-        <span className="admin-badge badge-default">{rows.length} products</span>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <span className="admin-badge badge-verified">{activeCount} Active</span>
+          <span className="admin-badge badge-default">{rows.length} Total</span>
+        </div>
       </div>
 
-      <ProductsTable rows={rows} />
+      <ProductDataTable rows={rows} />
     </div>
   )
 }

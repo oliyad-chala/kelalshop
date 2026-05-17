@@ -2,7 +2,9 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { VerificationCard } from '@/components/admin/VerificationCard'
-import { ShieldCheck } from 'lucide-react'
+import { ShieldCheck, History, Clock } from 'lucide-react'
+import Link from 'next/link'
+import { SellerDataTable } from '@/components/admin/sellers/SellerDataTable'
 
 export const metadata = { title: 'Verifications' }
 
@@ -21,13 +23,64 @@ function extractStoragePath(url: string | null): string | null {
   }
 }
 
-export default async function VerificationsPage() {
+export default async function VerificationsPage({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/admin/login')
 
+  const resolvedParams = await searchParams
+  const tab = resolvedParams.tab || 'pending'
+
   const admin = createAdminClient()
 
+  if (tab === 'history') {
+    const { data: history } = await admin
+      .from('shopper_profiles')
+      .select(`
+        id,
+        business_name,
+        verification_status,
+        created_at,
+        updated_at,
+        subscription_plan,
+        subscription_expires_at,
+        profiles!inner(full_name)
+      `)
+      .in('verification_status', ['verified', 'rejected'])
+      .order('updated_at', { ascending: false })
+
+    const rows = (history ?? []).map((s: any) => ({
+      id: s.id,
+      full_name: s.profiles?.full_name ?? '—',
+      business_name: s.business_name ?? '—',
+      subscription_plan: s.subscription_plan,
+      subscription_expires_at: s.subscription_expires_at,
+      created_at: s.updated_at, // Use updated_at as the action date
+      verification_status: s.verification_status,
+    }))
+
+    return (
+      <div className="fade-in">
+        <div className="page-header">
+          <div>
+            <h1 className="section-title">Verification History</h1>
+            <p className="section-subtitle">Review previously approved or rejected shoppers</p>
+          </div>
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <Link href="/admin/verifications?tab=pending" className="admin-btn admin-btn-outline">
+              <Clock size={14} /> Pending Queue
+            </Link>
+            <Link href="/admin/verifications?tab=history" className="admin-btn admin-btn-primary">
+              <History size={14} /> History
+            </Link>
+          </div>
+        </div>
+        <SellerDataTable rows={rows} />
+      </div>
+    )
+  }
+
+  // Pending queue
   const { data: pending } = await admin
     .from('shopper_profiles')
     .select(`
@@ -81,9 +134,14 @@ export default async function VerificationsPage() {
           <h1 className="section-title">Shopper Verifications</h1>
           <p className="section-subtitle">Review uploaded ID documents and approve or reject shoppers</p>
         </div>
-        <span className="admin-badge badge-pending">
-          {rows.length} pending
-        </span>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <Link href="/admin/verifications?tab=pending" className="admin-btn admin-btn-primary">
+            <Clock size={14} /> Pending ({rows.length})
+          </Link>
+          <Link href="/admin/verifications?tab=history" className="admin-btn admin-btn-outline">
+            <History size={14} /> History
+          </Link>
+        </div>
       </div>
 
       {rows.length === 0 ? (

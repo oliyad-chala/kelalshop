@@ -1,7 +1,9 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { MessageSquare, Search } from 'lucide-react'
+import { MessageSquare, Search, AlertOctagon, ArrowLeft } from 'lucide-react'
+import { DisputeActions } from '@/components/admin/disputes/DisputeActions'
+import Link from 'next/link'
 
 export const metadata = { title: 'Dispute Center' }
 
@@ -83,19 +85,113 @@ export default async function DisputesPage({
       sender_name: m.profiles?.full_name ?? '—',
     }))
     contextLabel = orderId ? `Order #${orderId.slice(0, 8)}` : `Request #${requestId!.slice(0, 8)}`
+    
+    return (
+      <div className="fade-in">
+        <div className="page-header">
+          <div>
+            <Link href="/admin/disputes" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none', color: 'var(--color-text-muted)', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
+              <ArrowLeft size={14} /> Back to Disputes
+            </Link>
+            <h1 className="section-title">Dispute Resolution</h1>
+            <p className="section-subtitle">Review evidence and resolve the dispute for {contextLabel}</p>
+          </div>
+        </div>
+
+        {orderId && <DisputeActions orderId={orderId} />}
+
+        <div className="data-table-wrap">
+          <div className="table-toolbar">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem', color: 'var(--color-text-secondary)' }}>
+              <MessageSquare size={14} style={{ color: 'var(--color-accent-400)' }} />
+              Chat Evidence — <strong style={{ color: 'var(--color-text-primary)' }}>{contextLabel}</strong>
+            </div>
+            <span style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>
+              {messages.length} message{messages.length !== 1 ? 's' : ''}
+            </span>
+          </div>
+
+          {messages.length === 0 ? (
+            <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.82rem' }}>
+              No messages found for this ID.
+            </div>
+          ) : (
+            <div>
+              {messages.map((msg) => (
+                <MessageBubble key={msg.id} msg={msg} />
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    )
   }
+
+  // If no orderId/requestId, show the queue of disputed orders
+  const { data: disputedOrders } = await admin
+    .from('orders')
+    .select(`
+      id, amount, created_at, status,
+      buyer:profiles!orders_buyer_id_fkey(full_name),
+      shopper:profiles!orders_shopper_id_fkey(full_name)
+    `)
+    .eq('status', 'disputed')
+    .order('updated_at', { ascending: false })
 
   return (
     <div className="fade-in">
       <div className="page-header">
         <div>
           <h1 className="section-title">Dispute Center</h1>
-          <p className="section-subtitle">View message threads for a specific order or request to resolve conflicts</p>
+          <p className="section-subtitle">Manage escalated buyer vs seller disputes and issue refunds</p>
         </div>
+        {disputedOrders && disputedOrders.length > 0 && (
+          <span className="admin-badge badge-danger">{disputedOrders.length} Open Disputes</span>
+        )}
       </div>
 
-      {/* Search */}
-      <div className="admin-card" style={{ marginBottom: '1.25rem' }}>
+      <div className="admin-card" style={{ marginBottom: '1.5rem' }}>
+        <h3 style={{ fontSize: '1rem', marginBottom: '1rem', fontWeight: 600 }}>Active Dispute Queue</h3>
+        {(!disputedOrders || disputedOrders.length === 0) ? (
+          <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>
+            <AlertOctagon size={36} style={{ color: 'var(--color-success)', margin: '0 auto 1rem', opacity: 0.5 }} />
+            <div style={{ fontSize: '0.9rem' }}>No open disputes at the moment. All clear!</div>
+          </div>
+        ) : (
+          <div className="data-table-wrap" style={{ margin: '-1.25rem', marginTop: '0', border: 'none' }}>
+            <table className="data-table">
+              <thead>
+                <tr>
+                  <th>Order ID</th>
+                  <th>Buyer</th>
+                  <th>Seller</th>
+                  <th>Amount</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {disputedOrders.map((o: any) => (
+                  <tr key={o.id}>
+                    <td style={{ fontSize: '0.8rem', fontFamily: 'monospace' }}>{o.id.slice(0, 8).toUpperCase()}</td>
+                    <td>{o.buyer?.full_name ?? '—'}</td>
+                    <td>{o.shopper?.full_name ?? '—'}</td>
+                    <td>ETB {Number(o.amount).toFixed(2)}</td>
+                    <td>
+                      <Link href={`/admin/disputes?order_id=${o.id}`} className="admin-btn admin-btn-primary" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}>
+                        Review & Resolve
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      <div className="admin-card">
+        <h3 style={{ fontSize: '1rem', marginBottom: '0.75rem', fontWeight: 600 }}>Manual Lookup</h3>
+        <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>Enter an Order ID or Request ID below to view the conversation thread.</p>
         <form style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'flex-end' }}>
           <div style={{ flex: 1, minWidth: '220px' }}>
             <label className="admin-label" htmlFor="disp-order">Order ID</label>
@@ -118,46 +214,10 @@ export default async function DisputesPage({
             />
           </div>
           <button type="submit" className="admin-btn admin-btn-primary" style={{ padding: '0.6rem 1.2rem' }}>
-            <Search size={13} /> Search
+            <Search size={13} /> View Thread
           </button>
         </form>
       </div>
-
-      {/* Results */}
-      {(orderId || requestId) && (
-        <div className="data-table-wrap">
-          <div className="table-toolbar">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem', color: 'var(--color-text-secondary)' }}>
-              <MessageSquare size={14} style={{ color: 'var(--color-accent-400)' }} />
-              Thread — <strong style={{ color: 'var(--color-text-primary)' }}>{contextLabel}</strong>
-            </div>
-            <span style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>
-              {messages.length} message{messages.length !== 1 ? 's' : ''}
-            </span>
-          </div>
-
-          {messages.length === 0 ? (
-            <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.82rem' }}>
-              No messages found for this ID.
-            </div>
-          ) : (
-            <div>
-              {messages.map((msg) => (
-                <MessageBubble key={msg.id} msg={msg} />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-
-      {!orderId && !requestId && (
-        <div className="admin-card" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
-          <MessageSquare size={36} style={{ color: 'var(--color-text-muted)', margin: '0 auto 1rem' }} />
-          <div style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>
-            Enter an Order ID or Request ID above to view the conversation thread.
-          </div>
-        </div>
-      )}
     </div>
   )
 }

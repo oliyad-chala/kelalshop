@@ -1,9 +1,8 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
-import { AdminSidebar } from '@/components/admin/AdminSidebar'
 import { AdminInactivityGuard } from '@/components/admin/AdminInactivityGuard'
-import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb'
+import { AdminShellClient } from '@/components/admin/AdminShellClient'
 import type { Profile } from '@/types/app.types'
 
 /**
@@ -38,19 +37,15 @@ export default async function AdminProtectedLayout({
   ])
 
   return (
-    <div className="admin-shell">
-      {/* Auto-signs out after 30 minutes of inactivity */}
+    <>
       <AdminInactivityGuard />
-      <AdminSidebar
+      <AdminShellClient
         user={profile as Profile}
         pendingVerifications={pendingVerifications ?? 0}
         pendingPayments={pendingPayments ?? 0}
-      />
-      <main className="admin-main fade-in">
-        {/* Auto-generated breadcrumb — renders on pages deeper than /admin/dashboard */}
-        <AdminBreadcrumb />
+      >
         {children}
-      </main>
-    </div>
+      </AdminShellClient>
+    </>
   )
 }

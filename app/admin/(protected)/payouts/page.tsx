@@ -1,9 +1,10 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { PaymentsTable, RevenueCard } from '@/components/admin/PaymentsTable'
+import { PaymentDataTable, RevenueCard } from '@/components/admin/payments/PaymentDataTable'
+import { Info } from 'lucide-react'
 
-export const metadata = { title: 'Pending Payments' }
+export const metadata = { title: 'Payment Management' }
 
 export default async function PaymentsPage() {
   const supabase = await createClient()
@@ -12,18 +13,11 @@ export default async function PaymentsPage() {
 
   const admin = createAdminClient()
 
-  // Fetch pending payment requests
+  // Fetch all payment requests
   const { data: payments, error: paymentsError } = await admin
     .from('payment_requests')
     .select('id, amount, payment_type, reference_number, status, created_at, shopper_id')
-    .eq('status', 'pending')
-    .order('created_at', { ascending: true })
-
-  // Fetch all approved payments for revenue total
-  const { data: allPayments } = await admin
-    .from('payment_requests')
-    .select('amount')
-    .eq('status', 'approved')
+    .order('created_at', { ascending: false })
 
   // Fetch shopper names separately to avoid FK hint issues
   const shopperIds = [...new Set((payments ?? []).map((p: any) => p.shopper_id))]
@@ -42,19 +36,20 @@ export default async function PaymentsPage() {
     payment_type: p.payment_type,
     amount: p.amount,
     reference_number: p.reference_number,
+    status: p.status,
     created_at: p.created_at,
   }))
 
-  const totalRevenue = (allPayments ?? []).reduce((s: number, p: any) => s + Number(p.amount), 0)
+  const totalRevenue = rows.filter((r: any) => r.status === 'approved').reduce((s: number, p: any) => s + Number(p.amount), 0)
+  const pendingCount = rows.filter((r: any) => r.status === 'pending').length
 
   return (
     <div className="fade-in">
       <div className="page-header">
         <div>
-          <h1 className="section-title">Pending Payments</h1>
-          <p className="section-subtitle">Verify manual bank transfers for subscriptions and boosts.</p>
+          <h1 className="section-title">Payment & Billing Management</h1>
+          <p className="section-subtitle">Manage transactions, seller payouts, and platform revenue.</p>
         </div>
-        <span className="admin-badge badge-pending">{rows.length} pending</span>
       </div>
 
       {paymentsError && (
@@ -63,11 +58,18 @@ export default async function PaymentsPage() {
         </div>
       )}
 
-      <div style={{ marginBottom: '1.25rem' }}>
-        <RevenueCard total={totalRevenue} />
+      <div style={{ marginBottom: '1.5rem' }}>
+        <div className="admin-alert admin-alert-info" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem', background: 'rgba(59,130,246,0.1)', color: '#3b82f6', border: '1px solid rgba(59,130,246,0.2)', padding: '0.75rem', borderRadius: '8px' }}>
+          <Info size={16} />
+          <span style={{ fontSize: '0.85rem' }}>Standard automated payment integrations (Stripe, Chapa) are being prepared. Currently supporting manual bank transfers.</span>
+        </div>
+        <RevenueCard total={totalRevenue} pendingCount={pendingCount} />
       </div>
 
-      <PaymentsTable rows={rows} />
+      <div className="admin-card">
+        <h2 style={{ fontSize: '1.1rem', marginBottom: '1rem', fontWeight: 600 }}>Transaction History</h2>
+        <PaymentDataTable rows={rows} />
+      </div>
     </div>
   )
 }

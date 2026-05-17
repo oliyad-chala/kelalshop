@@ -8,8 +8,8 @@ import {
 } from 'lucide-react'
 import Link from 'next/link'
 import { StatCard } from '@/components/admin/StatCard'
-import { OrderVolumeChart, CategoryChart } from '@/components/admin/AdminCharts'
-import { getAdminStats, getOrderVolumeChart, getCategoryChart } from '@/lib/actions/admin'
+import { OrderVolumeChart, CategoryChart, TopSellersChart, VisitorChart } from '@/components/admin/AdminCharts'
+import { getAdminStats, getOrderVolumeChart, getCategoryChart, getTopSellersChart } from '@/lib/actions/admin'
 
 export const metadata = { title: 'Dashboard' }
 
@@ -20,10 +20,11 @@ function fmtCurrency(n: number) {
 }
 
 export default async function AdminDashboardPage() {
-  const [stats, volumeData, categoryData] = await Promise.all([
+  const [stats, volumeData, categoryData, topSellersData] = await Promise.all([
     getAdminStats(),
     getOrderVolumeChart(),
     getCategoryChart(),
+    getTopSellersChart(),
   ])
 
   const quickLinks = [
@@ -88,9 +89,13 @@ export default async function AdminDashboardPage() {
       </div>
 
       {/* Charts */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.75rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
         <OrderVolumeChart data={volumeData} />
         <CategoryChart data={categoryData} />
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.75rem' }}>
+        <TopSellersChart data={topSellersData} />
+        <VisitorChart />
       </div>
 
       {/* Quick actions */}
