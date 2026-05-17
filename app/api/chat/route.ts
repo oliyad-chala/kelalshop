@@ -2,9 +2,6 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import Groq from 'groq-sdk'
 
-// Initialize Groq
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
-
 // Initialize Supabase admin client to bypass RLS
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -73,6 +70,9 @@ export async function POST(req: Request) {
       ...formattedHistory,
       { role: 'user', content: message } // The new message from the user
     ]
+
+    // Initialize Groq here to prevent Vercel build-time errors if key is missing during build
+    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY || 'dummy_key_to_bypass_build' })
 
     // 5. Call Groq API with llama-3.3-70b-versatile
     const chatCompletion = await groq.chat.completions.create({
