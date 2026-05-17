@@ -5,6 +5,7 @@ import { createRequest } from '@/lib/actions/requests'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Input, Textarea } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
+import { Select } from '@/components/ui/Select'
 
 interface RequestFormProps {
   categories: { id: string; name: string }[]
@@ -40,17 +41,15 @@ export function RequestForm({ categories, verifiedSellers = [], shopperId }: Req
             <label htmlFor="target_shopper" className="text-sm font-medium text-navy-900">
                Target Seller (Optional)
             </label>
-            <select
+            <Select
                id="target_shopper"
                name="shopper_id"
                defaultValue={shopperId || ""}
-               className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-navy-900 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 appearance-none"
-            >
-               <option value="">Broadcast to All Verified Sellers</option>
-               {verifiedSellers.map((seller) => (
-                  <option key={seller.id} value={seller.id}>{seller.name}</option>
-               ))}
-            </select>
+               options={[
+                 { value: "", label: "Broadcast to All Verified Sellers" },
+                 ...verifiedSellers.map((seller) => ({ value: seller.id, label: seller.name }))
+               ]}
+            />
           </div>
 
           <div className="grid sm:grid-cols-2 gap-5">
@@ -58,19 +57,17 @@ export function RequestForm({ categories, verifiedSellers = [], shopperId }: Req
                   <label htmlFor="category_id" className="text-sm font-medium text-navy-900">
                      Category <span className="text-red-500">*</span>
                   </label>
-                  <select
+                  <Select
                      id="category_id"
                      name="category_id"
                      required
                      defaultValue=""
-                     onChange={(e) => setSelectedCategory(e.target.value)}
-                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-navy-900 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 appearance-none"
-                  >
-                     <option value="" disabled>Select a category...</option>
-                     {categories.map((cat) => (
-                        <option key={cat.id} value={cat.id}>{cat.name}</option>
-                     ))}
-                  </select>
+                     onChange={(val) => setSelectedCategory(val)}
+                     options={[
+                       { value: "", label: "Select a category...", disabled: true },
+                       ...categories.map((cat) => ({ value: cat.id, label: cat.name }))
+                     ]}
+                  />
              </div>
 
              <div className="flex flex-col gap-1.5">

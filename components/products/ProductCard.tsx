@@ -11,9 +11,10 @@ import { useRouter } from 'next/navigation'
 
 interface ProductCardProps {
   product: ProductWithDetails
+  view?: 'grid' | 'list'
 }
 
-export function ProductCard({ product }: ProductCardProps) {
+export function ProductCard({ product, view = 'grid' }: ProductCardProps) {
   const router = useRouter()
   const { wishlistItems, toggleWishlistItem } = useWishlist()
   
@@ -21,7 +22,7 @@ export function ProductCard({ product }: ProductCardProps) {
   const primaryImage = product.product_images?.find((img) => img.is_primary)?.url || product.product_images?.[0]?.url
 
   return (
-    <Card hover padding="none" className="h-full flex flex-col overflow-hidden bg-white border border-slate-100 rounded-2xl relative group">
+    <Card hover padding="none" className={`h-full flex ${view === 'list' ? 'flex-row' : 'flex-col'} overflow-hidden bg-white border border-slate-100 rounded-2xl relative group`}>
       {/* Save for Later Bookmark Icon */}
       <button 
         onClick={async (e) => {
@@ -39,14 +40,14 @@ export function ProductCard({ product }: ProductCardProps) {
       </button>
 
       {/* Product Image Area */}
-      <Link href={`/products/${product.id}`} className="block relative aspect-square bg-slate-50 overflow-hidden shrink-0">
+      <Link href={`/products/${product.id}`} className={`block relative ${view === 'list' ? 'w-32 sm:w-48 h-full shrink-0' : 'aspect-square shrink-0'} bg-slate-50 overflow-hidden`}>
         {primaryImage ? (
           <Image
             src={primaryImage}
             alt={product.name}
             fill
             className="object-cover transition-transform duration-500 group-hover:scale-105"
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            sizes={view === 'list' ? "(max-width: 640px) 128px, 192px" : "(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"}
           />
         ) : (
           <div className="absolute inset-0 flex items-center justify-center text-slate-300">
@@ -58,9 +59,9 @@ export function ProductCard({ product }: ProductCardProps) {
       </Link>
 
       {/* Content Area */}
-      <div className="p-4 flex flex-col flex-1">
+      <div className={`p-4 flex flex-col flex-1 ${view === 'list' ? 'justify-center' : ''}`}>
         <Link href={`/products/${product.id}`} className="flex-1 block">
-          <h3 className="font-medium text-navy-900 leading-tight mb-3 line-clamp-2 hover:text-amber-600 transition-colors">
+          <h3 className={`font-medium text-navy-900 leading-tight mb-3 line-clamp-2 hover:text-amber-600 transition-colors ${view === 'list' ? 'sm:text-lg' : ''}`}>
             {product.name}
           </h3>
         </Link>

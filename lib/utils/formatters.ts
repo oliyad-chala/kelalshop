@@ -1,6 +1,4 @@
-// Currency formatting (ETB primary, USD in parentheses)
-const USD_TO_ETB = 56.5 // Fixed demo rate
-
+// Currency formatting
 export function formatETB(amount: number): string {
   return new Intl.NumberFormat('en-ET', {
     style: 'currency',
@@ -10,18 +8,8 @@ export function formatETB(amount: number): string {
   }).format(amount)
 }
 
-export function formatUSD(amount: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount)
-}
-
 export function formatPrice(etbAmount: number): string {
-  const usd = etbAmount / USD_TO_ETB
-  return `${formatETB(etbAmount)} (${formatUSD(usd)})`
+  return formatETB(etbAmount)
 }
 
 // Date formatting

@@ -89,9 +89,16 @@ export default async function RequestDetailPage({ params }: { params: Promise<{ 
              
              {/* Left - Description */}
              <div className="md:col-span-2">
-                <h3 className="text-lg font-semibold text-navy-900 mb-4">Details & Specifications</h3>
-                <div className="prose prose-slate text-slate-600 mb-8 whitespace-pre-line font-medium leading-relaxed">
-                   {request.description}
+                <div className="bg-slate-50 border border-slate-100 rounded-2xl p-6 mb-8">
+                   <h3 className="text-lg font-semibold text-navy-900 mb-4 flex items-center gap-2">
+                      <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                      </svg>
+                      Details & Specifications
+                   </h3>
+                   <div className="prose prose-slate text-slate-700 whitespace-pre-line font-medium leading-relaxed bg-white p-5 rounded-xl border border-slate-200">
+                      {request.description}
+                   </div>
                 </div>
                 
                 {request.source_url && (
@@ -153,13 +160,17 @@ export default async function RequestDetailPage({ params }: { params: Promise<{ 
                         )}
                      </div>
                   ) : isShopper && request.status === 'open' ? (
-                     <Button variant="primary" size="lg" fullWidth>
-                        Message Buyer & Create Offer
-                     </Button>
+                     <Link href={`/dashboard/chat/dm/${request.buyer_id}`} className="block w-full">
+                        <Button variant="primary" size="lg" fullWidth className="shadow-lg shadow-amber-500/20">
+                           Message Buyer & Create Offer
+                        </Button>
+                     </Link>
                   ) : isAssigned ? (
-                     <Button variant="primary" size="lg" fullWidth>
-                        View Active Chat Order
-                     </Button>
+                     <Link href={`/dashboard/chat/dm/${request.buyer_id === user.id ? request.shopper_id : request.buyer_id}`} className="block w-full">
+                        <Button variant="primary" size="lg" fullWidth className="shadow-lg shadow-amber-500/20">
+                           View Active Chat Order
+                        </Button>
+                     </Link>
                   ) : (
                      <p className="text-sm text-slate-500 text-center bg-slate-50 p-4 rounded-xl">
                         This request is no longer accepting new shopper offers.

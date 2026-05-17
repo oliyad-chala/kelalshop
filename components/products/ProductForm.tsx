@@ -5,6 +5,7 @@ import { createProduct } from '@/lib/actions/products'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Input, Textarea } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
+import { Select } from '@/components/ui/Select'
 
 interface ProductFormProps {
   categories: { id: string; name: string }[]
@@ -181,19 +182,17 @@ export function ProductForm({ categories, isVerified = true, isLimitReached = fa
               <label htmlFor="category" className="text-sm font-medium text-navy-900">
                 Category <span className="text-red-500">*</span>
               </label>
-              <select
+              <Select
                 id="category"
                 name="category_id"
                 required
                 value={selectedCategory}
-                onChange={e => setSelectedCategory(e.target.value)}
-                className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-navy-900 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 appearance-none"
-              >
-                <option value="" disabled>Select a category…</option>
-                {categories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                ))}
-              </select>
+                onChange={val => setSelectedCategory(val)}
+                options={[
+                  { value: "", label: "Select a category...", disabled: true },
+                  ...categories.map(cat => ({ value: cat.id, label: cat.name }))
+                ]}
+              />
             </div>
           </div>
 
@@ -262,47 +261,47 @@ export function ProductForm({ categories, isVerified = true, isLimitReached = fa
                 
                 {isClothing && (
                   <div className="grid sm:grid-cols-2 gap-4">
-                    <select name="attr_Type" defaultValue="" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm" required>
-                      <option value="" disabled>Select Type</option>
-                      <option value="Apparel">Apparel</option>
-                      <option value="Shoes">Shoes</option>
-                      <option value="Accessories">Accessories</option>
-                    </select>
+                    <Select name="attr_Type" defaultValue="" required options={[
+                      { value: "", label: "Select Type", disabled: true },
+                      { value: "Apparel", label: "Apparel" },
+                      { value: "Shoes", label: "Shoes" },
+                      { value: "Accessories", label: "Accessories" }
+                    ]} />
                     <input name="attr_Brand" type="text" placeholder="Brand" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm" />
                     <input name="attr_Size" type="text" placeholder="Size (e.g. M, 42, US 9)" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm" />
                     <input name="attr_Color" type="text" placeholder="Color" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm" />
                     <input name="attr_Material" type="text" placeholder="Material (e.g. Cotton, Leather)" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm" />
-                    <select name="attr_Condition" defaultValue="" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm">
-                      <option value="" disabled>Condition</option>
-                      <option value="New">New</option>
-                      <option value="Like New">Like New</option>
-                      <option value="Used">Used</option>
-                    </select>
+                    <Select name="attr_Condition" defaultValue="" options={[
+                      { value: "", label: "Condition", disabled: true },
+                      { value: "New", label: "New" },
+                      { value: "Like New", label: "Like New" },
+                      { value: "Used", label: "Used" }
+                    ]} />
                   </div>
                 )}
 
                 {isElectronics && (
                   <div className="grid sm:grid-cols-2 gap-4">
-                    <select name="attr_Type" defaultValue="" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm" required>
-                      <option value="" disabled>Select Type</option>
-                      <option value="Phone">Phone</option>
-                      <option value="Computer">Computer</option>
-                      <option value="Accessory">Accessory</option>
-                    </select>
+                    <Select name="attr_Type" defaultValue="" required options={[
+                      { value: "", label: "Select Type", disabled: true },
+                      { value: "Phone", label: "Phone" },
+                      { value: "Computer", label: "Computer" },
+                      { value: "Accessory", label: "Accessory" }
+                    ]} />
                     <input name="attr_Brand" type="text" placeholder="Brand (e.g. Apple, Samsung)" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm" />
                     <input name="attr_Storage" type="text" placeholder="Storage (e.g. 128GB)" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm" />
                     <input name="attr_Color" type="text" placeholder="Color" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm" />
-                    <select name="attr_Condition" defaultValue="" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm">
-                      <option value="" disabled>Condition</option>
-                      <option value="New">New</option>
-                      <option value="Used (Good)">Used (Good)</option>
-                      <option value="Used (Fair)">Used (Fair)</option>
-                    </select>
-                    <select name="attr_Screen Cracked" defaultValue="" className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm">
-                      <option value="" disabled>Screen Cracked?</option>
-                      <option value="No">No</option>
-                      <option value="Yes">Yes</option>
-                    </select>
+                    <Select name="attr_Condition" defaultValue="" options={[
+                      { value: "", label: "Condition", disabled: true },
+                      { value: "New", label: "New" },
+                      { value: "Used (Good)", label: "Used (Good)" },
+                      { value: "Used (Fair)", label: "Used (Fair)" }
+                    ]} />
+                    <Select name="attr_Screen Cracked" defaultValue="" options={[
+                      { value: "", label: "Screen Cracked?", disabled: true },
+                      { value: "No", label: "No" },
+                      { value: "Yes", label: "Yes" }
+                    ]} />
                   </div>
                 )}
               </div>

@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { createFlashDeal, deleteFlashDeal, toggleFlashDeal } from '@/lib/actions/flash-deals'
 import { formatPrice, formatDate } from '@/lib/utils/formatters'
+import { Select } from '@/components/ui/Select'
 
 interface Product { id: string; name: string; price: number }
 interface Deal {
@@ -70,17 +71,15 @@ function CreateDealForm({ products, activeCount }: { products: Product[]; active
       {/* Product select */}
       <div>
         <label className="block text-sm font-semibold text-navy-900 mb-1.5">Product</label>
-        <select
+        <Select
           name="product_id"
           required
           disabled={atLimit}
-          className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm text-navy-900 bg-white focus:ring-2 focus:ring-amber-300 focus:border-amber-400 outline-none disabled:opacity-50"
-        >
-          <option value="">Select a product…</option>
-          {products.map(p => (
-            <option key={p.id} value={p.id}>{p.name} — {formatPrice(p.price)}</option>
-          ))}
-        </select>
+          options={[
+            { value: "", label: "Select a product...", disabled: true },
+            ...products.map(p => ({ value: p.id, label: `${p.name} — ${formatPrice(p.price)}` }))
+          ]}
+        />
       </div>
 
       {/* Discount slider */}

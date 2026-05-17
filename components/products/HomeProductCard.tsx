@@ -8,14 +8,17 @@ import { formatETB } from '@/lib/utils/formatters'
 import type { ProductWithDetails } from '@/types/app.types'
 import { useCart } from '@/lib/context/CartContext'
 import { useWishlist } from '@/lib/context/WishlistContext'
+import { FlashCountdown } from '@/components/home/FlashCountdown'
 
 interface HomeProductCardProps {
   product: ProductWithDetails
   /** e.g. 20 = 20% off; shows discount badge + struck-through original price */
   discount?: number
+  /** The end time for a flash deal, if applicable */
+  endsAt?: string
 }
 
-export function HomeProductCard({ product, discount }: HomeProductCardProps) {
+export function HomeProductCard({ product, discount, endsAt }: HomeProductCardProps) {
   const { addItem } = useCart()
   const { wishlistItems, toggleWishlistItem } = useWishlist()
   const router = useRouter()
@@ -68,9 +71,8 @@ export function HomeProductCard({ product, discount }: HomeProductCardProps) {
           e.stopPropagation()
           await toggleWishlistItem(product.id)
         }}
-        className={`absolute top-2 right-2 z-10 p-1.5 rounded-full backdrop-blur-sm shadow-sm transition-colors ${
-          isSaved ? 'bg-amber-50 text-amber-500' : 'bg-white/80 text-slate-400 hover:bg-amber-50 hover:text-amber-500'
-        }`}
+        className={`absolute top-2 right-2 z-10 p-1.5 rounded-full backdrop-blur-sm shadow-sm transition-colors ${isSaved ? 'bg-amber-50 text-amber-500' : 'bg-white/80 text-slate-400 hover:bg-amber-50 hover:text-amber-500'
+          }`}
         aria-label="Save for later"
       >
         <svg className="w-4 h-4 transition-transform active:scale-75" fill={isSaved ? "currentColor" : "none"} viewBox="0 0 24 24" stroke="currentColor">
@@ -106,16 +108,23 @@ export function HomeProductCard({ product, discount }: HomeProductCardProps) {
         )}
 
         {/* Verified badge overlay */}
-        {(product.shopper_profiles?.verification_status === 'verified' || 
+        {(product.shopper_profiles?.verification_status === 'verified' ||
           (product.profiles as any)?.shopper_profiles?.verification_status === 'verified' ||
           (product.profiles as any)?.shopper_profiles?.[0]?.verification_status === 'verified') && (
-          <div className="absolute bottom-1.5 left-1.5 bg-white/90 backdrop-blur px-1.5 py-0.5 rounded text-[9px] font-bold text-emerald-600 flex items-center gap-0.5 shadow-sm border border-emerald-100">
-            <svg className="w-2.5 h-2.5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                clipRule="evenodd" />
-            </svg>
-            Verified
+            <div className="absolute bottom-1.5 left-1.5 bg-white/90 backdrop-blur px-1.5 py-0.5 rounded text-[9px] font-bold text-emerald-600 flex items-center gap-0.5 shadow-sm border border-emerald-100">
+              <svg className="w-2.5 h-2.5" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd"
+                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                  clipRule="evenodd" />
+              </svg>
+              Verified
+            </div>
+          )}
+
+        {/* Flash Timer */}
+        {endsAt && (
+          <div className="absolute bottom-1.5 right-1.5 z-10">
+            <FlashCountdown endsAt={endsAt} />
           </div>
         )}
       </Link>
@@ -159,13 +168,12 @@ export function HomeProductCard({ product, discount }: HomeProductCardProps) {
             onClick={handleAddToCart}
             disabled={!product.is_available}
             aria-label="Add to cart"
-            className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-all duration-200 ${
-              added
+            className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-all duration-200 ${added
                 ? 'bg-green-500 text-white scale-110'
                 : product.is_available
                   ? 'bg-amber-100 hover:bg-amber-500 text-amber-600 hover:text-white active:scale-95'
                   : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-            }`}
+              }`}
           >
             {added ? (
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

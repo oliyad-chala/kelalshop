@@ -1,7 +1,6 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
 import { HomeProductCard } from '@/components/products/HomeProductCard'
-import { FlashCountdown } from '@/components/home/FlashCountdown'
 import { HeroCarousel } from '@/components/home/HeroCarousel'
 import { MOCK_PRODUCTS } from '@/lib/constants/mock-data'
 import type { ProductWithDetails } from '@/types/app.types'
@@ -128,19 +127,21 @@ export default async function Home() {
   const trendingProducts = allProducts.slice(0, 12)
 
   // Build flash deal items: real DB deals first, fall back to trending products with mock discounts
-  type FlashItem = { product: ProductWithDetails; discount: number }
+  type FlashItem = { product: ProductWithDetails; discount: number; endsAt?: string }
   const MOCK_DISCOUNTS = [25, 15, 30, 20, 10, 40]
 
   const flashItems: FlashItem[] =
     flashDealsRaw && flashDealsRaw.length > 0
       ? (flashDealsRaw as any[]).map((d) => ({
-          product: d.products as ProductWithDetails,
-          discount: d.discount_percent as number,
-        }))
+        product: d.products as ProductWithDetails,
+        discount: d.discount_percent as number,
+        endsAt: d.ends_at as string,
+      }))
       : allProducts.slice(0, 5).map((p, i) => ({
-          product: p,
-          discount: MOCK_DISCOUNTS[i % MOCK_DISCOUNTS.length],
-        }))
+        product: p,
+        discount: MOCK_DISCOUNTS[i % MOCK_DISCOUNTS.length],
+        endsAt: new Date(Date.now() + (i + 1) * 3600 * 1000).toISOString(),
+      }))
 
   return (
     <main className="flex-1 bg-slate-50 pb-20">
@@ -184,7 +185,6 @@ export default async function Home() {
             <div className="flex items-center gap-2">
               <span className="text-base leading-none">⚡</span>
               <h2 className="text-sm font-bold text-navy-900">Flash Deals</h2>
-              <FlashCountdown />
             </div>
             <Link href="/products" className="text-xs text-amber-600 hover:text-amber-700 font-medium">
               See All →
@@ -192,9 +192,9 @@ export default async function Home() {
           </div>
           {/* Scroll strip */}
           <div className="flex lg:grid lg:grid-cols-6 gap-3 md:gap-4 lg:gap-5 overflow-x-auto lg:overflow-visible scrollbar-hide p-3 md:p-5 scroll-snap-x lg:scroll-snap-none">
-            {flashItems.map(({ product, discount }, i) => (
+            {flashItems.map(({ product, discount, endsAt }, i) => (
               <div key={`${product.id}-${i}`} className="shrink-0 w-[140px] sm:w-[160px] md:w-[200px] lg:w-auto scroll-snap-item">
-                <HomeProductCard product={product} discount={discount} />
+                <HomeProductCard product={product} discount={discount} endsAt={endsAt} />
               </div>
             ))}
             {/* See More card */}
