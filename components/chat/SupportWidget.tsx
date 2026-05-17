@@ -235,7 +235,7 @@ export function SupportWidget() {
               >
                 {/* Sparkle / AI icon */}
                 <svg className="w-6 h-6 text-white drop-shadow" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 2L13.09 8.26L19 6L14.74 10.91L21 12L14.74 13.09L19 18L13.09 15.74L12 22L10.91 15.74L5 18L9.26 13.09L3 12L9.26 10.91L5 6L10.91 8.26L12 2Z"/>
+                  <path d="M12 2L13.09 8.26L19 6L14.74 10.91L21 12L14.74 13.09L19 18L13.09 15.74L12 22L10.91 15.74L5 18L9.26 13.09L3 12L9.26 10.91L5 6L10.91 8.26L12 2Z" />
                 </svg>
               </div>
               {/* Online dot */}
@@ -304,11 +304,10 @@ export function SupportWidget() {
                     </div>
                   )}
                   <div
-                    className={`max-w-[78%] px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm ${
-                      msg.sender_type === 'user'
+                    className={`max-w-[78%] px-4 py-3 rounded-2xl text-sm leading-relaxed shadow-sm ${msg.sender_type === 'user'
                         ? 'bg-gradient-to-br from-amber-500 to-amber-400 text-navy-950 rounded-br-sm font-medium'
                         : 'bg-white text-navy-900 rounded-bl-sm border border-slate-100'
-                    }`}
+                      }`}
                   >
                     {msg.sender_type === 'bot' ? (
                       <TypingBotMessage content={msg.content} isNew={msg.id === newestBotId} />
