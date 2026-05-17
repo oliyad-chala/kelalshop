@@ -9,6 +9,7 @@ import {
   useTransition,
   type ReactNode,
 } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
 import { addToCart, removeFromCart, updateCartQty, clearCart } from '@/lib/actions/cart'
 
 // ── Types ───────────────────────────────────────────────────────────────────
@@ -116,6 +117,8 @@ interface CartProviderProps {
 }
 
 export function CartProvider({ children, initialItems = [] }: CartProviderProps) {
+  const router = useRouter()
+  const pathname = usePathname()
   const [state, dispatch] = useReducer(reducer, {
     items: initialItems,
     isOpen: false,
@@ -133,10 +136,12 @@ export function CartProvider({ children, initialItems = [] }: CartProviderProps)
 
     const result = await addToCart(product.id, quantity)
     if (result?.error === 'not_authenticated') {
-      // Revert and redirect handled by page
+      // Revert and redirect
       dispatch({ type: 'REMOVE_ITEM', id: `temp-${product.id}` })
+      dispatch({ type: 'CLOSE' })
+      router.push(`/auth/login?redirectTo=${encodeURIComponent(pathname)}`)
     }
-  }, [])
+  }, [router, pathname])
 
   const removeItem = useCallback(async (cartItemId: string) => {
     dispatch({ type: 'REMOVE_ITEM', id: cartItemId })

@@ -9,7 +9,7 @@ export async function toggleWishlist(productId: string) {
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) {
-    redirect('/auth/login')
+    return { error: 'not_authenticated' }
   }
 
   // Check if it exists

@@ -8,6 +8,7 @@ import {
   useTransition,
   type ReactNode,
 } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
 import { toggleWishlist } from '@/lib/actions/wishlist'
 
 interface WishlistContextValue {
@@ -30,6 +31,8 @@ interface WishlistProviderProps {
 }
 
 export function WishlistProvider({ children, initialItems = [] }: WishlistProviderProps) {
+  const router = useRouter()
+  const pathname = usePathname()
   const [wishlistItems, setWishlistItems] = useState<string[]>(initialItems)
   const [, startTransition] = useTransition()
 
@@ -46,13 +49,24 @@ export function WishlistProvider({ children, initialItems = [] }: WishlistProvid
     // Perform server action in background without blocking
     startTransition(async () => {
       try {
-        await toggleWishlist(productId)
+        const result = await toggleWishlist(productId)
+        if (result?.error === 'not_authenticated') {
+          // Revert on error
+          setWishlistItems((prev) => {
+            if (prev.includes(productId)) {
+              return prev.filter((id) => id !== productId)
+            } else {
+              return [...prev, productId]
+            }
+          })
+          router.push(`/auth/login?redirectTo=${encodeURIComponent(pathname)}`)
+        }
       } catch (error) {
         // Revert on error could be implemented here if needed
         console.error("Failed to toggle wishlist", error)
       }
     })
-  }, [])
+  }, [router, pathname])
 
   const wishlistCount = wishlistItems.length
 

@@ -252,8 +252,11 @@ export function Navbar({ user }: NavbarProps) {
             )}
 
             {/* Favorites icon */}
-            <Link
-              href="/favorites"
+            <button
+              onClick={() => {
+                if (!user) router.push(`/auth/login?redirectTo=${encodeURIComponent('/favorites')}`)
+                else router.push('/favorites')
+              }}
               className="relative text-slate-700 hover:text-amber-500 transition-colors p-1.5 group"
               aria-label="My Favorites"
             >
@@ -265,11 +268,14 @@ export function Navbar({ user }: NavbarProps) {
                   {wishlistCount > 99 ? '99+' : wishlistCount}
                 </span>
               )}
-            </Link>
+            </button>
 
             {/* Cart icon — opens drawer */}
             <button
-              onClick={openCart}
+              onClick={() => {
+                if (!user) router.push(`/auth/login?redirectTo=${encodeURIComponent('/')}`)
+                else openCart()
+              }}
               className="relative text-slate-700 hover:text-amber-500 transition-colors p-1.5 group"
               aria-label="Open cart"
             >
