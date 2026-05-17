@@ -22,7 +22,7 @@ export default async function ShopperDetailPage({ params }: { params: Promise<{ 
   // Verify it's a shopper
   const { data: profile } = await supabase
     .from('profiles')
-    .select('*, shopper_profiles(*, shopper_categories(categories(*)), shopper_sources(sources(*)))')
+    .select('*, shopper_profiles(*, shopper_categories(categories(*)), shopper_sources(import_sources(*)))')
     .eq('id', id)
     .single()
 
@@ -30,13 +30,15 @@ export default async function ShopperDetailPage({ params }: { params: Promise<{ 
     notFound()
   }
 
-  const shopperData = profile.shopper_profiles[0]
+  const shopperData = Array.isArray(profile.shopper_profiles) 
+    ? profile.shopper_profiles[0] 
+    : profile.shopper_profiles
   if (!shopperData) notFound()
 
   // Fetch shopper's products
   const { data: products } = await supabase
     .from('products')
-    .select('*, product_images(*), categories(*), profiles:shopper_id(*), shopper_profiles:shopper_id(verification_status)')
+    .select('*, product_images(*), categories(*), profiles:shopper_id(*)')
     .eq('shopper_id', id)
     .eq('is_available', true)
     .order('created_at', { ascending: false })
@@ -123,8 +125,8 @@ export default async function ShopperDetailPage({ params }: { params: Promise<{ 
                         <h4 className="text-xs font-semibold text-slate-500 uppercase mb-2">Main Sources</h4>
                         <div className="flex flex-wrap gap-2">
                            {shopperData.shopper_sources?.map((s: any) => (
-                              <Badge key={s.sources.id} variant="default" className="text-xs font-medium border border-slate-200 bg-white shadow-sm">
-                                 {s.sources.name}
+                              <Badge key={s.import_sources?.id} variant="default" className="text-xs font-medium border border-slate-200 bg-white shadow-sm">
+                                 {s.import_sources?.name}
                               </Badge>
                            ))}
                            {(!shopperData.shopper_sources || shopperData.shopper_sources.length === 0) && (

@@ -29,15 +29,17 @@ export async function createProduct(
   const isExpired = shopperProfile.subscription_expires_at && new Date(shopperProfile.subscription_expires_at) < new Date()
   const activePlan = isExpired ? 'free' : plan
 
+  let forceInactive = false
   if (activePlan === 'free') {
     const { count, error: countError } = await supabase
       .from('products')
       .select('*', { count: 'exact', head: true })
       .eq('shopper_id', user.id)
+      .eq('is_available', true)
     
     if (countError) return { error: 'Failed to verify subscription limits.' }
     if (count && count >= 3) {
-      return { error: 'You have reached the free limit of 3 listings. Please upgrade to post more.' }
+      forceInactive = true // Limit reached, new listings must be hidden
     }
   }
 
@@ -47,6 +49,7 @@ export async function createProduct(
   const price       = Number(formData.get('price'))
   const stock       = Number(formData.get('stock') ?? 1)
   const category_id = formData.get('category_id') as string | null
+  const location    = formData.get('location') as string | null
 
   // If "Other" category was selected, use custom_name as the product name
   const name = customName?.trim() || rawName
@@ -69,6 +72,15 @@ export async function createProduct(
     return { error: `"${oversized.name}" exceeds the 5 MB limit per image.` }
   }
 
+  // Extract dynamic attributes
+  const attributes: Record<string, string> = {}
+  formData.forEach((value, key) => {
+    if (key.startsWith('attr_') && value) {
+      const cleanKey = key.replace('attr_', '')
+      attributes[cleanKey] = value.toString().trim()
+    }
+  })
+
   // 1. Insert product
   const { data: productResult, error: insertError } = await supabase
     .from('products')
@@ -79,7 +91,9 @@ export async function createProduct(
       price,
       stock,
       category_id: category_id || null,
-      is_available: true,
+      location: location?.trim() || null,
+      attributes,
+      is_available: !forceInactive, // Set to false if limit is reached
     } as any)
     .select()
     .single()
@@ -117,6 +131,7 @@ export async function createProduct(
   }
 
   revalidatePath('/dashboard/listings')
+  revalidatePath('/dashboard/billing')
   revalidatePath('/')
   revalidatePath('/products')
   redirect('/dashboard/listings')
@@ -126,6 +141,31 @@ export async function toggleProductAvailability(productId: string, isAvailable: 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Unauthorized')
+
+  // If trying to activate, check limits
+  if (!isAvailable) { // isAvailable here means the *current* state is false, so they are trying to set it to true
+    const { data: shopperProfile } = await supabase
+      .from('shopper_profiles')
+      .select('subscription_plan, subscription_expires_at')
+      .eq('id', user.id)
+      .single()
+
+    const plan = shopperProfile?.subscription_plan || 'free'
+    const isExpired = shopperProfile?.subscription_expires_at && new Date(shopperProfile.subscription_expires_at) < new Date()
+    const activePlan = isExpired ? 'free' : plan
+
+    if (activePlan === 'free') {
+      const { count } = await supabase
+        .from('products')
+        .select('*', { count: 'exact', head: true })
+        .eq('shopper_id', user.id)
+        .eq('is_available', true)
+
+      if (count && count >= 3) {
+        throw new Error('You have reached the free limit of 3 active products. Please hide another product first or upgrade to Pro.')
+      }
+    }
+  }
 
   const { error } = await supabase
     .from('products')
@@ -151,5 +191,6 @@ export async function deleteProduct(productId: string) {
 
   if (error) throw new Error(error.message)
   revalidatePath('/dashboard/listings')
+  revalidatePath('/dashboard/billing')
   revalidatePath('/')
 }

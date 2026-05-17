@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useEffect } from 'react'
+import { useActionState, useState } from 'react'
 import { submitPaymentRequest } from '@/lib/actions/payments'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
@@ -9,12 +9,17 @@ interface PaymentFormProps {
   userId: string
   products: { id: string; name: string; price: number }[]
   initialBoostProductId?: string
+  requestedPlan?: string
 }
 
 const initialState = { error: '', success: '' }
 
-export function PaymentForm({ userId, products, initialBoostProductId }: PaymentFormProps) {
+export function PaymentForm({ userId, products, initialBoostProductId, requestedPlan }: PaymentFormProps) {
   const [state, formAction, isPending] = useActionState(submitPaymentRequest, initialState)
+  
+  // Default to Pro Subscription if they clicked 'Upgrade to Pro'
+  const defaultType = requestedPlan === 'pro' ? 'pro_subscription' : (initialBoostProductId ? 'boost_7_days' : 'pro_subscription')
+  const [paymentType, setPaymentType] = useState(defaultType)
 
   return (
     <form action={formAction}>
@@ -45,7 +50,8 @@ export function PaymentForm({ userId, products, initialBoostProductId }: Payment
             id="payment_type"
             name="payment_type"
             required
-            defaultValue={initialBoostProductId ? 'boost_7_days' : 'pro_subscription'}
+            value={paymentType}
+            onChange={(e) => setPaymentType(e.target.value)}
             className="w-full h-12 px-4 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all shadow-sm"
           >
             <option value="pro_subscription">Pro Subscription (Monthly) - 1,000 ETB</option>
@@ -54,24 +60,27 @@ export function PaymentForm({ userId, products, initialBoostProductId }: Payment
           </select>
         </div>
 
-        <div>
-          <label htmlFor="target_id" className="block text-sm font-semibold text-navy-900 mb-2">
-            Select Product to Boost <span className="text-slate-400 font-normal">(Optional)</span>
-          </label>
-          <select
-            id="target_id"
-            name="target_id"
-            defaultValue={initialBoostProductId || ''}
-            className="w-full h-12 px-4 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all shadow-sm"
-          >
-            <option value="">-- I am paying for a Subscription --</option>
-            {products.map(p => (
-              <option key={p.id} value={p.id}>
-                {p.name} — ETB {p.price}
-              </option>
-            ))}
-          </select>
-        </div>
+        {paymentType !== 'pro_subscription' && (
+          <div>
+            <label htmlFor="target_id" className="block text-sm font-semibold text-navy-900 mb-2">
+              Select Product to Boost <span className="text-red-500">*</span>
+            </label>
+            <select
+              id="target_id"
+              name="target_id"
+              required
+              defaultValue={initialBoostProductId || ''}
+              className="w-full h-12 px-4 bg-white border border-slate-200 rounded-xl text-slate-900 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all shadow-sm"
+            >
+              <option value="" disabled>-- Select a product --</option>
+              {products.map(p => (
+                <option key={p.id} value={p.id}>
+                  {p.name} — ETB {p.price}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div>
           <label htmlFor="reference_number" className="block text-sm font-semibold text-navy-900 mb-2">

@@ -13,7 +13,7 @@ export default async function NewListingPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role, shopper_profiles(verification_status)')
+    .select('role, shopper_profiles(verification_status, subscription_plan, subscription_expires_at)')
     .eq('id', user.id)
     .single()
 
@@ -24,6 +24,25 @@ export default async function NewListingPage() {
   const sp = Array.isArray(profile.shopper_profiles) ? profile.shopper_profiles[0] : profile.shopper_profiles
   const verificationStatus = sp?.verification_status
   const isVerified = verificationStatus === 'verified' || profile.role === 'admin'
+
+  // ── Limit Checking ──
+  const plan = sp?.subscription_plan || 'free'
+  const expiresAt = sp?.subscription_expires_at ? new Date(sp.subscription_expires_at) : null
+  const isExpired = expiresAt && expiresAt < new Date()
+  const activePlan = isExpired ? 'free' : plan
+
+  let isLimitReached = false
+  if (activePlan === 'free') {
+    const { count } = await supabase
+      .from('products')
+      .select('*', { count: 'exact', head: true })
+      .eq('shopper_id', user.id)
+      .eq('is_available', true) // Only count active products
+    
+    if (count && count >= 3) {
+      isLimitReached = true
+    }
+  }
 
   const { data: categories } = await supabase
     .from('categories')
@@ -36,7 +55,7 @@ export default async function NewListingPage() {
         <h1 className="text-2xl font-bold text-navy-900 tracking-tight">Create Listing</h1>
         <p className="text-slate-500 mt-1">Post a new product for buyers to discover.</p>
       </div>
-      <ProductForm categories={categories || []} isVerified={isVerified} />
+      <ProductForm categories={categories || []} isVerified={isVerified} isLimitReached={isLimitReached} />
     </div>
   )
 }

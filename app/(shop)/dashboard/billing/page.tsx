@@ -14,11 +14,12 @@ export const metadata = {
 export default async function BillingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ boostProductId?: string }>
+  searchParams: Promise<{ boostProductId?: string; plan?: string }>
 }) {
   // In Next.js 15+, searchParams is a Promise — must be awaited
   const resolvedParams = await searchParams
   const boostProductId = resolvedParams.boostProductId
+  const requestedPlan = resolvedParams.plan
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -68,8 +69,8 @@ export default async function BillingPage({
         {/* Left Column: Plans & Pricing */}
         <div className="space-y-6">
           {/* Current Plan */}
-          <div className="bg-gradient-to-br from-navy-900 to-navy-800 p-6 sm:p-8 rounded-3xl relative overflow-hidden shadow-lg text-white">
-            <div className="absolute top-0 right-0 p-6">
+          <div className="bg-gradient-to-br from-navy-900 to-navy-800 p-4 sm:p-6 lg:p-8 rounded-3xl relative overflow-hidden shadow-lg text-white">
+            <div className="absolute top-0 right-0 p-4 sm:p-6">
               <Badge variant={activePlan === 'free' ? 'slate' : 'success'} size="md" className="uppercase tracking-widest font-bold bg-white/10 text-white border-0 backdrop-blur-sm">
                 {activePlan} Plan
               </Badge>
@@ -108,7 +109,7 @@ export default async function BillingPage({
           </div>
 
           {/* Pricing Plans List */}
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+          <div className="bg-white rounded-3xl border border-slate-200 p-4 sm:p-6 lg:p-8 shadow-sm">
             <h2 className="text-lg font-bold text-navy-900 mb-5">Available Upgrades</h2>
             <div className="space-y-0 divide-y divide-slate-100">
               <div className="flex justify-between items-center py-4 group">
@@ -149,7 +150,7 @@ export default async function BillingPage({
         </div>
 
         {/* Right Column: Payment Form */}
-        <div className="bg-slate-50 border border-slate-200 rounded-3xl p-6 sm:p-8">
+        <div className="bg-slate-50 border border-slate-200 rounded-3xl p-4 sm:p-6 lg:p-8">
           <div className="flex items-start gap-4 mb-6">
             <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-blue-600 shrink-0">
               <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -184,7 +185,8 @@ export default async function BillingPage({
           <PaymentForm 
             userId={user.id} 
             products={products || []} 
-            initialBoostProductId={boostProductId} 
+            initialBoostProductId={boostProductId}
+            requestedPlan={requestedPlan}
           />
         </div>
       </div>

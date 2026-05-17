@@ -120,6 +120,46 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
               <p className="whitespace-pre-line leading-relaxed">{product.description}</p>
             </div>
             
+            {/* Dynamic Attributes / Specifications */}
+            {product.attributes && Object.keys(product.attributes).length > 0 && (
+              <div className="mb-6 bg-slate-50 rounded-2xl border border-slate-100 p-5">
+                <h3 className="text-sm font-bold text-navy-900 mb-4 flex items-center gap-2">
+                  <svg className="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  Specifications
+                </h3>
+                <dl className="grid grid-cols-1 sm:grid-cols-2 gap-y-3 gap-x-4">
+                  {Object.entries(product.attributes).map(([key, value]) => (
+                    <div key={key} className="flex flex-col border-b border-slate-200/60 pb-2">
+                      <dt className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">{key}</dt>
+                      <dd className="text-sm font-medium text-navy-900">{value as string}</dd>
+                    </div>
+                  ))}
+                  {product.location && (
+                    <div className="flex flex-col border-b border-slate-200/60 pb-2">
+                      <dt className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Location</dt>
+                      <dd className="text-sm font-medium text-navy-900">{product.location}</dd>
+                    </div>
+                  )}
+                </dl>
+              </div>
+            )}
+            {/* Fallback to just location if no attributes exist but location does */}
+            {(!product.attributes || Object.keys(product.attributes).length === 0) && product.location && (
+              <div className="mb-6 bg-slate-50 rounded-2xl border border-slate-100 p-5">
+                 <dl className="grid grid-cols-1">
+                    <div className="flex flex-col">
+                      <dt className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-1">Product Location</dt>
+                      <dd className="text-sm font-medium text-navy-900 flex items-center gap-1.5">
+                        <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                        {product.location}
+                      </dd>
+                    </div>
+                 </dl>
+              </div>
+            )}
+            
             {/* Shopper Card Summary */}
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 mb-6">
                <h4 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Imported By</h4>

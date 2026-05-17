@@ -53,9 +53,9 @@ export default async function VerificationPage() {
       </div>
 
       {/* Steps indicator */}
-      <div className="flex items-center gap-2 text-xs font-medium text-slate-500">
+      <div className="flex flex-wrap items-center gap-2 text-xs font-medium text-slate-500">
         {['Upload ID', 'Phone Number', 'Seller Agreement'].map((step, i) => (
-          <span key={step} className="flex items-center gap-2">
+          <span key={step} className="flex items-center gap-2 shrink-0">
             <span className="flex items-center justify-center w-6 h-6 rounded-full bg-amber-100 text-amber-700 font-bold text-xs">{i + 1}</span>
             {step}
             {i < 2 && <span className="text-slate-300">—</span>}

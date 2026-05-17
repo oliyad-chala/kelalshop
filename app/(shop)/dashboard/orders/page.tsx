@@ -114,7 +114,7 @@ export default async function DashboardOrdersPage() {
                 {/* Chat Action */}
                 <Link 
                   href={`/dashboard/chat/${order.id}`}
-                  className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-200 transition-colors flex items-center gap-2"
+                  className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-200 transition-colors flex justify-center items-center gap-2 w-full sm:w-auto"
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
@@ -124,20 +124,20 @@ export default async function DashboardOrdersPage() {
 
                 {/* Shopper actions */}
                 {isShopper && order.status === 'pending' && (
-                  <form action={async () => { 'use server'; await acceptOrder(order.id) }}>
+                  <form action={async () => { 'use server'; await acceptOrder(order.id) }} className="w-full sm:w-auto">
                     <button
                       type="submit"
-                      className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors"
+                      className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors w-full sm:w-auto"
                     >
                       Accept Order
                     </button>
                   </form>
                 )}
                 {isShopper && (order.status === 'accepted' || order.status === 'pending') && (
-                  <form action={async () => { 'use server'; await markOrderShipped(order.id) }}>
+                  <form action={async () => { 'use server'; await markOrderShipped(order.id) }} className="w-full sm:w-auto">
                     <button
                       type="submit"
-                      className="px-4 py-2 bg-amber-500 text-white rounded-xl text-sm font-semibold hover:bg-amber-600 transition-colors"
+                      className="px-4 py-2 bg-amber-500 text-white rounded-xl text-sm font-semibold hover:bg-amber-600 transition-colors w-full sm:w-auto"
                     >
                       Mark as Shipped
                     </button>
@@ -146,20 +146,20 @@ export default async function DashboardOrdersPage() {
 
                 {/* Buyer actions */}
                 {!isShopper && order.status === 'pending' && (
-                  <form action={async () => { 'use server'; await cancelOrder(order.id) }}>
+                  <form action={async () => { 'use server'; await cancelOrder(order.id) }} className="w-full sm:w-auto">
                     <button
                       type="submit"
-                      className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm font-semibold hover:bg-red-100 transition-colors"
+                      className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm font-semibold hover:bg-red-100 transition-colors w-full sm:w-auto"
                     >
                       Cancel Order
                     </button>
                   </form>
                 )}
                 {!isShopper && order.status === 'shipped' && (
-                  <form action={async () => { 'use server'; await confirmDelivery(order.id) }}>
+                  <form action={async () => { 'use server'; await confirmDelivery(order.id) }} className="w-full sm:w-auto">
                     <button
                       type="submit"
-                      className="px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors"
+                      className="px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors w-full sm:w-auto"
                     >
                       ✓ I Received the Item
                     </button>
