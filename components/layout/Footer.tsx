@@ -86,9 +86,9 @@ export function Footer() {
           <div>
             <h4 className="text-sm font-bold text-white mb-5 uppercase tracking-wider">Help Center</h4>
             <ul className="space-y-3 text-sm">
-              <li><Link href="#" className="hover:text-amber-500 hover:translate-x-1 inline-block transition-all">How it Works</Link></li>
-              <li><Link href="#" className="hover:text-amber-500 hover:translate-x-1 inline-block transition-all">Trust & Safety</Link></li>
-              <li><Link href="#" className="hover:text-amber-500 hover:translate-x-1 inline-block transition-all">Contact Us</Link></li>
+              <li><Link href="#" className="text-blue-500 hover:text-blue-400 hover:translate-x-1 inline-block transition-all">How it Works</Link></li>
+              <li><Link href="#" className="text-blue-500 hover:text-blue-400 hover:translate-x-1 inline-block transition-all">Trust & Safety</Link></li>
+              <li><Link href="#" className="text-blue-500 hover:text-blue-400 hover:translate-x-1 inline-block transition-all">Contact Us</Link></li>
             </ul>
           </div>
         </div>
@@ -110,8 +110,8 @@ export function Footer() {
         <div className="border-t border-white/10 pt-8 mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-navy-500">
           <p>© {new Date().getFullYear()} KelalShop. All rights reserved.</p>
           <div className="flex gap-4">
-            <Link href="#" className="hover:text-white transition-colors">Privacy Policy</Link>
-            <Link href="#" className="hover:text-white transition-colors">Terms of Service</Link>
+            <Link href="#" className="text-blue-500 hover:text-blue-400 transition-colors">Privacy Policy</Link>
+            <Link href="#" className="text-blue-500 hover:text-blue-400 transition-colors">Terms of Service</Link>
           </div>
         </div>
       </div>

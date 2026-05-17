@@ -4,6 +4,7 @@ import { CartProvider } from '@/lib/context/CartContext'
 import { WishlistProvider } from '@/lib/context/WishlistContext'
 import { CartDrawer } from '@/components/cart/CartDrawer'
 import { LayoutWrapper } from '@/components/layout/LayoutWrapper'
+import { SupportWidget } from '@/components/chat/SupportWidget'
 import type { Profile } from '@/types/app.types'
 import type { CartItem } from '@/lib/context/CartContext'
 import '../globals.css'
@@ -81,6 +82,7 @@ export default async function ShopLayout({
             {children}
           </LayoutWrapper>
           <CartDrawer />
+          <SupportWidget />
         </CartProvider>
       </WishlistProvider>
     </div>

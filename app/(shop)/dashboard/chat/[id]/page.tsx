@@ -49,6 +49,15 @@ export default async function ChatRoomPage({ params }: { params: Promise<{ id: s
 
   const otherParty = isShopper ? order.buyer : order.shopper
 
+  const isBuyer = order.buyer_id === user.id
+  const isApproved = order.status !== 'pending'
+  const hasSellerMessaged = messages?.some((m: any) => m.sender_id === order.shopper_id) || false
+  
+  let disabledReason = undefined
+  if (isBuyer && !isApproved && !hasSellerMessaged) {
+    disabledReason = 'Wait for shopper to approve or message first...'
+  }
+
   return (
     // Mobile: subtract header (4rem) + mobile nav (4rem). Desktop: subtract just header.
     <div className="max-w-4xl flex flex-col h-[calc(100dvh-8rem)] md:h-[calc(100vh-8rem)] fade-in">
@@ -89,6 +98,7 @@ export default async function ChatRoomPage({ params }: { params: Promise<{ id: s
         orderId={id}
         currentUserId={user.id}
         initialMessages={messages || []}
+        disabledReason={disabledReason}
       />
 
     </div>

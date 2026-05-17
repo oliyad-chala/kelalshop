@@ -26,7 +26,7 @@ export async function sendMessage(
   // The recipient is whichever participant is NOT the current user.
   const { data: order, error: orderError } = await supabase
     .from('orders')
-    .select('buyer_id, shopper_id')
+    .select('buyer_id, shopper_id, status')
     .eq('id', order_id)
     .single()
 
@@ -35,6 +35,19 @@ export async function sendMessage(
   // Verify the current user is actually a participant
   if (order.buyer_id !== user.id && order.shopper_id !== user.id) {
     return { error: 'You are not a participant in this order.' }
+  }
+
+  // Prevent buyer from messaging if order is pending and shopper hasn't messaged yet
+  if (order.buyer_id === user.id && order.status === 'pending') {
+    const { count } = await supabase
+      .from('messages')
+      .select('*', { count: 'exact', head: true })
+      .eq('order_id', order_id)
+      .eq('sender_id', order.shopper_id)
+      
+    if (count === 0) {
+      return { error: 'You cannot send a message until the shopper approves the order or messages you first.' }
+    }
   }
 
   const recipient_id = order.buyer_id === user.id ? order.shopper_id : order.buyer_id

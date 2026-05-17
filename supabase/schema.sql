@@ -524,3 +524,78 @@ alter table messages
 -- Dropped credit_shopper_wallet as Escrow is removed.
 drop function if exists credit_shopper_wallet(uuid, numeric);
 
+-- ============================================================
+-- SUPPORT CHAT (AI & ADMIN)
+-- ============================================================
+
+create type support_session_status as enum ('bot', 'human', 'closed');
+create type support_sender_type as enum ('user', 'bot', 'admin');
+
+create table if not exists support_sessions (
+  id uuid default uuid_generate_v4() primary key,
+  user_id uuid references profiles(id) on delete cascade,
+  guest_id text, -- for anonymous users
+  status support_session_status default 'bot',
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create table if not exists support_messages (
+  id uuid default uuid_generate_v4() primary key,
+  session_id uuid references support_sessions(id) on delete cascade not null,
+  sender_type support_sender_type not null default 'user',
+  content text not null,
+  created_at timestamptz default now()
+);
+
+-- Enable RLS
+alter table support_sessions enable row level security;
+alter table support_messages enable row level security;
+
+-- Policies for sessions
+create policy "Users can view own sessions"
+  on support_sessions for select using (
+    auth.uid() = user_id or guest_id = current_setting('request.jwt.claims', true)::json->>'guest_id'
+  );
+
+create policy "Admins can view all sessions"
+  on support_sessions for select using (
+    exists (select 1 from profiles where id = auth.uid() and role = 'admin')
+  );
+
+-- We'll allow public inserts for sessions but restrict access based on guest_id or user_id
+create policy "Public can create sessions"
+  on support_sessions for insert with check (true);
+
+-- Policies for messages
+create policy "Users can view messages in their sessions"
+  on support_messages for select using (
+    exists (
+      select 1 from support_sessions
+      where id = support_messages.session_id
+      and (user_id = auth.uid() or guest_id = current_setting('request.jwt.claims', true)::json->>'guest_id')
+    )
+  );
+
+create policy "Admins can view all messages"
+  on support_messages for select using (
+    exists (select 1 from profiles where id = auth.uid() and role = 'admin')
+  );
+
+create policy "Users can insert messages to their sessions"
+  on support_messages for insert with check (
+    exists (
+      select 1 from support_sessions
+      where id = support_messages.session_id
+      and (user_id = auth.uid() or guest_id = current_setting('request.jwt.claims', true)::json->>'guest_id')
+    )
+    or
+    (auth.uid() is null) -- For pure guests making unauthenticated API calls
+  );
+
+-- Because the API route uses the service_role key to insert bot messages and create sessions,
+-- it will bypass these RLS policies. The client will only use RLS for reading.
+
+-- Note: In a real app, you might want to secure guest insertions further, but since we are using a 
+-- server-side API route for the AI, we can handle message insertion there securely.
+
