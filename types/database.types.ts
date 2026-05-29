@@ -12,6 +12,7 @@ export type OrderStatus = 'pending' | 'accepted' | 'shipped' | 'delivered' | 'ca
 export type RequestStatus = 'open' | 'assigned' | 'completed' | 'cancelled'
 export type PaymentRequestStatus = 'pending' | 'approved' | 'rejected'
 export type SubscriptionPlan = 'free' | 'pro'
+export type ProductApprovalStatus = 'pending' | 'approved' | 'rejected'
 
 export interface Database {
   public: {
@@ -178,6 +179,8 @@ export interface Database {
           is_featured: boolean
           boosted_until: string | null
           source_url: string | null
+          approval_status: ProductApprovalStatus
+          approval_notes: string | null
           created_at: string
           updated_at: string
         }
@@ -194,6 +197,8 @@ export interface Database {
           is_featured?: boolean
           boosted_until?: string | null
           source_url?: string | null
+          approval_status?: ProductApprovalStatus
+          approval_notes?: string | null
         }
         Update: {
           category_id?: string | null
@@ -206,6 +211,8 @@ export interface Database {
           is_featured?: boolean
           boosted_until?: string | null
           source_url?: string | null
+          approval_status?: ProductApprovalStatus
+          approval_notes?: string | null
           updated_at?: string
         }
       }

@@ -162,7 +162,7 @@ export function SupportWidget() {
       {showHint && !isOpen && (
         <div
           onClick={() => { setIsOpen(true); setShowHint(false) }}
-          className="fixed bottom-24 right-6 z-50 cursor-pointer"
+          className="fixed bottom-[5.5rem] md:bottom-24 right-6 z-50 cursor-pointer"
           style={{ animation: 'slideInRight 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards' }}
         >
           <div className="bg-white rounded-2xl rounded-br-sm shadow-xl border border-slate-100 px-4 py-3 text-sm font-medium text-navy-900 whitespace-nowrap flex items-center gap-2">
@@ -175,7 +175,7 @@ export function SupportWidget() {
       {/* FAB Button */}
       <button
         onClick={() => { setIsOpen(o => !o); setShowHint(false) }}
-        className="fixed bottom-6 right-6 z-50 flex items-center justify-center w-14 h-14 rounded-full shadow-lg focus:outline-none transition-all duration-300"
+        className="fixed bottom-[4.5rem] md:bottom-6 right-6 z-50 flex items-center justify-center w-14 h-14 rounded-full shadow-lg focus:outline-none transition-all duration-300"
         style={{
           background: 'linear-gradient(135deg, #f59e0b, #fbbf24)',
           boxShadow: isOpen ? '0 4px 20px rgba(245,158,11,0.5)' : '0 4px 20px rgba(245,158,11,0.4)',
@@ -208,7 +208,7 @@ export function SupportWidget() {
         <div
           className="fixed z-50 flex flex-col overflow-hidden rounded-2xl border border-slate-200/60"
           style={{
-            bottom: '88px',
+            bottom: 'calc(4.5rem + 16px)',
             right: '16px',
             width: 'min(calc(100vw - 32px), 370px)',
             height: 'min(calc(100dvh - 120px), 520px)',

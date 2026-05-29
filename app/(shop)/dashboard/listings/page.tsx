@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { formatPrice, formatDate } from '@/lib/utils/formatters'
 import type { ProductWithDetails } from '@/types/app.types'
+import { DeleteProductButton } from '@/components/products/DeleteProductButton'
+import { deleteProduct } from '@/lib/actions/products'
 
 export const metadata = {
   title: 'My Listings | KelalShop',
@@ -58,11 +60,11 @@ export default async function ListingsPage() {
           .from('products')
           .update({ is_available: false } as any)
           .in('id', idsToDeactivate)
-        
+
         downgradeNotice = true
-        
+
         // Update local items state so the UI reflects the change immediately
-        items = items.map(p => 
+        items = items.map(p =>
           idsToDeactivate.includes(p.id) ? { ...p, is_available: false } : p
         )
       }
@@ -96,8 +98,8 @@ export default async function ListingsPage() {
           <div>
             <h4 className="text-sm font-bold text-amber-900">Subscription Expired</h4>
             <p className="text-sm text-amber-800 mt-1">
-              Your Pro subscription has expired and you are now on the Free plan. 
-              The Free plan allows a maximum of 3 active listings. We have automatically hidden your older listings. 
+              Your Pro subscription has expired and you are now on the Free plan.
+              The Free plan allows a maximum of 3 active listings. We have automatically hidden your older listings.
               <Link href="/dashboard/billing" className="font-semibold underline ml-1 hover:text-amber-900">Upgrade to Pro</Link> to reactivate them.
             </p>
           </div>
@@ -145,14 +147,24 @@ export default async function ListingsPage() {
                         <div className="font-semibold text-navy-900 shrink-0">{formatPrice(product.price).split(' ')[0]}</div>
                       </div>
                       <div className="text-xs text-slate-500 mt-0.5">{product.categories?.name} · Stock: {product.stock}</div>
-                      <div className="mt-2">
-                        <Badge variant={product.is_available ? 'success' : 'default'} size="sm">
-                          {product.is_available ? 'Active' : 'Hidden'}
-                        </Badge>
+                      <div className="mt-2 flex flex-col items-start gap-2">
+                        <div className="flex items-center gap-2">
+                          <Badge variant={product.is_available ? 'success' : 'default'} size="sm">
+                            {product.is_available ? 'Active' : 'Hidden'}
+                          </Badge>
+                          <Badge variant={product.approval_status === 'approved' ? 'success' : product.approval_status === 'pending' ? 'warning' : 'danger'} size="sm">
+                            {product.approval_status === 'approved' ? 'Approved' : product.approval_status === 'pending' ? 'Pending Approval' : 'Rejected'}
+                          </Badge>
+                        </div>
+                        {product.approval_status === 'rejected' && product.approval_notes && (
+                          <div className="text-xs text-red-600 bg-red-50 p-2 rounded-lg w-full">
+                            <strong>Reason:</strong> {product.approval_notes}
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
                     <span className="text-xs text-slate-400">{formatDate(product.created_at)}</span>
                     <div className="flex items-center gap-2">
@@ -161,12 +173,12 @@ export default async function ListingsPage() {
                           Boost 🚀
                         </Button>
                       </Link>
-                      <Button variant="ghost" size="sm" className="text-slate-500 hover:text-blue-600 px-3 py-1.5 h-auto">
-                        Edit
-                      </Button>
-                      <Button variant="ghost" size="sm" className="text-slate-500 hover:text-red-600 px-3 py-1.5 h-auto">
-                        Delete
-                      </Button>
+                      <Link href={`/dashboard/listings/${product.id}/edit`}>
+                        <Button variant="ghost" size="sm" className="text-slate-500 hover:text-blue-600 px-3 py-1.5 h-auto">
+                          Edit
+                        </Button>
+                      </Link>
+                      <DeleteProductButton productId={product.id} onDelete={deleteProduct} />
                     </div>
                   </div>
                 </div>
@@ -190,21 +202,21 @@ export default async function ListingsPage() {
               <tbody className="divide-y divide-slate-100 text-sm">
                 {items.map((product) => {
                   const primaryImage = product.product_images.find(img => img.is_primary)?.url || product.product_images[0]?.url
-                  
+
                   return (
                     <tr key={product.id} className="hover:bg-slate-50/50 transition-colors group">
                       <td className="p-4 pl-6">
                         <div className="flex items-center gap-3 w-max">
                           <div className="relative w-12 h-12 rounded-lg bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
-                             {primaryImage ? (
-                               <Image src={primaryImage} alt={product.name} fill className="object-cover" />
-                             ) : (
-                               <div className="w-full h-full flex items-center justify-center">
-                                 <svg className="w-5 h-5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                 </svg>
-                               </div>
-                             )}
+                            {primaryImage ? (
+                              <Image src={primaryImage} alt={product.name} fill className="object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <svg className="w-5 h-5 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                              </div>
+                            )}
                           </div>
                           <div>
                             <div className="font-medium text-navy-900 line-clamp-1 max-w-[250px]">{product.name}</div>
@@ -212,10 +224,20 @@ export default async function ListingsPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="p-4">
-                        <Badge variant={product.is_available ? 'success' : 'default'}>
-                          {product.is_available ? 'Active' : 'Hidden'}
-                        </Badge>
+                      <td className="p-4 align-top">
+                        <div className="flex flex-col gap-1.5 items-start">
+                          <Badge variant={product.is_available ? 'success' : 'default'}>
+                            {product.is_available ? 'Active' : 'Hidden'}
+                          </Badge>
+                          <Badge variant={product.approval_status === 'approved' ? 'success' : product.approval_status === 'pending' ? 'warning' : 'danger'} size="sm">
+                            {product.approval_status === 'approved' ? 'Approved' : product.approval_status === 'pending' ? 'Pending Approval' : 'Rejected'}
+                          </Badge>
+                          {product.approval_status === 'rejected' && product.approval_notes && (
+                            <div className="text-[11px] text-red-600 bg-red-50 p-1.5 rounded mt-1 max-w-[180px] break-words">
+                              <strong>Reason:</strong> {product.approval_notes}
+                            </div>
+                          )}
+                        </div>
                       </td>
                       <td className="p-4 font-medium text-navy-900">
                         {formatPrice(product.price).split(' ')[0]}
@@ -232,12 +254,12 @@ export default async function ListingsPage() {
                             Boost 🚀
                           </Button>
                         </Link>
-                        <Button variant="ghost" size="sm" className="text-slate-400 hover:text-blue-600">
-                          Edit
-                        </Button>
-                        <Button variant="ghost" size="sm" className="text-slate-400 hover:text-red-600">
-                          Delete
-                        </Button>
+                        <Link href={`/dashboard/listings/${product.id}/edit`}>
+                          <Button variant="ghost" size="sm" className="text-slate-400 hover:text-blue-600">
+                            Edit
+                          </Button>
+                        </Link>
+                        <DeleteProductButton productId={product.id} onDelete={deleteProduct} className="text-slate-400 hover:text-red-600" />
                       </td>
                     </tr>
                   )

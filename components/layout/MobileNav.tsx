@@ -8,6 +8,7 @@ import type { Profile } from '@/types/app.types'
 interface MobileNavProps {
   user: Profile | null
   unreadMessages?: number
+  unreadNotifications?: number
 }
 
 const buyerTabs = [
@@ -50,6 +51,17 @@ const buyerTabs = [
       </svg>
     ),
     isMessages: true,
+  },
+  {
+    href: '/dashboard/notifications',
+    label: 'Alerts',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+      </svg>
+    ),
+    isMessages: false,
+    isNotifications: true,
   },
   {
     href: '/dashboard/profile',
@@ -114,9 +126,20 @@ const shopperTabs = [
     ),
     isMessages: true,
   },
+  {
+    href: '/dashboard/notifications',
+    label: 'Alerts',
+    icon: (
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+      </svg>
+    ),
+    isMessages: false,
+    isNotifications: true,
+  },
 ]
 
-export function MobileNav({ user, unreadMessages = 0 }: MobileNavProps) {
+export function MobileNav({ user, unreadMessages = 0, unreadNotifications = 0 }: MobileNavProps) {
   const pathname = usePathname()
   if (!user) return null
 
@@ -150,6 +173,11 @@ export function MobileNav({ user, unreadMessages = 0 }: MobileNavProps) {
                 {tab.isMessages && unreadMessages > 0 && (
                   <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-red-500 border border-white flex items-center justify-center text-[8px] font-bold text-white leading-none">
                     {unreadMessages > 9 ? '9+' : unreadMessages}
+                  </span>
+                )}
+                {(tab as any).isNotifications && unreadNotifications > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-amber-500 border border-white flex items-center justify-center text-[8px] font-bold text-white leading-none">
+                    {unreadNotifications > 9 ? '9+' : unreadNotifications}
                   </span>
                 )}
               </span>

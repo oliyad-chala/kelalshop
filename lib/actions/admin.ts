@@ -53,7 +53,7 @@ export async function rejectVerification(shopperId: string) {
 
 export async function approvePayment(paymentId: string) {
   const admin = await requireAdmin()
-  
+
   // 1. Get payment details
   const { data: payment, error: getError } = await admin
     .from('payment_requests')
@@ -68,21 +68,21 @@ export async function approvePayment(paymentId: string) {
   if (payment.payment_type === 'pro_subscription') {
     const expires = new Date()
     expires.setDate(expires.getDate() + 30) // 30 days
-    
+
     const { error } = await admin
       .from('shopper_profiles')
-      .update({ 
+      .update({
         subscription_plan: 'pro',
         subscription_expires_at: expires.toISOString(),
         updated_at: new Date().toISOString()
       } as any)
       .eq('id', payment.shopper_id)
-    
+
     if (error) throw new Error(error.message)
-  } 
+  }
   else if (payment.payment_type === 'boost_7_days' || payment.payment_type === 'boost_28_days') {
     if (!payment.target_id) throw new Error('Missing product target ID')
-    
+
     const days = payment.payment_type === 'boost_7_days' ? 7 : 28
     const expires = new Date()
     expires.setDate(expires.getDate() + days)
@@ -95,16 +95,16 @@ export async function approvePayment(paymentId: string) {
         updated_at: new Date().toISOString()
       } as any)
       .eq('id', payment.target_id)
-    
+
     if (error) throw new Error(error.message)
   }
-  
+
   // 3. Mark approved
-  await admin.from('payment_requests').update({ 
+  await admin.from('payment_requests').update({
     status: 'approved',
     updated_at: new Date().toISOString()
   } as any).eq('id', paymentId)
-  
+
   revalidatePath('/admin/payouts')
 }
 
@@ -112,14 +112,14 @@ export async function rejectPayment(paymentId: string) {
   const admin = await requireAdmin()
   const { error } = await admin
     .from('payment_requests')
-    .update({ 
+    .update({
       status: 'rejected',
       updated_at: new Date().toISOString()
     } as any)
     .eq('id', paymentId)
 
   if (error) throw new Error(error.message)
-  
+
   revalidatePath('/admin/payouts')
 }
 
@@ -127,7 +127,7 @@ export async function rejectPayment(paymentId: string) {
 
 export async function adminUpdateSubscription(shopperId: string, plan: 'free' | 'pro') {
   const admin = await requireAdmin()
-  
+
   let expiresAt = null
   if (plan === 'pro') {
     const expires = new Date()
@@ -137,15 +137,15 @@ export async function adminUpdateSubscription(shopperId: string, plan: 'free' | 
 
   const { error } = await admin
     .from('shopper_profiles')
-    .update({ 
+    .update({
       subscription_plan: plan,
       subscription_expires_at: expiresAt,
       updated_at: new Date().toISOString()
     } as any)
     .eq('id', shopperId)
-  
+
   if (error) throw new Error(error.message)
-  
+
   revalidatePath('/admin/sellers')
 }
 
@@ -153,17 +153,17 @@ export async function adminUpdateSubscription(shopperId: string, plan: 'free' | 
 
 export async function toggleTopShopper(shopperId: string, isTop: boolean) {
   const admin = await requireAdmin()
-  
+
   const { error } = await admin
     .from('shopper_profiles')
-    .update({ 
+    .update({
       is_top_shopper: isTop,
       updated_at: new Date().toISOString()
     } as any)
     .eq('id', shopperId)
 
   if (error) throw new Error(error.message)
-  
+
   revalidatePath('/admin/trust')
   revalidatePath('/shoppers')
 }
@@ -182,7 +182,7 @@ export async function toggleProductAvailability(productId: string, isAvailable: 
 
 export async function adminToggleProductBoost(productId: string, boost: boolean) {
   const admin = await requireAdmin()
-  
+
   let boostedUntil = null
   if (boost) {
     const expires = new Date()
@@ -192,15 +192,15 @@ export async function adminToggleProductBoost(productId: string, boost: boolean)
 
   const { error } = await admin
     .from('products')
-    .update({ 
+    .update({
       is_featured: boost,
       boosted_until: boostedUntil,
       updated_at: new Date().toISOString()
     } as any)
     .eq('id', productId)
-  
+
   if (error) throw new Error(error.message)
-  
+
   revalidatePath('/admin/products')
   revalidatePath('/')
 }
@@ -217,6 +217,7 @@ export async function getAdminStats() {
     { count: pendingVerifications },
     { count: totalShoppers },
     { count: pendingPayments },
+    { count: pendingProducts },
   ] = await Promise.all([
     admin.from('orders').select('amount'),
     admin.from('requests').select('*', { count: 'exact', head: true }).eq('status', 'open'),
@@ -227,6 +228,7 @@ export async function getAdminStats() {
     admin.from('shopper_profiles').select('*', { count: 'exact', head: true }).eq('verification_status', 'pending'),
     admin.from('shopper_profiles').select('*', { count: 'exact', head: true }),
     admin.from('payment_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+    admin.from('products').select('*', { count: 'exact', head: true }).eq('approval_status' as any, 'pending'),
   ])
 
   const totalRevenue = orders?.reduce((sum, o) => sum + Number(o.amount), 0) ?? 0
@@ -238,6 +240,7 @@ export async function getAdminStats() {
     pendingVerifications: pendingVerifications ?? 0,
     totalShoppers: totalShoppers ?? 0,
     pendingPayments: pendingPayments ?? 0,
+    pendingProducts: pendingProducts ?? 0,
   }
 }
 
@@ -315,13 +318,210 @@ export async function adminUpdateOrderStatus(orderId: string, status: string) {
   const admin = await requireAdmin()
   const { error } = await admin
     .from('orders')
-    .update({ 
-      status: status, 
-      updated_at: new Date().toISOString() 
+    .update({
+      status: status,
+      updated_at: new Date().toISOString()
     } as any)
     .eq('id', orderId)
-  
+
   if (error) throw new Error(error.message)
-  
+
   revalidatePath('/admin/orders')
+}
+
+export async function adminDeleteProduct(productId: string) {
+  const admin = await requireAdmin()
+
+  // Professional delete: clean up related data first
+  // 1. Delete product images from storage
+  const { data: images } = await admin
+    .from('product_images')
+    .select('url')
+    .eq('product_id', productId)
+
+  if (images && images.length > 0) {
+    const fileNames = images.map((img: any) => {
+      const urlParts = img.url.split('/')
+      const fileName = urlParts.pop()
+      const folderName = urlParts.pop() // this should be productId
+      return `${folderName}/${fileName}`
+    })
+    await admin.storage.from('products').remove(fileNames)
+  }
+
+  // 2. Delete related records in other tables
+  await Promise.all([
+    admin.from('product_images').delete().eq('product_id', productId),
+    admin.from('cart_items').delete().eq('product_id', productId),
+    admin.from('wishlist_items').delete().eq('product_id', productId),
+    admin.from('flash_deal_items').delete().eq('product_id', productId),
+    admin.from('orders').delete().eq('product_id', productId),
+  ])
+
+  // 3. Delete the product itself
+  const { error } = await admin
+    .from('products')
+    .delete()
+    .eq('id', productId)
+
+  if (error) throw new Error(error.message)
+
+  revalidatePath('/admin/products')
+  revalidatePath('/dashboard/listings')
+  revalidatePath('/')
+}
+
+export async function adminUpdateProduct(
+  productId: string,
+  _prevState: any,
+  formData: FormData
+) {
+  const admin = await requireAdmin()
+
+  const rawName = formData.get('name') as string
+  const customName = formData.get('custom_name') as string | null
+  const description = formData.get('description') as string
+  const price = Number(formData.get('price'))
+  const stock = Number(formData.get('stock') ?? 1)
+  const category_id = formData.get('category_id') as string | null
+  const location = formData.get('location') as string | null
+
+  const name = customName?.trim() || rawName
+
+  if (!name || isNaN(price) || price < 0) {
+    return { error: 'Please provide a valid name and price.' }
+  }
+
+  const attributes: Record<string, string> = {}
+  formData.forEach((value, key) => {
+    if (key.startsWith('attr_') && value) {
+      const cleanKey = key.replace('attr_', '')
+      attributes[cleanKey] = value.toString().trim()
+    }
+  })
+
+  // Check images
+  const imageFiles = formData.getAll('images') as File[]
+  const validImages = imageFiles.filter(f => f && f.size > 0)
+
+  if (validImages.length > 3) {
+    return { error: 'You can upload a maximum of 3 photos.' }
+  }
+
+  const MAX_BYTES = 5 * 1024 * 1024
+  const oversized = validImages.find(f => f.size > MAX_BYTES)
+  if (oversized) {
+    return { error: `"${oversized.name}" exceeds the 5 MB limit per image.` }
+  }
+
+  // Update product details
+  const { error: updateError } = await admin
+    .from('products')
+    .update({
+      name,
+      description,
+      price,
+      stock,
+      category_id: category_id || null,
+      location: location?.trim() || null,
+      attributes,
+      updated_at: new Date().toISOString()
+    } as any)
+    .eq('id', productId)
+
+  if (updateError) return { error: updateError.message }
+
+  // If new images provided, replace old ones
+  if (validImages.length > 0) {
+    await admin.from('product_images').delete().eq('product_id', productId)
+
+    for (let i = 0; i < validImages.length; i++) {
+      const file = validImages[i]
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${productId}/${crypto.randomUUID()}.${fileExt}`
+      const fileBuffer = await file.arrayBuffer()
+
+      const { error: uploadError } = await admin.storage
+        .from('products')
+        .upload(fileName, fileBuffer, {
+          contentType: file.type,
+          upsert: true
+        })
+
+      if (!uploadError) {
+        const { data: publicUrl } = admin.storage
+          .from('products')
+          .getPublicUrl(fileName)
+
+        await admin.from('product_images').insert({
+          product_id: productId,
+          url: publicUrl.publicUrl,
+          is_primary: i === 0,
+          sort_order: i,
+        } as any)
+      }
+    }
+  }
+
+  revalidatePath('/admin/products')
+  revalidatePath('/dashboard/listings')
+  revalidatePath('/')
+
+  return { success: 'Product updated successfully.' }
+}
+
+export async function adminApproveProduct(productId: string) {
+  const admin = await requireAdmin()
+  const { error } = await admin
+    .from('products')
+    .update({ approval_status: 'approved', updated_at: new Date().toISOString() } as any)
+    .eq('id', productId)
+    
+  if (error) throw new Error(error.message)
+
+  // create notification
+  const { data: product } = await admin.from('products').select('shopper_id, name').eq('id', productId).single()
+  if (product) {
+    await admin.from('notifications' as any).insert({
+      user_id: product.shopper_id,
+      title: 'Product Approved',
+      message: `Your product "${product.name}" has been approved and is now visible.`,
+      type: 'product_approved',
+      is_read: false
+    })
+  }
+
+  revalidatePath('/admin/products')
+  revalidatePath('/dashboard/listings')
+  revalidatePath('/')
+}
+
+export async function adminRejectProduct(productId: string, reason: string) {
+  const admin = await requireAdmin()
+  const { error } = await admin
+    .from('products')
+    .update({ 
+      approval_status: 'rejected', 
+      approval_notes: reason,
+      updated_at: new Date().toISOString() 
+    } as any)
+    .eq('id', productId)
+    
+  if (error) throw new Error(error.message)
+
+  // create notification
+  const { data: product } = await admin.from('products').select('shopper_id, name').eq('id', productId).single()
+  if (product) {
+    await admin.from('notifications' as any).insert({
+      user_id: product.shopper_id,
+      title: 'Product Rejected',
+      message: `Your product "${product.name}" was rejected. Reason: ${reason}`,
+      type: 'product_rejected',
+      is_read: false
+    })
+  }
+
+  revalidatePath('/admin/products')
+  revalidatePath('/dashboard/listings')
+  revalidatePath('/')
 }

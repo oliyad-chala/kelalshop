@@ -36,20 +36,20 @@ export async function createProduct(
       .select('*', { count: 'exact', head: true })
       .eq('shopper_id', user.id)
       .eq('is_available', true)
-    
+
     if (countError) return { error: 'Failed to verify subscription limits.' }
     if (count && count >= 3) {
       forceInactive = true // Limit reached, new listings must be hidden
     }
   }
 
-  const rawName     = formData.get('name') as string
-  const customName  = formData.get('custom_name') as string | null
+  const rawName = formData.get('name') as string
+  const customName = formData.get('custom_name') as string | null
   const description = formData.get('description') as string
-  const price       = Number(formData.get('price'))
-  const stock       = Number(formData.get('stock') ?? 1)
+  const price = Number(formData.get('price'))
+  const stock = Number(formData.get('stock') ?? 1)
   const category_id = formData.get('category_id') as string | null
-  const location    = formData.get('location') as string | null
+  const location = formData.get('location') as string | null
 
   // If "Other" category was selected, use custom_name as the product name
   const name = customName?.trim() || rawName
@@ -94,6 +94,7 @@ export async function createProduct(
       location: location?.trim() || null,
       attributes,
       is_available: !forceInactive, // Set to false if limit is reached
+      approval_status: 'pending',
     } as any)
     .select()
     .single()
@@ -183,6 +184,45 @@ export async function deleteProduct(productId: string) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Unauthorized')
 
+  // Verify ownership first
+  const { data: existingProduct, error: fetchError } = await supabase
+    .from('products')
+    .select('id')
+    .eq('id', productId)
+    .eq('shopper_id', user.id)
+    .single()
+
+  if (fetchError || !existingProduct) {
+    throw new Error('Product not found or unauthorized.')
+  }
+
+  // Professional delete: clean up related data first
+  // 1. Delete product images from storage
+  const { data: images } = await supabase
+    .from('product_images')
+    .select('url')
+    .eq('product_id', productId)
+
+  if (images && images.length > 0) {
+    const fileNames = images.map(img => {
+      const urlParts = img.url.split('/')
+      const fileName = urlParts.pop()
+      const folderName = urlParts.pop() // this should be productId
+      return `${folderName}/${fileName}`
+    })
+    await supabase.storage.from('products').remove(fileNames)
+  }
+
+  // 2. Delete related records in other tables
+  await Promise.all([
+    supabase.from('product_images').delete().eq('product_id', productId),
+    supabase.from('cart_items').delete().eq('product_id', productId),
+    supabase.from('wishlist_items').delete().eq('product_id', productId),
+    supabase.from('flash_deal_items').delete().eq('product_id', productId),
+    supabase.from('orders').delete().eq('product_id', productId),
+  ])
+
+  // 3. Delete the product itself
   const { error } = await supabase
     .from('products')
     .delete()
@@ -190,7 +230,123 @@ export async function deleteProduct(productId: string) {
     .eq('shopper_id', user.id)
 
   if (error) throw new Error(error.message)
+
   revalidatePath('/dashboard/listings')
   revalidatePath('/dashboard/billing')
   revalidatePath('/')
+}
+
+export async function updateProduct(
+  productId: string,
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated.' }
+
+  // Verify ownership
+  const { data: existingProduct, error: fetchError } = await supabase
+    .from('products')
+    .select('id')
+    .eq('id', productId)
+    .eq('shopper_id', user.id)
+    .single()
+
+  if (fetchError || !existingProduct) {
+    return { error: 'Product not found or unauthorized.' }
+  }
+
+  const rawName = formData.get('name') as string
+  const customName = formData.get('custom_name') as string | null
+  const description = formData.get('description') as string
+  const price = Number(formData.get('price'))
+  const stock = Number(formData.get('stock') ?? 1)
+  const category_id = formData.get('category_id') as string | null
+  const location = formData.get('location') as string | null
+
+  const name = customName?.trim() || rawName
+
+  if (!name || isNaN(price) || price < 0) {
+    return { error: 'Please provide a valid name and price.' }
+  }
+
+  const attributes: Record<string, string> = {}
+  formData.forEach((value, key) => {
+    if (key.startsWith('attr_') && value) {
+      const cleanKey = key.replace('attr_', '')
+      attributes[cleanKey] = value.toString().trim()
+    }
+  })
+
+  // Check images
+  const imageFiles = formData.getAll('images') as File[]
+  const validImages = imageFiles.filter(f => f && f.size > 0)
+
+  if (validImages.length > 3) {
+    return { error: 'You can upload a maximum of 3 photos.' }
+  }
+
+  const MAX_BYTES = 5 * 1024 * 1024
+  const oversized = validImages.find(f => f.size > MAX_BYTES)
+  if (oversized) {
+    return { error: `"${oversized.name}" exceeds the 5 MB limit per image.` }
+  }
+
+  // Update product details
+  const { error: updateError } = await supabase
+    .from('products')
+    .update({
+      name,
+      description,
+      price,
+      stock,
+      category_id: category_id || null,
+      location: location?.trim() || null,
+      attributes,
+      approval_status: 'pending',
+      updated_at: new Date().toISOString()
+    } as any)
+    .eq('id', productId)
+
+  if (updateError) return { error: updateError.message }
+
+  // If new images provided, replace old ones
+  if (validImages.length > 0) {
+    // Delete existing from db (storage can be left or cleaned up later, 
+    // but better to clean up db records at least)
+    await supabase.from('product_images').delete().eq('product_id', productId)
+
+    for (let i = 0; i < validImages.length; i++) {
+      const file = validImages[i]
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${productId}/${crypto.randomUUID()}.${fileExt}`
+      const fileBuffer = await file.arrayBuffer()
+
+      const { error: uploadError } = await supabase.storage
+        .from('products')
+        .upload(fileName, fileBuffer, {
+          contentType: file.type,
+          upsert: true
+        })
+
+      if (!uploadError) {
+        const { data: publicUrl } = supabase.storage
+          .from('products')
+          .getPublicUrl(fileName)
+
+        await supabase.from('product_images').insert({
+          product_id: productId,
+          url: publicUrl.publicUrl,
+          is_primary: i === 0,
+          sort_order: i,
+        } as any)
+      }
+    }
+  }
+
+  revalidatePath('/dashboard/listings')
+  revalidatePath('/')
+  revalidatePath('/products')
+  redirect('/dashboard/listings')
 }

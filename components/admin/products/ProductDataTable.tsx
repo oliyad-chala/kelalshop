@@ -2,10 +2,11 @@
 
 import { useState, useTransition, useMemo } from 'react'
 import { type ColumnDef } from '@tanstack/react-table'
-import { ToggleLeft, ToggleRight, Eye } from 'lucide-react'
+import { ToggleLeft, ToggleRight, Eye, Edit2, ShieldAlert, CheckCircle2, XCircle, Trash2 } from 'lucide-react'
 import { DataTable } from '@/components/admin/DataTable'
-import { toggleProductAvailability, adminToggleProductBoost } from '@/lib/actions/admin'
+import { toggleProductAvailability, adminToggleProductBoost, adminDeleteProduct, adminApproveProduct, adminRejectProduct } from '@/lib/actions/admin'
 import Link from 'next/link'
+import { DeleteProductButton } from '@/components/products/DeleteProductButton'
 
 interface ProductRow {
   id: string
@@ -18,6 +19,8 @@ interface ProductRow {
   is_featured: boolean
   boosted_until: string | null
   created_at: string
+  approval_status: 'pending' | 'approved' | 'rejected'
+  approval_notes: string | null
 }
 
 function AvailabilityToggle({ productId, initial }: { productId: string; initial: boolean }) {
@@ -51,9 +54,9 @@ function AvailabilityToggle({ productId, initial }: { productId: string; initial
       }}
     >
       {enabled
-        ? <ToggleRight size={18} style={{ flexShrink: 0 }} />
-        : <ToggleLeft  size={18} style={{ flexShrink: 0 }} />}
-      {enabled ? 'Active' : 'Removed'}
+        ? <ToggleRight size={16} className="text-green-500" style={{ flexShrink: 0 }} />
+        : <ToggleLeft size={16} className="text-slate-400" style={{ flexShrink: 0 }} />}
+      <span className={enabled ? 'text-green-700' : 'text-slate-500'}>{enabled ? 'Active' : 'Hidden'}</span>
     </button>
   )
 }
@@ -90,50 +93,100 @@ function BoostToggle({ productId, isFeatured, boostedUntil }: { productId: strin
       }}
     >
       {enabled
-        ? <ToggleRight size={18} style={{ flexShrink: 0, color: '#f59e0b' }} />
-        : <ToggleLeft  size={18} style={{ flexShrink: 0 }} />}
-      {enabled ? 'Featured' : 'Standard'}
+        ? <ToggleRight size={16} className="text-amber-500" style={{ flexShrink: 0 }} />
+        : <ToggleLeft size={16} className="text-slate-400" style={{ flexShrink: 0 }} />}
+      <span className={enabled ? 'text-amber-700' : 'text-slate-500'}>{enabled ? 'Featured' : 'Standard'}</span>
     </button>
+  )
+}
+
+function ApprovalActions({ productId, currentStatus, reason }: { productId: string, currentStatus: string, reason: string | null }) {
+  const [pending, startTransition] = useTransition()
+
+  const handleApprove = () => {
+    startTransition(async () => {
+      await adminApproveProduct(productId)
+    })
+  }
+
+  const handleReject = () => {
+    const r = window.prompt('Enter rejection reason:')
+    if (r !== null) {
+      startTransition(async () => {
+        await adminRejectProduct(productId, r || 'No reason provided')
+      })
+    }
+  }
+
+  if (currentStatus === 'pending') {
+    return (
+      <div className="flex gap-2 items-center">
+        <button onClick={handleApprove} disabled={pending} className="text-xs font-medium px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 disabled:opacity-50 flex items-center gap-1">
+          <CheckCircle2 size={14} /> Approve
+        </button>
+        <button onClick={handleReject} disabled={pending} className="text-xs font-medium px-2 py-1 rounded-md bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 disabled:opacity-50 flex items-center gap-1">
+          <XCircle size={14} /> Reject
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider w-max ${currentStatus === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'}`}>
+        {currentStatus === 'approved' ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
+        {currentStatus}
+      </span>
+      {currentStatus === 'rejected' && reason && (
+        <span className="text-[10px] text-rose-600 max-w-[150px] leading-tight bg-rose-50 p-1 rounded border border-rose-100 line-clamp-2" title={reason}>{reason}</span>
+      )}
+    </div>
   )
 }
 
 const columns: ColumnDef<ProductRow, any>[] = [
   {
-    accessorKey: 'name',
-    header: 'Product',
-    cell: ({ row, getValue }) => (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        <span style={{ color: 'var(--color-text-primary)', fontWeight: 500 }}>{getValue()}</span>
-        <Link href={`/products/${row.original.id}`} target="_blank" style={{ color: 'var(--color-text-muted)', display: 'flex' }} title="View on marketplace">
-          <Eye size={14} />
-        </Link>
+    id: 'product_details',
+    header: 'Product Details',
+    cell: ({ row }) => (
+      <div className="flex flex-col">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-slate-900 text-sm">{row.original.name}</span>
+          <Link href={`/products/${row.original.id}`} target="_blank" className="text-slate-400 hover:text-slate-600 transition-colors" title="View on marketplace">
+            <Eye size={14} />
+          </Link>
+        </div>
+        <span className="text-xs text-slate-500 mt-0.5">
+          {row.original.category} • by <span className="font-medium text-slate-700">{row.original.shopperName}</span>
+        </span>
       </div>
     ),
   },
-  { accessorKey: 'shopperName', header: 'Seller' },
-  { accessorKey: 'category',    header: 'Category' },
   {
-    accessorKey: 'price',
-    header: 'Price (ETB)',
-    cell: ({ getValue }) => `ETB ${Number(getValue()).toFixed(2)}`,
-  },
-  {
-    accessorKey: 'stock',
-    header: 'Stock',
-    cell: ({ getValue }) => {
-      const val = Number(getValue())
-      if (val === 0) return <span className="admin-badge badge-danger">Out of Stock</span>
-      return <span style={{ color: 'var(--color-text-secondary)' }}>{val}</span>
+    id: 'price_stock',
+    header: 'Price & Stock',
+    cell: ({ row }) => {
+      const stock = Number(row.original.stock)
+      return (
+        <div className="flex flex-col gap-0.5">
+          <span className="font-medium text-slate-900 text-sm">ETB {Number(row.original.price).toLocaleString()}</span>
+          {stock === 0 ? (
+            <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider">Out of Stock</span>
+          ) : (
+            <span className="text-xs text-slate-500">{stock} in stock</span>
+          )}
+        </div>
+      )
     },
   },
   {
     accessorKey: 'created_at',
     header: 'Listed On',
-    cell: ({ getValue }) => new Date(getValue()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+    cell: ({ getValue }) => <span className="text-sm text-slate-600">{new Date(getValue()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>,
   },
   {
     id: 'availability',
-    header: 'Status (Spam Control)',
+    header: 'Visibility',
     enableSorting: false,
     cell: ({ row }) => <AvailabilityToggle productId={row.original.id} initial={row.original.is_available} />,
   },
@@ -143,10 +196,36 @@ const columns: ColumnDef<ProductRow, any>[] = [
     enableSorting: false,
     cell: ({ row }) => <BoostToggle productId={row.original.id} isFeatured={row.original.is_featured} boostedUntil={row.original.boosted_until} />,
   },
+  {
+    id: 'approval',
+    header: 'Approval',
+    enableSorting: false,
+    cell: ({ row }) => <ApprovalActions productId={row.original.id} currentStatus={row.original.approval_status} reason={row.original.approval_notes} />
+  },
+  {
+    id: 'actions',
+    header: 'Actions',
+    enableSorting: false,
+    cell: ({ row }) => (
+      <div className="flex gap-3 items-center justify-end">
+        <Link href={`/admin/products/${row.original.id}/edit`} className="text-slate-400 hover:text-blue-600 transition-colors" title="Edit Product">
+          <Edit2 size={16} />
+        </Link>
+        <DeleteProductButton
+          productId={row.original.id}
+          onDelete={adminDeleteProduct}
+          className="text-slate-400 hover:text-rose-600 transition-colors p-0 h-auto bg-transparent border-none"
+        >
+          <Trash2 size={16} />
+        </DeleteProductButton>
+      </div>
+    ),
+  },
 ]
 
 export function ProductDataTable({ rows }: { rows: ProductRow[] }) {
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
+  const [approvalFilter, setApprovalFilter] = useState<string>('all')
 
   const uniqueCategories = useMemo(() => {
     const cats = new Set<string>()
@@ -155,15 +234,21 @@ export function ProductDataTable({ rows }: { rows: ProductRow[] }) {
   }, [rows])
 
   const filteredRows = useMemo(() => {
-    if (categoryFilter === 'all') return rows
-    return rows.filter(r => r.category === categoryFilter)
-  }, [rows, categoryFilter])
+    let result = rows
+    if (categoryFilter !== 'all') {
+      result = result.filter(r => r.category === categoryFilter)
+    }
+    if (approvalFilter !== 'all') {
+      result = result.filter(r => r.approval_status === approvalFilter)
+    }
+    return result
+  }, [rows, categoryFilter, approvalFilter])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem', alignItems: 'center' }}>
         <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--color-text-muted)' }}>Filter by Category:</span>
-        <select 
+        <select
           value={categoryFilter}
           onChange={(e) => setCategoryFilter(e.target.value)}
           style={{
@@ -179,6 +264,25 @@ export function ProductDataTable({ rows }: { rows: ProductRow[] }) {
           {uniqueCategories.map(c => (
             <option key={c} value={c}>{c}</option>
           ))}
+        </select>
+        
+        <span style={{ fontSize: '0.85rem', fontWeight: 500, color: 'var(--color-text-muted)', marginLeft: '1rem' }}>Approval Status:</span>
+        <select
+          value={approvalFilter}
+          onChange={(e) => setApprovalFilter(e.target.value)}
+          style={{
+            padding: '0.4rem 0.8rem',
+            borderRadius: '6px',
+            border: '1px solid var(--color-border)',
+            background: 'var(--color-bg-alt)',
+            color: 'var(--color-text-primary)',
+            fontSize: '0.85rem'
+          }}
+        >
+          <option value="all">All</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
         </select>
       </div>
 

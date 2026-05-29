@@ -211,62 +211,22 @@ export default async function DashboardPage() {
 
       {/* Quick Actions for Sellers */}
       {isShopper && (
-        <div className="flex flex-wrap gap-3">
-          <Link href="/dashboard/listings/new" className="w-full sm:w-auto">
-            <Button variant="primary" className="shadow-md shadow-amber-500/20 w-full sm:w-auto">
-              <svg className="w-5 h-5 mr-1.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+        <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-row sm:gap-3">
+          <Link href="/dashboard/listings/new" className="col-span-2 sm:col-auto">
+            <button className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-semibold px-5 py-2.5 text-sm shadow-md shadow-amber-500/25 transition-all duration-150">
+              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
               </svg>
-              Add Product
-            </Button>
+              Create Product
+            </button>
           </Link>
-          <Link href="/dashboard/orders" className="hidden md:block w-full sm:w-auto">
-            <Button variant="outline" className="bg-white w-full sm:w-auto">
-              <svg className="w-5 h-5 mr-1.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-              </svg>
-              Orders
-            </Button>
-          </Link>
-          <Link href="/dashboard/chat" className="hidden md:block w-full sm:w-auto">
-            <Button variant="outline" className="bg-white w-full sm:w-auto">
-              <svg className="w-5 h-5 mr-1.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-              </svg>
-              Messages
-            </Button>
-          </Link>
-          <Link href="/dashboard/listings" className="hidden md:block w-full sm:w-auto">
-            <Button variant="outline" className="bg-white w-full sm:w-auto">
-              <svg className="w-5 h-5 mr-1.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2z" />
-              </svg>
-              Listings
-            </Button>
-          </Link>
-          <Link href="/dashboard/flash-deals" className="w-full sm:w-auto">
-            <Button variant="outline" className="bg-white w-full sm:w-auto">
-              <svg className="w-5 h-5 mr-1.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-              Flash Deals
-            </Button>
-          </Link>
-          <Link href="/dashboard/billing" className="w-full sm:w-auto">
-            <Button variant="outline" className="bg-white w-full sm:w-auto">
-              <svg className="w-5 h-5 mr-1.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+          <Link href="/dashboard/billing">
+            <button className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 font-semibold px-5 py-2.5 text-sm border border-slate-200 shadow-sm hover:border-slate-300 transition-all duration-150">
+              <svg className="w-4 h-4 shrink-0 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
               </svg>
               Billing
-            </Button>
-          </Link>
-          <Link href="/dashboard/verification" className="w-full sm:w-auto">
-            <Button variant="outline" className="bg-white w-full sm:w-auto">
-              <svg className="w-5 h-5 mr-1.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-              </svg>
-              Verification
-            </Button>
+            </button>
           </Link>
         </div>
       )}

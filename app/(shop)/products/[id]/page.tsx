@@ -56,6 +56,24 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     if (!productResult) notFound()
     product = productResult
 
+    // If product is not approved, only the owner or an admin should see it.
+    if (product.approval_status !== 'approved') {
+      if (!user) {
+        notFound()
+      } else if (user.id !== product.shopper_id) {
+        // Check if the user is an admin
+        const { data: currentUserProfile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single()
+        
+        if (currentUserProfile?.role !== 'admin') {
+          notFound()
+        }
+      }
+    }
+
     // Fetch related products (same category)
     if (product.category_id) {
       const { data: relatedResult } = await supabase
@@ -63,6 +81,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
         .select('*, product_images(*), categories(*), profiles:shopper_id(*), shopper_profiles:shopper_id(*)')
         .eq('category_id', product.category_id)
         .eq('is_available', true)
+        .eq('approval_status' as any, 'approved')
         .neq('id', product.id)
         .limit(5)
       

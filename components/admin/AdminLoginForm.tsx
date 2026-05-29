@@ -1,14 +1,27 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useState, useTransition } from 'react'
 import { adminSignIn } from '@/lib/actions/admin-auth'
 
 export function AdminLoginForm() {
-  const [state, formAction, isPending] = useActionState(adminSignIn, null)
+  const [error, setError] = useState<string | null>(null)
+  const [isPending, startTransition] = useTransition()
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    const formData = new FormData(e.currentTarget)
+    startTransition(async () => {
+      setError(null)
+      const result = await adminSignIn(null, formData)
+      if (result?.error) {
+        setError(result.error)
+      }
+    })
+  }
 
   return (
-    <form action={formAction} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-      {state?.error && (
+    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      {error && (
         <div style={{
           padding: '0.75rem',
           borderRadius: '6px',
@@ -17,7 +30,7 @@ export function AdminLoginForm() {
           color: '#fca5a5',
           fontSize: '0.8125rem'
         }}>
-          {state.error}
+          {error}
         </div>
       )}
 
