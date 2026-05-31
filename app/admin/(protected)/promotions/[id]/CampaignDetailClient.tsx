@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import { approveSubmission, rejectSubmission, adminForceAddProduct, removeProductFromCampaign } from '@/lib/actions/campaigns'
+import { useRouter } from 'next/navigation'
+import { approveSubmission, rejectSubmission, adminForceAddProduct, removeProductFromCampaign, updateCampaignStatus } from '@/lib/actions/campaigns'
 
 interface Submission {
   promotion_id: string
@@ -24,13 +25,15 @@ interface AvailableProduct {
 
 interface Props {
   campaignId: string
+  campaignStatus: 'upcoming' | 'active' | 'ended'
   submissions: Submission[]
   availableToAdd: AvailableProduct[]
 }
 
 type Tab = 'pending' | 'approved' | 'rejected' | 'all'
 
-export function CampaignDetailClient({ campaignId, submissions, availableToAdd }: Props) {
+export function CampaignDetailClient({ campaignId, campaignStatus, submissions, availableToAdd }: Props) {
+  const router = useRouter()
   const [activeTab, setActiveTab] = useState<Tab>('pending')
   const [showForceAdd, setShowForceAdd] = useState(false)
   const [selectedProductId, setSelectedProductId] = useState('')
@@ -41,8 +44,10 @@ export function CampaignDetailClient({ campaignId, submissions, availableToAdd }
   const [searchQuery, setSearchQuery] = useState('')
   const [isPending, startTransition] = useTransition()
 
+  const pendingCount = submissions.filter((s) => s.status === 'pending').length
+
   const tabs: { id: Tab; label: string; count: number }[] = [
-    { id: 'pending',  label: '⏳ Pending',  count: submissions.filter(s => s.status === 'pending').length },
+    { id: 'pending',  label: '⏳ Pending',  count: pendingCount },
     { id: 'approved', label: '✅ Approved', count: submissions.filter(s => s.status === 'approved').length },
     { id: 'rejected', label: '❌ Rejected', count: submissions.filter(s => s.status === 'rejected').length },
     { id: 'all',      label: '📋 All',      count: submissions.length },
@@ -55,9 +60,12 @@ export function CampaignDetailClient({ campaignId, submissions, availableToAdd }
     return matchTab && matchSearch
   })
 
+  const refresh = () => router.refresh()
+
   const handleApprove = (productId: string) => {
     startTransition(async () => {
       await approveSubmission(campaignId, productId)
+      refresh()
     })
   }
 
@@ -67,12 +75,14 @@ export function CampaignDetailClient({ campaignId, submissions, availableToAdd }
       await rejectSubmission(campaignId, productId, rejectReason)
       setRejectingId(null)
       setRejectReason('')
+      refresh()
     })
   }
 
   const handleRemove = (productId: string) => {
     startTransition(async () => {
       await removeProductFromCampaign(campaignId, productId)
+      refresh()
     })
   }
 
@@ -84,16 +94,38 @@ export function CampaignDetailClient({ campaignId, submissions, availableToAdd }
     const result = await adminForceAddProduct(campaignId, selectedProductId, Number(specialPrice))
     if (result?.error) setForceMessage(result.error)
     else {
-      setForceMessage('✅ Product added successfully!')
+      setForceMessage('Product added successfully!')
       setSelectedProductId('')
       setSpecialPrice('')
+      refresh()
     }
+  }
+
+  const handleStatusChange = (status: 'upcoming' | 'active' | 'ended') => {
+    startTransition(async () => {
+      await updateCampaignStatus(campaignId, status)
+      refresh()
+    })
   }
 
   const selectedProduct = availableToAdd.find(p => p.id === selectedProductId)
 
   return (
     <div style={{ display: 'grid', gap: '1.5rem' }}>
+
+      {/* Status controls */}
+      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
+        {campaignStatus === 'upcoming' && (
+          <button type="button" className="admin-btn admin-btn-success" disabled={isPending} onClick={() => handleStatusChange('active')}>
+            Activate Campaign
+          </button>
+        )}
+        {campaignStatus === 'active' && (
+          <button type="button" className="admin-btn admin-btn-danger" disabled={isPending} onClick={() => handleStatusChange('ended')}>
+            End Campaign
+          </button>
+        )}
+      </div>
 
       {/* Force-Add Panel Toggle */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
@@ -241,7 +273,13 @@ export function CampaignDetailClient({ campaignId, submissions, availableToAdd }
           <div style={{ padding: '3rem', textAlign: 'center', color: '#9ca3af' }}>
             <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📭</div>
             <div style={{ fontWeight: 600, color: '#374151' }}>No {activeTab !== 'all' ? activeTab : ''} submissions</div>
-            {activeTab === 'pending' && <div style={{ fontSize: '0.83rem', marginTop: '0.25rem' }}>When sellers submit products, they'll appear here for your review.</div>}
+            {activeTab === 'pending' && (
+              <div style={{ fontSize: '0.83rem', marginTop: '0.25rem' }}>
+                {submissions.length > 0 && pendingCount === 0
+                  ? 'No pending items — check Approved or All tabs.'
+                  : "When sellers submit products, they'll appear here for your review."}
+              </div>
+            )}
           </div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>

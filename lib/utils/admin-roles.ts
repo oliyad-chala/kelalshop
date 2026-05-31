@@ -15,8 +15,8 @@ const ADMIN_ONLY_EXACT_PATHS = ['/admin/settings', '/admin/staff', '/admin/promo
 
 export function isAdminOnlyPath(pathname: string): boolean {
   if (ADMIN_ONLY_EXACT_PATHS.includes(pathname)) return true
-  // Block promotion detail/edit routes: /admin/promotions/[id]
-  if (/^\/admin\/promotions\/[^/]+$/.test(pathname)) return true
+  // Block promotion detail/edit routes: /admin/promotions/[id] and /admin/promotions/[id]/edit
+  if (/^\/admin\/promotions\/[^/]+(\/edit)?$/.test(pathname)) return true
   return false
 }
 

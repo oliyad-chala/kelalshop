@@ -54,17 +54,21 @@ export default async function NotificationsPage() {
             >
               <div className="flex gap-4 items-start">
                 <div className={`w-10 h-10 rounded-full shrink-0 flex items-center justify-center ${
-                  n.type === 'product_approved' ? 'bg-emerald-100 text-emerald-600' :
-                  n.type === 'product_rejected' ? 'bg-red-100 text-red-600' :
+                  n.type === 'product_approved' || n.type === 'campaign_approved' ? 'bg-emerald-100 text-emerald-600' :
+                  n.type === 'product_rejected' || n.type === 'campaign_rejected' ? 'bg-red-100 text-red-600' :
+                  n.type === 'campaign_invite' ? 'bg-amber-100 text-amber-600' :
                   'bg-slate-100 text-slate-600'
                 }`}>
-                  {n.type === 'product_approved' && (
+                  {(n.type === 'product_approved' || n.type === 'campaign_approved') && (
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                   )}
-                  {n.type === 'product_rejected' && (
+                  {(n.type === 'product_rejected' || n.type === 'campaign_rejected') && (
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                   )}
-                  {!['product_approved', 'product_rejected'].includes(n.type) && (
+                  {n.type === 'campaign_invite' && (
+                    <span className="text-lg leading-none">⚡</span>
+                  )}
+                  {!['product_approved', 'product_rejected', 'campaign_approved', 'campaign_rejected', 'campaign_invite'].includes(n.type) && (
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                   )}
                 </div>

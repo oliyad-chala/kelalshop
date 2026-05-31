@@ -30,26 +30,120 @@ export async function createCampaign(_prevState: any, formData: FormData) {
   const now = new Date().toISOString()
   const status = new Date(start_date) > new Date() ? 'upcoming' : 'active'
 
-  const { error } = await admin.from('promotions').insert({
-    name,
-    type,
-    start_date,
-    end_date,
-    status,
-    target_country,
-    target_region,
-    target_city,
-    banner_image_url,
-    discount_percentage: min_discount_pct || null,
-    description,
-    is_active: true,
-    created_at: now,
-    updated_at: now,
-  } as any)
+  const { data: created, error } = await admin
+    .from('promotions')
+    .insert({
+      name,
+      type,
+      start_date,
+      end_date,
+      status,
+      target_country,
+      target_region,
+      target_city,
+      banner_image_url,
+      discount_percentage: min_discount_pct || null,
+      description,
+      is_active: true,
+      created_at: now,
+      updated_at: now,
+    } as any)
+    .select('id')
+    .single()
+
+  if (error) return { error: error.message }
+
+  if (created?.id && type === 'flash_sale_campaign') {
+    await notifyVerifiedShoppersOfCampaign(admin, {
+      campaignId: created.id,
+      name,
+      startDate: start_date,
+      endDate: end_date,
+    })
+  }
+
+  revalidatePath('/admin/promotions')
+  revalidatePath('/dashboard/campaigns')
+  redirect('/admin/promotions')
+}
+
+async function notifyVerifiedShoppersOfCampaign(
+  admin: Awaited<ReturnType<typeof requireAdmin>>['adminClient'],
+  opts: { campaignId: string; name: string; startDate: string; endDate: string }
+) {
+  const { data: shoppers } = await admin
+    .from('shopper_profiles')
+    .select('id')
+    .eq('verification_status', 'verified')
+
+  if (!shoppers?.length) return
+
+  const startLabel = new Date(opts.startDate).toLocaleDateString('en-ET', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  })
+
+  const rows = shoppers.map((s) => ({
+    user_id: s.id,
+    title: '⚡ New flash sale — join now',
+    message: `"${opts.name}" starts ${startLabel}. Opt in your products on Campaigns before spots fill up.`,
+    type: 'campaign_invite',
+    is_read: false,
+  }))
+
+  await admin.from('notifications' as any).insert(rows)
+}
+
+// ── Update Campaign ───────────────────────────────────────────────────────────
+
+export async function updateCampaign(campaignId: string, _prevState: any, formData: FormData) {
+  const { adminClient: admin } = await requireAdmin()
+
+  const name             = (formData.get('name') as string)?.trim()
+  const type             = (formData.get('type') as string) || 'flash_sale_campaign'
+  const start_date       = formData.get('start_date') as string
+  const end_date         = formData.get('end_date') as string
+  const target_country   = (formData.get('target_country') as string)?.trim() || null
+  const target_region    = (formData.get('target_region') as string)?.trim() || null
+  const target_city      = (formData.get('target_city') as string)?.trim() || null
+  const banner_image_url = (formData.get('banner_image_url') as string)?.trim() || null
+  const min_discount_pct = Number(formData.get('min_discount_pct') || 0)
+  const description      = (formData.get('description') as string)?.trim() || null
+
+  if (!name || !start_date || !end_date) {
+    return { error: 'Name, start date and end date are required.' }
+  }
+  if (new Date(end_date) <= new Date(start_date)) {
+    return { error: 'End date must be after start date.' }
+  }
+
+  const now = new Date()
+  const status = now < new Date(start_date) ? 'upcoming' : now > new Date(end_date) ? 'ended' : 'active'
+
+  const { error } = await admin
+    .from('promotions')
+    .update({
+      name,
+      type,
+      start_date,
+      end_date,
+      status,
+      target_country,
+      target_region,
+      target_city,
+      banner_image_url,
+      discount_percentage: min_discount_pct || null,
+      description,
+      is_active: status !== 'ended',
+      updated_at: new Date().toISOString(),
+    } as any)
+    .eq('id', campaignId)
 
   if (error) return { error: error.message }
 
   revalidatePath('/admin/promotions')
+  revalidatePath(`/admin/promotions/${campaignId}`)
   redirect('/admin/promotions')
 }
 

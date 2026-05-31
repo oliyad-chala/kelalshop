@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { resolveOrderPrice } from '@/lib/utils/campaign-pricing'
 
 /**
  * Shopper marks an order as Shipped.
@@ -131,12 +132,47 @@ export async function createOrder(productId: string) {
     }
   }
 
+  const { data: product, error: productError } = await supabase
+    .from('products')
+    .select('id, price, shopper_id, is_available, approval_status')
+    .eq('id', finalProductId)
+    .single()
+
+  if (productError || !product) {
+    throw new Error('Product not found.')
+  }
+  if (!product.is_available) {
+    throw new Error('This product is no longer available.')
+  }
+  if (product.approval_status !== 'approved') {
+    throw new Error('This product cannot be purchased yet.')
+  }
+
+  const amount = await resolveOrderPrice(supabase, finalProductId, Number(product.price))
+
   const { data, error } = await supabase.rpc('create_order', {
     p_product_id: finalProductId,
     p_quantity: 1,
   })
 
-  if (error) throw new Error(error.message)
+  if (error) {
+    const { data: order, error: insertError } = await supabase
+      .from('orders')
+      .insert({
+        product_id: finalProductId,
+        buyer_id: user.id,
+        shopper_id: product.shopper_id,
+        amount,
+        status: 'pending',
+      } as any)
+      .select('id')
+      .single()
+
+    if (insertError) throw new Error(insertError.message)
+    revalidatePath('/dashboard/orders')
+    revalidatePath('/dashboard')
+    return order.id
+  }
 
   revalidatePath('/dashboard/orders')
   revalidatePath('/dashboard')

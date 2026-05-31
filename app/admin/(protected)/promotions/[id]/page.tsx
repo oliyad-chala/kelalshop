@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { CampaignDetailClient } from './CampaignDetailClient'
 import { isAdminRole } from '@/lib/utils/admin-roles'
+import { fetchCampaignSubmissions } from '@/lib/data/campaign-submissions'
 
 interface Props { params: Promise<{ id: string }> }
 
@@ -24,26 +25,19 @@ export default async function CampaignDetailPage({ params }: Props) {
 
   const admin = createAdminClient()
 
-  // Fetch campaign + all product submissions with seller info
-  const [{ data: campaign }, { data: submissions }, { data: allProducts }] = await Promise.all([
+  const [{ data: campaign }, submissionsResult, { data: allProducts }] = await Promise.all([
     admin.from('promotions').select('*').eq('id', id).single(),
-    admin
-      .from('promotion_products')
-      .select(`
-        *,
-        products(id, name, price, stock, location, product_images(url, is_primary)),
-        profiles!promotion_products_shopper_id_fkey(full_name, email)
-      `)
-      .eq('promotion_id', id)
-      .order('created_at', { ascending: false }),
-    // All approved products available to force-add
+    fetchCampaignSubmissions(admin, id),
     admin
       .from('products')
-      .select('id, name, price, shopper_id, profiles!products_shopper_id_fkey(full_name)')
+      .select('id, name, price, shopper_id, profiles:shopper_id(full_name)')
       .eq('is_available', true)
       .eq('approval_status', 'approved')
       .order('name'),
   ])
+
+  const submissions = submissionsResult.submissions
+  const submissionsLoadError = submissionsResult.error
 
   if (!campaign) redirect('/admin/promotions')
 
@@ -106,9 +100,16 @@ export default async function CampaignDetailPage({ params }: Props) {
         ))}
       </div>
 
+      {submissionsLoadError && (
+        <div className="admin-alert admin-alert-error" style={{ marginBottom: '1rem' }}>
+          Could not load submissions: {submissionsLoadError}
+        </div>
+      )}
+
       {/* Interactive Client Component — submissions table + force-add form */}
       <CampaignDetailClient
         campaignId={id}
+        campaignStatus={campaign.status as 'upcoming' | 'active' | 'ended'}
         submissions={(submissions || []) as any}
         availableToAdd={(availableToAdd || []) as any}
       />

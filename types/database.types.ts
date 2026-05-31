@@ -387,6 +387,7 @@ export interface Database {
         Row: {
           id: string
           name: string
+          description: string | null
           type: 'banner' | 'flash_sale_campaign' | 'shipping'
           target_country: string | null
           target_region: string | null
@@ -403,6 +404,7 @@ export interface Database {
         Insert: {
           id?: string
           name: string
+          description?: string | null
           type?: 'banner' | 'flash_sale_campaign' | 'shipping'
           target_country?: string | null
           target_region?: string | null
@@ -416,6 +418,7 @@ export interface Database {
         }
         Update: {
           name?: string
+          description?: string | null
           type?: 'banner' | 'flash_sale_campaign' | 'shipping'
           target_country?: string | null
           target_region?: string | null

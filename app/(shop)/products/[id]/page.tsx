@@ -13,6 +13,7 @@ import { ProductGallery } from '@/components/products/ProductGallery'
 import { HomeProductCard } from '@/components/products/HomeProductCard'
 import { trackProductView } from '@/lib/actions/tracking'
 import type { ProductWithDetails } from '@/types/app.types'
+import { getActiveCampaignOffer, resolveDisplayPrice } from '@/lib/utils/campaign-pricing'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -123,6 +124,25 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
 
   const primaryImage = product.product_images?.find((img: any) => img.is_primary)?.url || product.product_images?.[0]?.url || null
 
+  let resolvedPrice = {
+    price: Number(product.price),
+    originalPrice: Number(product.price),
+    discountPct: 0,
+    onSale: false,
+  }
+
+  if (!id.startsWith('mock')) {
+    const basePrice = Number(product.price)
+    const offer = await getActiveCampaignOffer(supabase, product.id, basePrice)
+    const display = resolveDisplayPrice(basePrice, offer)
+    resolvedPrice = {
+      price: display.price,
+      originalPrice: display.originalPrice,
+      discountPct: display.discountPct,
+      onSale: display.onSale,
+    }
+  }
+
   return (
     <main className="flex-1 bg-slate-50 py-8 md:py-12">
       {/* Reduced max-width from 7xl to 5xl for a more compact UI */}
@@ -163,8 +183,22 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
               </h1>
             </div>
 
-            <div className="text-2xl font-bold text-amber-600 mb-6 border-b border-slate-100 pb-6">
-              {formatPrice(product.price)}
+            <div className="mb-6 border-b border-slate-100 pb-6">
+              <div className="flex flex-wrap items-baseline gap-3">
+                <span className="text-2xl font-bold text-amber-600">
+                  {formatPrice(resolvedPrice.price)}
+                </span>
+                {resolvedPrice.onSale && (
+                  <>
+                    <span className="text-lg text-slate-400 line-through">
+                      {formatPrice(resolvedPrice.originalPrice)}
+                    </span>
+                    <span className="text-sm font-bold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
+                      -{resolvedPrice.discountPct}% Flash Sale
+                    </span>
+                  </>
+                )}
+              </div>
             </div>
 
             <div className="prose prose-sm text-slate-600 mb-6 flex-1 text-sm">
@@ -239,7 +273,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                 product={{
                   id: product.id,
                   name: product.name,
-                  price: product.price,
+                  price: resolvedPrice.price,
                   stock: product.stock ?? 99,
                   is_available: product.is_available,
                   image: primaryImage,

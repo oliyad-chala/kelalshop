@@ -629,3 +629,130 @@ create policy "Users can insert messages to their sessions"
 -- Note: In a real app, you might want to secure guest insertions further, but since we are using a 
 -- server-side API route for the AI, we can handle message insertion there securely.
 
+-- ============================================================
+-- PROMOTIONS & CAMPAIGNS
+-- ============================================================
+
+create type promotion_status as enum ('upcoming', 'active', 'ended');
+create type promotion_type as enum ('banner', 'flash_sale_campaign', 'shipping');
+create type promotion_product_status as enum ('pending', 'approved', 'rejected');
+
+create table if not exists promotions (
+  id uuid default uuid_generate_v4() primary key,
+  name text not null,
+  description text,
+  type promotion_type not null default 'flash_sale_campaign',
+  target_country text,
+  target_region text,
+  target_city text,
+  banner_image_url text,
+  discount_percentage numeric(5,2),
+  start_date timestamptz not null,
+  end_date timestamptz not null,
+  status promotion_status default 'upcoming',
+  is_active boolean default true,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+create table if not exists promotion_products (
+  promotion_id uuid references promotions(id) on delete cascade not null,
+  product_id uuid references products(id) on delete cascade not null,
+  shopper_id uuid references profiles(id) on delete cascade not null,
+  special_price numeric(10,2) not null check (special_price >= 0),
+  status promotion_product_status default 'pending',
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+  primary key (promotion_id, product_id)
+);
+
+create trigger promotions_updated_at
+  before update on promotions
+  for each row execute function handle_updated_at();
+
+create trigger promotion_products_updated_at
+  before update on promotion_products
+  for each row execute function handle_updated_at();
+
+alter table promotions enable row level security;
+alter table promotion_products enable row level security;
+
+create policy "Promotions viewable by everyone"
+  on promotions for select using (is_active = true);
+
+create policy "Admins manage promotions"
+  on promotions for all using (
+    exists (select 1 from profiles where id = auth.uid() and role = 'admin')
+  );
+
+create policy "Approved promotion products viewable by everyone"
+  on promotion_products for select using (status = 'approved');
+
+create policy "Shoppers can view their own promotion products"
+  on promotion_products for select using (shopper_id = auth.uid());
+
+create policy "Shoppers can opt-in own products"
+  on promotion_products for insert with check (
+    shopper_id = auth.uid()
+    and auth.uid() = (select shopper_id from products where id = product_id)
+  );
+
+create policy "Shoppers can update own pending opt-ins"
+  on promotion_products for update using (
+    shopper_id = auth.uid() and status = 'pending'
+  );
+
+create policy "Shoppers can delete own opt-ins"
+  on promotion_products for delete using (
+    shopper_id = auth.uid()
+  );
+
+create policy "Admins manage promotion products"
+  on promotion_products for all using (
+    exists (select 1 from profiles where id = auth.uid() and role = 'admin')
+  );
+
+create or replace function get_active_campaign_price(p_product_id uuid)
+returns numeric language sql stable as $$
+  select pp.special_price
+  from promotion_products pp
+  join promotions p on p.id = pp.promotion_id
+  where pp.product_id = p_product_id
+    and pp.status = 'approved'
+    and p.is_active = true
+    and p.status = 'active'
+    and p.type = 'flash_sale_campaign'
+    and now() between p.start_date and p.end_date
+  order by pp.special_price asc
+  limit 1;
+$$;
+
+create or replace function create_order(p_product_id uuid, p_quantity int default 1)
+returns uuid
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_product products%rowtype;
+  v_unit_price numeric;
+  v_order_id uuid;
+begin
+  if auth.uid() is null then
+    raise exception 'Unauthorized';
+  end if;
+
+  select * into v_product from products where id = p_product_id;
+  if not found then raise exception 'Product not found'; end if;
+  if not v_product.is_available then raise exception 'Product is not available'; end if;
+
+  v_unit_price := coalesce(get_active_campaign_price(p_product_id), v_product.price);
+
+  insert into orders (product_id, buyer_id, shopper_id, amount, status)
+  values (p_product_id, auth.uid(), v_product.shopper_id, v_unit_price * p_quantity, 'pending')
+  returning id into v_order_id;
+
+  return v_order_id;
+end;
+$$;
+
