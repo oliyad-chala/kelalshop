@@ -94,15 +94,18 @@ body.admin-menu-open {
 /* ── Admin shell ────────────────────────────────────────── */
 .admin-shell {
   display: flex;
+  height: 100dvh;
   min-height: 100dvh;
+  overflow: hidden;
   background: var(--color-admin-bg);
-  /* Note: NO overflow:hidden here - it would clip the fixed sidebar overlay */
 }
 
-/* Desktop: sidebar is a normal flex child */
+/* Desktop: sidebar stays fixed; only main content scrolls */
 .admin-sidebar-wrapper {
   display: flex;
   flex-shrink: 0;
+  height: 100dvh;
+  overflow-y: auto;
 }
 
 .admin-main {
@@ -110,6 +113,8 @@ body.admin-menu-open {
   min-width: 0;
   display: flex;
   flex-direction: column;
+  height: 100dvh;
+  overflow-y: auto;
 }
 
 .admin-content {
@@ -560,6 +565,8 @@ body.admin-menu-open {
      so main content always takes full width */
   .admin-shell {
     overflow: visible;
+    height: auto;
+    min-height: 100dvh;
   }
 
   .admin-sidebar-wrapper {
@@ -582,6 +589,8 @@ body.admin-menu-open {
   /* Main content takes full width since sidebar is out of flow */
   .admin-main {
     width: 100% !important;
+    height: auto;
+    overflow: visible;
   }
 
   /* Overlay */
