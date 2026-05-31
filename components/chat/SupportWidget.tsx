@@ -129,18 +129,16 @@ export function SupportWidget() {
 
       const data = await res.json()
 
-      if (!res.ok || data.error) {
-        console.error('Chat API failed:', data.error || data.details)
-        return
-      }
+      // Show either the successful reply or the error's fallback reply
+      const replyText = data.reply || ((!res.ok || data.error) ? "Sorry, I couldn't process your message. Please try again." : null)
 
       if (data.sessionId && !sessionId) setSessionId(data.sessionId)
 
-      if (data.reply) {
+      if (replyText) {
         const botId = crypto.randomUUID()
         const botMsg: Message = {
           id: botId,
-          content: data.reply,
+          content: replyText,
           sender_type: 'bot',
           created_at: new Date().toISOString()
         }
@@ -149,6 +147,15 @@ export function SupportWidget() {
       }
     } catch (err) {
       console.error('Chat error:', err)
+      const botId = crypto.randomUUID()
+      const errorMsg: Message = {
+        id: botId,
+        content: "Sorry, I couldn't connect to the server. Please check your connection and try again.",
+        sender_type: 'bot',
+        created_at: new Date().toISOString()
+      }
+      setNewestBotId(botId)
+      setMessages(prev => [...prev, errorMsg])
     } finally {
       setIsLoading(false)
     }
