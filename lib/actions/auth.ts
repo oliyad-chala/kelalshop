@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { generateDeviceFingerprint, checkRateLimit } from '@/lib/utils/security'
 import type { ActionState } from '@/types/app.types'
 
 // ── Google OAuth ─────────────────────────────────────────────────────────────
@@ -65,12 +66,30 @@ export async function signUp(
     return { error: 'Full name must not contain numbers.' }
   }
 
+  // ── Rate Limiting ────────────────────────────────────────────────────
+  const { ip } = await generateDeviceFingerprint()
+  const isAllowed = await checkRateLimit(`signup:${ip}`, 5, 3600) // 5 signups per hour
+  if (!isAllowed) {
+    return { error: 'Too many registration attempts. Please try again later.' }
+  }
+
   // ── Password rules ───────────────────────────────────────────────────
   if (password.length < 8) {
     return { error: 'Password must be at least 8 characters.' }
   }
   if (password !== confirmPassword) {
     return { error: 'Passwords do not match.' }
+  }
+  
+  // Strength validation (must have at least 2 categories of complexity)
+  let score = 0
+  if (password.length >= 8) score++
+  if (password.length >= 12) score++
+  if (/[A-Z]/.test(password) && /[a-z]/.test(password)) score++
+  if (/[0-9]/.test(password)) score++
+  if (/[^A-Za-z0-9]/.test(password)) score++
+  if (score < 2) {
+    return { error: 'Password is too weak. Please add uppercase letters, numbers, or symbols.' }
   }
 
   // ── Role guard ───────────────────────────────────────────────────────
@@ -114,10 +133,80 @@ export async function signIn(
     return { error: 'Email and password are required.' }
   }
 
+  // ── Rate Limiting ────────────────────────────────────────────────────
+  const { fingerprint, ip, userAgent } = await generateDeviceFingerprint()
+  
+  // Limit by IP (10 per 15 minutes)
+  const isIpAllowed = await checkRateLimit(`login_ip:${ip}`, 10, 900)
+  if (!isIpAllowed) {
+    return { error: 'Too many attempts from this network. Try again later.' }
+  }
+
+  // Limit by Email (5 per 15 minutes)
+  const isEmailAllowed = await checkRateLimit(`login_email:${email}`, 5, 900)
+  if (!isEmailAllowed) {
+    return { error: 'Too many failed attempts for this account. Try again later.' }
+  }
+
   const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
   if (error) {
+    // Log failed attempt
+    await supabase.from('login_attempts').insert({
+      email,
+      ip_address: ip,
+      device_fingerprint: fingerprint,
+      is_success: false
+    })
     return { error: 'Invalid email or password.' }
+  }
+
+  // ── Login tracking & Device Fingerprinting ────────────────────────────
+  // Log successful attempt
+  await supabase.from('login_attempts').insert({
+    email,
+    ip_address: ip,
+    device_fingerprint: fingerprint,
+    is_success: true
+  })
+
+  // Check if device is recognized
+  const { data: deviceRecord } = await supabase
+    .from('user_devices')
+    .select('*')
+    .eq('user_id', data.user.id)
+    .eq('device_fingerprint', fingerprint)
+    .single()
+
+  if (!deviceRecord) {
+    // New device detected!
+    await supabase.from('user_devices').insert({
+      user_id: data.user.id,
+      device_fingerprint: fingerprint,
+      ip_address: ip,
+      user_agent: userAgent,
+      is_verified: false
+    })
+
+    // Lock profile for verification
+    await supabase
+      .from('profiles')
+      .update({ requires_verification: true })
+      .eq('id', data.user.id)
+      
+    // Redirect to verification screen
+    redirect('/auth/verify-device')
+  } else {
+    // Update last login
+    await supabase
+      .from('user_devices')
+      .update({ last_login_at: new Date().toISOString() })
+      .eq('id', deviceRecord.id)
+      
+    // If device is not verified, redirect to verification screen
+    if (!deviceRecord.is_verified) {
+      redirect('/auth/verify-device')
+    }
   }
 
   // ── Role guard — admins must use the admin portal ─────────────────
@@ -156,6 +245,13 @@ export async function resetPassword(
 
   if (!email) {
     return { error: 'Email is required.' }
+  }
+
+  // ── Rate Limiting ────────────────────────────────────────────────────
+  const { ip } = await generateDeviceFingerprint()
+  const isAllowed = await checkRateLimit(`reset:${ip}`, 3, 3600) // 3 resets per hour
+  if (!isAllowed) {
+    return { error: 'Too many reset requests. Please try again later.' }
   }
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'

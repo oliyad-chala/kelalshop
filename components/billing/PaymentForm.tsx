@@ -3,27 +3,45 @@
 import { useActionState, useState } from 'react'
 import { submitPaymentRequest } from '@/lib/actions/payments'
 import { Button } from '@/components/ui/Button'
-import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
+import { CheckCircle2 } from 'lucide-react'
 
 interface PaymentFormProps {
   userId: string
   products: { id: string; name: string; price: number }[]
+  mode: 'subscription' | 'boosts'
   initialBoostProductId?: string
-  requestedPlan?: string
 }
 
 const initialState = { error: '', success: '' }
 
-export function PaymentForm({ userId, products, initialBoostProductId, requestedPlan }: PaymentFormProps) {
+export function PaymentForm({ userId, products, mode, initialBoostProductId }: PaymentFormProps) {
   const [state, formAction, isPending] = useActionState(submitPaymentRequest, initialState)
+  const [paymentMethod, setPaymentMethod] = useState<'cbe' | 'telebirr'>('cbe')
+  const [paymentType, setPaymentType] = useState(mode === 'subscription' ? 'pro_subscription' : (initialBoostProductId ? 'boost_7_days' : 'boost_7_days'))
 
-  // Default to Pro Subscription if they clicked 'Upgrade to Pro'
-  const defaultType = requestedPlan === 'pro' ? 'pro_subscription' : (initialBoostProductId ? 'boost_7_days' : 'pro_subscription')
-  const [paymentType, setPaymentType] = useState(defaultType)
+  if (state?.success) {
+    return (
+      <div className="bg-emerald-50 rounded-2xl p-8 text-center border border-emerald-100 shadow-sm animate-in fade-in zoom-in duration-300">
+        <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+          <CheckCircle2 className="w-8 h-8" />
+        </div>
+        <h3 className="text-xl font-bold text-navy-900 mb-2">Receipt Submitted!</h3>
+        <p className="text-emerald-700 leading-relaxed max-w-sm mx-auto">
+          {state.success}
+        </p>
+        <Button onClick={() => window.location.reload()} className="mt-6" variant="outline">
+          Submit another
+        </Button>
+      </div>
+    )
+  }
 
   return (
-    <form action={formAction}>
+    <form action={formAction} className="bg-slate-50 border border-slate-200 rounded-3xl p-5 sm:p-8 relative">
+      {/* Hidden input for payment type if subscription, else we show a select */}
+      {mode === 'subscription' && <input type="hidden" name="payment_type" value="pro_subscription" />}
+
       {state?.error && (
         <div className="mb-6 p-4 rounded-xl bg-red-50 text-red-600 text-sm border border-red-100 flex items-start gap-3">
           <svg className="w-5 h-5 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -33,95 +51,129 @@ export function PaymentForm({ userId, products, initialBoostProductId, requested
         </div>
       )}
 
-      {state?.success && (
-        <div className="mb-6 p-4 rounded-xl bg-emerald-50 text-emerald-700 text-sm border border-emerald-100 flex items-start gap-3">
-          <svg className="w-5 h-5 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-          </svg>
-          {state.success}
-        </div>
-      )}
-
-      <div className="space-y-5">
+      <div className="space-y-8">
+        
+        {/* Step 1: Transfer */}
         <div>
-          <label htmlFor="payment_type" className="block text-sm font-semibold text-navy-900 mb-2">
-            What are you paying for?
-          </label>
-          <Select
-            id="payment_type"
-            name="payment_type"
-            required
-            value={paymentType}
-            onChange={(val) => setPaymentType(val)}
-            options={[
-              { value: 'pro_subscription', label: 'Pro Subscription (Monthly) - 1,000 ETB' },
-              { value: 'boost_7_days', label: 'Boost Listing (7 Days) - 300 ETB' },
-              { value: 'boost_28_days', label: 'Boost Listing (28 Days) - 3,000 ETB' },
-            ]}
-          />
-        </div>
-
-        {paymentType !== 'pro_subscription' && (
-          <div>
-            <label htmlFor="target_id" className="block text-sm font-semibold text-navy-900 mb-2">
-              Select Product to Boost <span className="text-red-500">*</span>
-            </label>
-            <Select
-              id="target_id"
-              name="target_id"
-              required
-              defaultValue={initialBoostProductId || ''}
-              options={[
-                { value: '', label: '-- Select a product --', disabled: true },
-                ...products.map(p => ({
-                  value: p.id,
-                  label: `${p.name} — ETB ${p.price}`
-                }))
-              ]}
-            />
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">1</div>
+            <h3 className="text-base font-bold text-navy-900">Transfer the Amount</h3>
           </div>
-        )}
+          
+          {mode === 'boosts' && (
+            <div className="pl-9 mb-6 space-y-4">
+              <div>
+                <label htmlFor="payment_type" className="block text-sm font-semibold text-navy-900 mb-2">Select Duration</label>
+                <Select
+                  id="payment_type"
+                  name="payment_type"
+                  required
+                  value={paymentType}
+                  onChange={(val) => setPaymentType(val)}
+                  options={[
+                    { value: 'boost_7_days', label: '7 Days - 300 ETB' },
+                    { value: 'boost_28_days', label: '28 Days - 3,000 ETB' },
+                  ]}
+                />
+              </div>
+              <div>
+                <label htmlFor="target_id" className="block text-sm font-semibold text-navy-900 mb-2">Select Product to Boost <span className="text-red-500">*</span></label>
+                <Select
+                  id="target_id"
+                  name="target_id"
+                  required
+                  defaultValue={initialBoostProductId || ''}
+                  options={[
+                    { value: '', label: '-- Select a product --', disabled: true },
+                    ...products.map(p => ({
+                      value: p.id,
+                      label: `${p.name}`
+                    }))
+                  ]}
+                />
+              </div>
+            </div>
+          )}
 
-        <div>
-          <label htmlFor="reference_number" className="block text-sm font-semibold text-navy-900 mb-2">
-            Bank Transaction Reference Number
-          </label>
-          <Input
-            id="reference_number"
-            name="reference_number"
-            placeholder="e.g. FT230514X9A1"
-            className="h-12 bg-white"
-            required
-          />
+          <div className="pl-9">
+             <div className="flex gap-2 mb-4">
+               <button 
+                 type="button"
+                 onClick={() => setPaymentMethod('cbe')}
+                 className={`flex-1 py-2 px-3 text-sm font-bold rounded-lg border transition-colors ${paymentMethod === 'cbe' ? 'border-amber-500 bg-amber-50 text-amber-700' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'}`}
+               >
+                 CBE
+               </button>
+               <button 
+                 type="button"
+                 onClick={() => setPaymentMethod('telebirr')}
+                 className={`flex-1 py-2 px-3 text-sm font-bold rounded-lg border transition-colors ${paymentMethod === 'telebirr' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white text-slate-500 hover:bg-slate-50'}`}
+               >
+                 Telebirr
+               </button>
+             </div>
+
+             {paymentMethod === 'cbe' ? (
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-16 h-16 bg-amber-50 rounded-bl-full -z-0"></div>
+                  <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1 relative z-10">CBE Account</div>
+                  <div className="text-xl sm:text-2xl font-mono font-bold text-amber-600 mb-1 tracking-wider relative z-10">1000 1234 56789</div>
+                  <div className="text-xs font-semibold text-navy-800 relative z-10">KelalShop Trading</div>
+                </div>
+             ) : (
+                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-16 h-16 bg-blue-50 rounded-bl-full -z-0"></div>
+                  <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1 relative z-10">Telebirr Number</div>
+                  <div className="text-xl sm:text-2xl font-mono font-bold text-blue-600 mb-1 tracking-wider relative z-10">0911 23 45 67</div>
+                  <div className="text-xs font-semibold text-navy-800 relative z-10">KelalShop Trading</div>
+                </div>
+             )}
+          </div>
         </div>
 
+        {/* Step 2: Upload Receipt */}
+        <div>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">2</div>
+            <h3 className="text-base font-bold text-navy-900">Upload Receipt</h3>
+          </div>
+          <div className="pl-9">
+            <div className="border-2 border-dashed border-slate-300 rounded-xl p-4 bg-white hover:bg-slate-50 transition-colors">
+              <input
+                type="file"
+                id="receipt"
+                name="receipt"
+                accept="image/*"
+                required
+                className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+              />
+              <p className="text-xs text-slate-400 mt-2 ml-1">Upload a clear screenshot of your transaction.</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Step 3: Verify */}
         <div className="pt-2">
-          <Button type="submit" variant="primary" size="lg" className="w-full text-base font-bold shadow-md shadow-amber-500/20" disabled={isPending}>
-            {isPending ? 'Submitting...' : 'Verify My Payment'}
+          <Button type="submit" variant="primary" size="lg" className="w-full text-base font-bold shadow-md shadow-blue-500/20" disabled={isPending}>
+            {isPending ? 'Uploading...' : 'Verify My Payment'}
           </Button>
         </div>
+
       </div>
 
       <div className="mt-8 pt-6 border-t border-slate-200">
-        <h4 className="text-sm font-bold text-navy-900 mb-2">Prefer to use Telegram?</h4>
-        <p className="text-sm text-slate-500 mb-4 leading-relaxed">
-          You can also send your receipt directly to our support team on Telegram. Please include your User ID:
-          <code className="ml-2 bg-slate-200 px-2 py-1 rounded-md text-slate-700 font-mono text-xs">{userId}</code>
+        <h4 className="text-sm font-bold text-navy-900 mb-2">Need help?</h4>
+        <p className="text-xs text-slate-500 mb-4 leading-relaxed">
+          Send your receipt to our support team on Telegram. User ID:
+          <code className="ml-1 bg-slate-200 px-1 py-0.5 rounded text-slate-700 font-mono text-[10px]">{userId}</code>
         </p>
-        <a
-          href={`https://t.me/kelalshop_support?text=Hello! I paid for a subscription/boost. My User ID is: ${userId}`}
-          target="_blank"
-          rel="noreferrer"
-          className="block"
-        >
-          <Button type="button" variant="outline" className="w-full border-blue-200 text-blue-600 hover:bg-blue-50 hover:border-blue-300">
-            <svg className="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69a.2.2 0 00-.05-.18c-.06-.05-.14-.03-.21-.02-.09.02-1.49.95-4.22 2.79-.4.27-.76.41-1.08.4-.36-.01-1.04-.2-1.55-.37-.63-.2-1.12-.31-1.08-.66.02-.18.27-.36.74-.55 2.92-1.27 4.86-2.11 5.83-2.51 2.78-1.16 3.35-1.36 3.73-1.36.08 0 .27.02.39.12.1.08.13.19.14.27-.01.06.01.24 0 .24z" />
-            </svg>
-            Send Receipt via Telegram
+        <a href={`https://t.me/kelalshop_support?text=Hello! I paid for a subscription/boost. My User ID is: ${userId}`} target="_blank" rel="noreferrer" className="block">
+          <Button type="button" variant="outline" size="sm" className="w-full border-slate-200 text-slate-600 hover:bg-slate-100">
+            Send via Telegram Instead
           </Button>
         </a>
       </div>
     </form>
   )
 }
+

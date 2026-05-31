@@ -11,6 +11,7 @@ import { BuyButton } from './BuyButton'
 import { MOCK_PRODUCTS } from '@/lib/constants/mock-data'
 import { ProductGallery } from '@/components/products/ProductGallery'
 import { HomeProductCard } from '@/components/products/HomeProductCard'
+import { trackProductView } from '@/lib/actions/tracking'
 import type { ProductWithDetails } from '@/types/app.types'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
@@ -74,18 +75,49 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
       }
     }
 
-    // Fetch related products (same category)
-    if (product.category_id) {
-      const { data: relatedResult } = await supabase
-        .from('products')
-        .select('*, product_images(*), categories(*), profiles:shopper_id(*), shopper_profiles:shopper_id(*)')
-        .eq('category_id', product.category_id)
-        .eq('is_available', true)
-        .eq('approval_status' as any, 'approved')
-        .neq('id', product.id)
-        .limit(5)
+    // Track view asynchronously
+    if (user) {
+      trackProductView(product.id)
+    }
+
+    // Fetch intelligent recommendations via RPC
+    const { data: relatedResult } = await supabase
+      .rpc('get_product_recommendations', {
+        p_current_product_id: product.id,
+        p_user_id: user?.id || null,
+        p_limit: 5
+      })
+
+    if (relatedResult && relatedResult.length > 0) {
+      // The RPC returns basic product info, but HomeProductCard needs product_images and profiles
+      // Since it's a lightweight card, we can fetch the full details for these IDs
+      const recommendedIds = relatedResult.map((r: any) => r.id)
       
-      relatedProducts = relatedResult || []
+      const { data: fullRelated } = await supabase
+        .from('products')
+        .select('*, product_images(*), categories(*), profiles:shopper_id(*, shopper_profiles(verification_status))')
+        .in('id', recommendedIds)
+      
+      if (fullRelated) {
+        // Sort them to match the RPC's relevance score order
+        relatedProducts = fullRelated.sort((a, b) => 
+          recommendedIds.indexOf(a.id) - recommendedIds.indexOf(b.id)
+        )
+      }
+    } else {
+      // Fallback if RPC is empty or not created yet
+      if (product.category_id) {
+        const { data: fallbackResult } = await supabase
+          .from('products')
+          .select('*, product_images(*), categories(*), profiles:shopper_id(*), shopper_profiles:shopper_id(*)')
+          .eq('category_id', product.category_id)
+          .eq('is_available', true)
+          .eq('approval_status' as any, 'approved')
+          .neq('id', product.id)
+          .limit(5)
+        
+        relatedProducts = fallbackResult || []
+      }
     }
   }
 
@@ -234,7 +266,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
         {/* Related Products Section */}
         {relatedProducts.length > 0 && (
           <section className="mt-16">
-            <h2 className="text-xl font-bold text-navy-900 mb-6">Related Products</h2>
+            <h2 className="text-xl font-bold text-navy-900 mb-6">Similar Products</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
               {relatedProducts.map((p) => (
                 <HomeProductCard key={p.id} product={p as unknown as ProductWithDetails} />

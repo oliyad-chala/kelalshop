@@ -9,6 +9,7 @@ interface AdminShellClientProps {
   user: Profile
   pendingVerifications: number
   pendingPayments: number
+  pendingCampaignReviews: number
   children: React.ReactNode
 }
 
@@ -16,6 +17,7 @@ export function AdminShellClient({
   user,
   pendingVerifications,
   pendingPayments,
+  pendingCampaignReviews,
   children,
 }: AdminShellClientProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -50,6 +52,7 @@ export function AdminShellClient({
           user={user}
           pendingVerifications={pendingVerifications}
           pendingPayments={pendingPayments}
+          pendingCampaignReviews={pendingCampaignReviews}
           onLinkClick={closeMenu}
         />
       </div>

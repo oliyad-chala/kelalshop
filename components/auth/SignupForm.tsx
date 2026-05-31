@@ -144,6 +144,8 @@ export function SignupForm() {
   const [googleLoading, setGoogleLoading] = useState(false)
   const [googleError, setGoogleError] = useState('')
 
+  const currentStrength = getStrength(password)
+  const isWeakPassword = password.length > 0 && currentStrength < 2
   const confirmMismatch = confirm.length > 0 && password !== confirm
 
   // Show success screen when email confirmation is needed
@@ -373,7 +375,7 @@ export function SignupForm() {
           size="lg"
           fullWidth
           loading={pending}
-          disabled={confirmMismatch || !!nameError || googleLoading}
+          disabled={confirmMismatch || isWeakPassword || !!nameError || googleLoading}
         >
           Create Account
         </Button>

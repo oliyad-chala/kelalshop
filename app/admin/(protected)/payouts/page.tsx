@@ -16,7 +16,7 @@ export default async function PaymentsPage() {
   // Fetch all payment requests
   const { data: payments, error: paymentsError } = await admin
     .from('payment_requests')
-    .select('id, amount, payment_type, reference_number, status, created_at, shopper_id')
+    .select('id, amount, payment_type, receipt_url, status, created_at, shopper_id')
     .order('created_at', { ascending: false })
 
   // Fetch shopper names separately to avoid FK hint issues
@@ -35,7 +35,7 @@ export default async function PaymentsPage() {
     shopper: shopperMap[p.shopper_id] ?? '—',
     payment_type: p.payment_type,
     amount: p.amount,
-    reference_number: p.reference_number,
+    receipt_url: p.receipt_url,
     status: p.status,
     created_at: p.created_at,
   }))
@@ -73,3 +73,4 @@ export default async function PaymentsPage() {
     </div>
   )
 }
+

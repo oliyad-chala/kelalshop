@@ -687,3 +687,48 @@ body.admin-menu-open {
     padding: 0.45rem 0.75rem;
   }
 }
+
+/* ── Dashboard chart grid responsive ───────────────────── */
+@media (max-width: 900px) {
+  .dashboard-charts-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* Pulse animation for live indicator */
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ── KPI Cards ──────────────────────────────────────────────── */
+.kpi-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 1.5rem;
+  border: 1px solid #f0f1f5;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  transition: all 0.2s ease;
+  height: 100%;
+}
+.kpi-card-link:hover {
+  box-shadow: 0 8px 24px rgba(0,0,0,0.09);
+  transform: translateY(-2px);
+}
+
+/* ── Quick Action Links ──────────────────────────────────────── */
+.quick-action-link {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+.quick-action-link:hover {
+  background: #f8f9fc;
+}
+

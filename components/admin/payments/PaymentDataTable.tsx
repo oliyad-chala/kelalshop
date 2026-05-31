@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useMemo } from 'react'
 import { type ColumnDef } from '@tanstack/react-table'
-import { DollarSign, CheckCircle, XCircle, Clock, CreditCard } from 'lucide-react'
+import { DollarSign, CheckCircle, XCircle, Clock, Image as ImageIcon } from 'lucide-react'
 import { DataTable } from '@/components/admin/DataTable'
 import { approvePayment, rejectPayment } from '@/lib/actions/admin'
 
@@ -10,7 +10,7 @@ interface PaymentRow {
   id: string
   shopper: string
   payment_type: string
-  reference_number: string
+  receipt_url: string
   amount: number
   status: string
   created_at: string
@@ -81,16 +81,22 @@ function PaymentAction({ paymentId, status }: { paymentId: string, status: strin
 
 const columns: ColumnDef<PaymentRow, any>[] = [
   {
-    accessorKey: 'reference_number',
-    header: 'Reference / ID',
-    cell: ({ getValue }) => (
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-        <CreditCard size={12} style={{ color: 'var(--color-text-muted)' }} />
-        <span style={{ fontFamily: 'monospace', fontWeight: 'bold', fontSize: '0.85rem', color: 'var(--color-primary)' }}>
-          {String(getValue())}
-        </span>
-      </div>
-    ),
+    accessorKey: 'receipt_url',
+    header: 'Receipt',
+    cell: ({ getValue }) => {
+      const url = String(getValue())
+      if (!url || url === 'undefined' || url === 'null') {
+         return <span className="text-slate-400 italic text-xs">No receipt</span>
+      }
+      return (
+        <a href={url} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-blue-600 hover:text-blue-800 transition-colors group">
+          <div className="w-8 h-8 rounded bg-blue-50 border border-blue-100 flex items-center justify-center overflow-hidden relative">
+            <img src={url} alt="Receipt Thumbnail" className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" />
+          </div>
+          <span className="text-xs font-semibold">View</span>
+        </a>
+      )
+    },
   },
   { accessorKey: 'shopper', header: 'Seller', cell: ({ getValue }) => <span className="td-primary">{getValue()}</span> },
   { 
@@ -163,7 +169,7 @@ export function PaymentDataTable({ rows }: { rows: PaymentRow[] }) {
       <DataTable
         data={filteredRows}
         columns={columns}
-        searchPlaceholder="Search reference number or seller…"
+        searchPlaceholder="Search seller..."
       />
     </div>
   )

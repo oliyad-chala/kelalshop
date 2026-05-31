@@ -31,7 +31,7 @@ export function Sidebar({ user, unreadMessages = 0, unreadNotifications = 0 }: S
   const shopperLinks = [
     { href: '/dashboard', label: 'Overview', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
     { href: '/dashboard/listings', label: 'My Listings', icon: 'M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z' },
-    { href: '/dashboard/flash-deals', label: 'Flash Deals ⚡', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
+    { href: '/dashboard/campaigns', label: 'Campaigns ⚡', icon: 'M13 10V3L4 14h7v7l9-11h-7z' },
     { href: '/dashboard/orders', label: 'Manage Orders', icon: 'M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z' },
     { href: '/dashboard/requests', label: 'Find Requests', icon: 'M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z' },
     { href: '/dashboard/chat', label: 'Messages', icon: 'M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z', badge: unreadMessages },

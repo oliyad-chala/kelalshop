@@ -13,11 +13,11 @@ export async function submitPaymentRequest(
   if (!user) return { error: 'Not authenticated.' }
 
   const paymentType = formData.get('payment_type') as string
-  const referenceNumber = formData.get('reference_number') as string
   const targetId = formData.get('target_id') as string | null
+  const receiptFile = formData.get('receipt') as File | null
 
-  if (!paymentType || !referenceNumber) {
-    return { error: 'Payment type and reference number are required.' }
+  if (!paymentType || !receiptFile || receiptFile.size === 0) {
+    return { error: 'Payment type and receipt image are required.' }
   }
 
   // Determine amount based on type
@@ -28,12 +28,30 @@ export async function submitPaymentRequest(
   else if (paymentType === 'banner_ad') amount = 5000 // Placeholder
   else return { error: 'Invalid payment type selected.' }
 
+  // Upload receipt
+  const fileExt = receiptFile.name.split('.').pop()
+  const fileName = `${user.id}-${Date.now()}.${fileExt}`
+  const { data: uploadData, error: uploadError } = await supabase.storage
+    .from('receipts')
+    .upload(fileName, receiptFile)
+
+  if (uploadError) {
+    console.error('Failed to upload receipt:', uploadError)
+    return { error: 'Failed to upload receipt image. Please try again.' }
+  }
+
+  const { data: publicUrlData } = supabase.storage
+    .from('receipts')
+    .getPublicUrl(uploadData.path)
+
+  const receiptUrl = publicUrlData.publicUrl
+
   const { error } = await supabase.from('payment_requests').insert({
     shopper_id: user.id,
     payment_type: paymentType,
     target_id: targetId || null,
     amount,
-    reference_number: referenceNumber.trim(),
+    receipt_url: receiptUrl,
     status: 'pending',
   } as any)
 
@@ -45,3 +63,4 @@ export async function submitPaymentRequest(
   revalidatePath('/dashboard/billing')
   return { success: 'Your payment request has been submitted for verification. We will review it shortly!' }
 }
+

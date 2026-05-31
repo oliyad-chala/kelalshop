@@ -1,11 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { Card } from '@/components/ui/Card'
-import { Button } from '@/components/ui/Button'
+import Link from 'next/link'
 import { Badge } from '@/components/ui/Badge'
 import { formatDate } from '@/lib/utils/formatters'
 import { PaymentForm } from '@/components/billing/PaymentForm'
 import { PaymentHistory } from '@/components/billing/PaymentHistory'
+import { CheckCircle2, ArrowRight, Zap, ShieldCheck } from 'lucide-react'
 
 export const metadata = {
   title: 'Billing & Subscriptions | KelalShop',
@@ -14,12 +14,11 @@ export const metadata = {
 export default async function BillingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ boostProductId?: string; plan?: string }>
+  searchParams: Promise<{ boostProductId?: string; plan?: string; tab?: string }>
 }) {
-  // In Next.js 15+, searchParams is a Promise — must be awaited
   const resolvedParams = await searchParams
   const boostProductId = resolvedParams.boostProductId
-  const requestedPlan = resolvedParams.plan
+  const activeTab = resolvedParams.tab === 'boosts' ? 'boosts' : 'subscription'
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -33,7 +32,6 @@ export default async function BillingPage({
     .maybeSingle()
 
   if (!profile && !error) {
-    // Not a shopper
     redirect('/dashboard')
   }
 
@@ -42,22 +40,54 @@ export default async function BillingPage({
   const isExpired = expiresAt && expiresAt < new Date()
   const activePlan = isExpired ? 'free' : plan
 
-  // Fetch products for boosting
   const { data: products } = await supabase
     .from('products')
     .select('id, name, price')
     .eq('shopper_id', user.id)
     .order('created_at', { ascending: false })
 
-  // Fetch payment history
   const { data: payments } = await supabase
     .from('payment_requests')
     .select('*')
     .eq('shopper_id', user.id)
     .order('created_at', { ascending: false })
 
+  // --- GUIDED FLOW FOR EXPIRED SUBSCRIPTION ---
+  if (isExpired) {
+    return (
+      <div className="max-w-4xl mx-auto py-12 px-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-red-50 text-red-500 mb-6 shadow-sm ring-8 ring-red-50/50">
+            <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-navy-900 mb-4 tracking-tight">Your Free Trial Has Ended</h1>
+          <p className="text-lg text-slate-500 max-w-xl mx-auto leading-relaxed">
+            Your products are currently paused and invisible to buyers. Upgrade to the <strong className="text-amber-600">Pro Plan</strong> to reactivate your listings and unlock unlimited sales with 0% commission.
+          </p>
+        </div>
+
+        <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden">
+          <div className="bg-gradient-to-r from-navy-900 to-navy-800 p-8 text-center border-b border-navy-700">
+             <h2 className="text-2xl font-bold text-white mb-2">Upgrade to Pro</h2>
+             <div className="text-amber-400 text-3xl font-black">1,000 ETB <span className="text-base font-normal text-navy-200">/ month</span></div>
+          </div>
+          <div className="p-8">
+            <PaymentForm 
+              userId={user.id} 
+              products={[]} 
+              mode="subscription"
+            />
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // --- STANDARD BILLING PAGE (TABBED) ---
   return (
-    <div className="space-y-10 fade-in max-w-5xl mx-auto">
+    <div className="space-y-8 fade-in max-w-5xl mx-auto pb-12">
       <div>
         <h1 className="text-2xl font-bold text-navy-900 tracking-tight">Billing & Subscriptions</h1>
         <p className="text-slate-500 mt-1">
@@ -65,136 +95,108 @@ export default async function BillingPage({
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-        {/* Left Column: Plans & Pricing */}
+      {/* TABS NAVIGATION */}
+      <div className="flex gap-2 border-b border-slate-200">
+        <Link 
+          href="/dashboard/billing?tab=subscription" 
+          className={`px-6 py-3 text-sm font-bold border-b-2 transition-colors ${activeTab === 'subscription' ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-navy-900 hover:border-slate-300'}`}
+        >
+          Subscription Plan
+        </Link>
+        <Link 
+          href="/dashboard/billing?tab=boosts" 
+          className={`px-6 py-3 text-sm font-bold border-b-2 transition-colors flex items-center gap-2 ${activeTab === 'boosts' ? 'border-amber-500 text-amber-600' : 'border-transparent text-slate-500 hover:text-navy-900 hover:border-slate-300'}`}
+        >
+          <Zap size={16} />
+          Product Boosts
+        </Link>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
+        
+        {/* LEFT COLUMN: INFO */}
         <div className="space-y-6">
-          {/* Current Plan */}
-          <div className="bg-gradient-to-br from-navy-900 to-navy-800 p-4 sm:p-6 lg:p-8 rounded-3xl relative overflow-hidden shadow-lg text-white">
-            <div className="absolute top-0 right-0 p-4 sm:p-6">
-              <Badge variant={activePlan === 'free' ? 'slate' : 'success'} size="md" className="uppercase tracking-widest font-bold bg-white/10 text-white border-0 backdrop-blur-sm">
-                {activePlan} Plan
-              </Badge>
-            </div>
-            <div className="absolute -bottom-10 -right-10 w-48 h-48 bg-white opacity-5 rounded-full blur-2xl pointer-events-none"></div>
+          {activeTab === 'subscription' ? (
+            <div className="bg-gradient-to-br from-navy-900 to-navy-800 p-6 sm:p-8 rounded-3xl relative overflow-hidden shadow-lg text-white h-full border border-navy-700/50">
+              <div className="absolute top-0 right-0 p-6">
+                <Badge variant={activePlan === 'free' ? 'slate' : 'success'} size="md" className="uppercase tracking-widest font-bold bg-white/10 text-white border-0 backdrop-blur-sm">
+                  {activePlan} Plan
+                </Badge>
+              </div>
+              <div className="absolute -bottom-10 -right-10 w-64 h-64 bg-blue-500 opacity-20 rounded-full blur-3xl pointer-events-none"></div>
 
-            <h2 className="text-lg font-medium text-navy-200 mb-2">Current Subscription</h2>
-            <div className="text-4xl font-extrabold mb-6">
-              {activePlan === 'free' ? 'Free' : 'Pro'}
-            </div>
-            
-            <ul className="space-y-3 mb-6 text-sm text-navy-100">
-              <li className="flex items-center gap-3">
-                <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
-                  <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                {activePlan === 'free' ? 'Up to 3 active listings' : 'Unlimited active listings'}
-              </li>
-              <li className="flex items-center gap-3">
-                <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
-                  <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-                  </svg>
-                </div>
-                Direct buyer payments (0% commission)
-              </li>
-            </ul>
+              <ShieldCheck className="w-10 h-10 text-blue-400 mb-4 opacity-80" />
+              <h2 className="text-lg font-medium text-navy-200 mb-1">Current Subscription</h2>
+              <div className="text-4xl font-extrabold mb-8 tracking-tight">
+                {activePlan === 'free' ? 'Free Trial' : 'Pro Monthly'}
+              </div>
+              
+              <ul className="space-y-4 mb-8 text-sm text-navy-100">
+                <li className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                  <span>{activePlan === 'free' ? 'Up to 3 active listings' : 'Unlimited active listings'}</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                  <span>Direct buyer payments (0% commission)</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                  <span>Priority customer support</span>
+                </li>
+              </ul>
 
-            {activePlan !== 'free' && expiresAt && (
-              <div className="text-sm font-medium text-amber-300 mt-8">
-                Renews on {formatDate(expiresAt.toISOString())}
-              </div>
-            )}
-          </div>
-
-          {/* Pricing Plans List */}
-          <div className="bg-white rounded-3xl border border-slate-200 p-4 sm:p-6 lg:p-8 shadow-sm">
-            <h2 className="text-lg font-bold text-navy-900 mb-5">Available Upgrades</h2>
-            <div className="space-y-0 divide-y divide-slate-100">
-              <div className="flex justify-between items-center py-4 group">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-                    </svg>
-                  </div>
-                  <span className="font-semibold text-navy-900">Pro Subscription (Monthly)</span>
+              {activePlan !== 'free' && expiresAt && (
+                <div className="text-sm font-medium text-amber-300 bg-amber-500/10 inline-block px-4 py-2 rounded-lg border border-amber-500/20">
+                  Renews on {formatDate(expiresAt.toISOString())}
                 </div>
-                <span className="font-bold text-amber-600">1,000 ETB</span>
-              </div>
-              <div className="flex justify-between items-center py-4 group">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                    </svg>
-                  </div>
-                  <span className="font-semibold text-navy-900">Boost Listing (7 Days)</span>
-                </div>
-                <span className="font-bold text-amber-600">300 ETB</span>
-              </div>
-              <div className="flex justify-between items-center py-4 group">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                    </svg>
-                  </div>
-                  <span className="font-semibold text-navy-900">Boost Listing (28 Days)</span>
-                </div>
-                <span className="font-bold text-amber-600">3,000 ETB</span>
-              </div>
+              )}
             </div>
-          </div>
+          ) : (
+             <div className="bg-white rounded-3xl border border-amber-100 p-6 sm:p-8 shadow-sm h-full">
+                <div className="w-12 h-12 bg-amber-100 text-amber-600 rounded-xl flex items-center justify-center mb-6">
+                  <Zap size={24} className="fill-amber-500" />
+                </div>
+                <h2 className="text-xl font-bold text-navy-900 mb-3">Boost Your Visibility</h2>
+                <p className="text-slate-500 mb-8 leading-relaxed">
+                  Stand out from the competition. Boosting a product pushes it to the top of search results and category pages, significantly increasing your chances of making a sale.
+                </p>
+                <div className="space-y-4">
+                  <div className="p-4 rounded-2xl border border-slate-100 bg-slate-50 flex items-center justify-between">
+                    <div className="font-semibold text-navy-900">7 Days Boost</div>
+                    <div className="font-bold text-amber-600">300 ETB</div>
+                  </div>
+                  <div className="p-4 rounded-2xl border border-amber-200 bg-amber-50 flex items-center justify-between shadow-sm relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-16 h-16 bg-amber-100 rounded-bl-full -z-0"></div>
+                    <div className="font-semibold text-amber-900 relative z-10 flex items-center gap-2">
+                       28 Days Boost
+                       <span className="text-[10px] bg-amber-500 text-white px-2 py-0.5 rounded-full uppercase font-bold tracking-wider">Best Value</span>
+                    </div>
+                    <div className="font-bold text-amber-700 relative z-10">3,000 ETB</div>
+                  </div>
+                </div>
+             </div>
+          )}
         </div>
 
-        {/* Right Column: Payment Form */}
-        <div className="bg-slate-50 border border-slate-200 rounded-3xl p-4 sm:p-6 lg:p-8">
-          <div className="flex items-start gap-4 mb-6">
-            <div className="w-12 h-12 rounded-2xl bg-white shadow-sm flex items-center justify-center text-blue-600 shrink-0">
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-              </svg>
-            </div>
-            <div>
-              <h2 className="text-xl font-bold text-navy-900 mb-1">Submit Payment</h2>
-              <p className="text-sm text-slate-500 leading-relaxed">
-                To upgrade or boost, transfer the amount to our CBE account and submit the reference below.
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 mb-8 shadow-sm">
-            <div className="flex items-center gap-3 mb-3 pb-3 border-b border-slate-100">
-              <div className="w-8 h-8 bg-amber-100 rounded-full flex items-center justify-center text-amber-600 shrink-0">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
-                </svg>
-              </div>
-              <div className="font-bold text-navy-900 text-sm">Commercial Bank of Ethiopia (CBE)</div>
-            </div>
-            <div className="text-2xl sm:text-3xl font-mono font-bold text-amber-600 mb-1 tracking-wider">
-              1000 1234 56789
-            </div>
-            <div className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-              KelalShop Trading
-            </div>
-          </div>
-
-          <PaymentForm 
-            userId={user.id} 
-            products={products || []} 
-            initialBoostProductId={boostProductId}
-            requestedPlan={requestedPlan}
-          />
+        {/* RIGHT COLUMN: PAYMENT FORM */}
+        <div>
+           <PaymentForm 
+             userId={user.id} 
+             products={products || []} 
+             mode={activeTab}
+             initialBoostProductId={boostProductId}
+           />
         </div>
+
       </div>
 
       {/* Payment History Section */}
-      <div className="pt-8 border-t border-slate-200">
+      <div className="pt-8 mt-12 border-t border-slate-200">
+        <h3 className="text-lg font-bold text-navy-900 mb-6">Payment History</h3>
         <PaymentHistory payments={payments || []} />
       </div>
     </div>
   )
 }
+

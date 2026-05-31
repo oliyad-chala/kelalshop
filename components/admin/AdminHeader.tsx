@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Bell, Search, Settings, Menu, X } from 'lucide-react'
+import { Bell, Settings, Menu, X } from 'lucide-react'
 import Link from 'next/link'
 
 interface AdminHeaderProps {
@@ -22,22 +22,8 @@ export function AdminHeader({ user, onMenuToggle, isMobileMenuOpen }: AdminHeade
         {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
       </button>
 
-      {/* Search Bar */}
-      <div style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
-        <div style={{
-          display: 'flex', alignItems: 'center', gap: '0.5rem',
-          background: 'var(--color-admin-bg)', padding: '0.4rem 0.75rem',
-          borderRadius: '6px', border: '1px solid var(--color-admin-border)',
-          width: '100%', maxWidth: '300px'
-        }}>
-          <Search size={14} color="var(--color-text-muted)" />
-          <input
-            type="text"
-            placeholder="Search..."
-            style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '0.85rem', width: '100%', color: 'var(--color-text-primary)' }}
-          />
-        </div>
-      </div>
+      {/* Search Bar Removed */}
+      <div style={{ flex: 1 }} />
 
       {/* Right Actions */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>

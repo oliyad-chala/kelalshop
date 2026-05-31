@@ -380,6 +380,76 @@ export interface Database {
           status?: PaymentRequestStatus
           notes?: string | null
           updated_at?: string
+          receipt_url?: string | null
+        }
+      }
+      promotions: {
+        Row: {
+          id: string
+          name: string
+          type: 'banner' | 'flash_sale_campaign' | 'shipping'
+          target_country: string | null
+          target_region: string | null
+          target_city: string | null
+          banner_image_url: string | null
+          discount_percentage: number | null
+          start_date: string
+          end_date: string
+          status: 'upcoming' | 'active' | 'ended'
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          type?: 'banner' | 'flash_sale_campaign' | 'shipping'
+          target_country?: string | null
+          target_region?: string | null
+          target_city?: string | null
+          banner_image_url?: string | null
+          discount_percentage?: number | null
+          start_date: string
+          end_date: string
+          status?: 'upcoming' | 'active' | 'ended'
+          is_active?: boolean
+        }
+        Update: {
+          name?: string
+          type?: 'banner' | 'flash_sale_campaign' | 'shipping'
+          target_country?: string | null
+          target_region?: string | null
+          target_city?: string | null
+          banner_image_url?: string | null
+          discount_percentage?: number | null
+          start_date?: string
+          end_date?: string
+          status?: 'upcoming' | 'active' | 'ended'
+          is_active?: boolean
+          updated_at?: string
+        }
+      },
+      promotion_products: {
+        Row: {
+          promotion_id: string
+          product_id: string
+          shopper_id: string
+          special_price: number
+          status: 'pending' | 'approved' | 'rejected'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          promotion_id: string
+          product_id: string
+          shopper_id: string
+          special_price: number
+          status?: 'pending' | 'approved' | 'rejected'
+        }
+        Update: {
+          special_price?: number
+          status?: 'pending' | 'approved' | 'rejected'
+          updated_at?: string
         }
       }
     }

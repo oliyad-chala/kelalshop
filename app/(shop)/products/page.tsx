@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { InfiniteProductGrid } from '@/components/products/InfiniteProductGrid'
 import { ProductCard } from '@/components/products/ProductCard'
 import { ProductsFilter } from '@/components/products/ProductsFilter'
 import { ProductControls } from '@/components/products/ProductControls'
@@ -51,6 +52,9 @@ export default async function ProductsFeedPage({
       query = query.order('created_at', { ascending: false })
    }
 
+   // Apply pagination for the initial load
+   query = query.range(0, 11)
+
    const { data: products } = await query
    const { data: categories } = await supabase.from('categories').select('*').order('name')
    const items = products && products.length > 0 ? (products as ProductWithDetails[]) : []
@@ -75,7 +79,7 @@ export default async function ProductsFeedPage({
                <div className="flex flex-col sm:flex-row items-center justify-between bg-white px-5 py-4 rounded-2xl shadow-sm border border-slate-100">
 
                   <div className="text-sm font-medium text-slate-500 w-full sm:w-auto text-center sm:text-left mb-4 sm:mb-0">
-                     Showing <span className="font-bold text-navy-900">{items?.length || 0}</span> products
+                     Showing products
                   </div>
 
                   <div className="flex items-center gap-2 sm:gap-4 w-full sm:w-auto justify-between sm:justify-end">
@@ -96,21 +100,7 @@ export default async function ProductsFeedPage({
                </div>
 
                {/* Product Grid */}
-               {!items || items.length === 0 ? (
-                  <div className="text-center py-32 bg-white border border-slate-100 rounded-2xl shadow-sm">
-                     <svg className="w-16 h-16 text-slate-200 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                     </svg>
-                     <h3 className="text-xl font-bold text-navy-900 mb-2">No products found</h3>
-                     <p className="text-slate-500">We couldn't find anything matching your search or filter.</p>
-                  </div>
-               ) : (
-                  <div className={params.view === 'list' ? "grid grid-cols-1 lg:grid-cols-2 gap-4" : "grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6"}>
-                     {items.map(product => (
-                        <ProductCard key={product.id} product={product} view={params.view as 'grid' | 'list' | undefined} />
-                     ))}
-                  </div>
-               )}
+               <InfiniteProductGrid initialProducts={items} params={params} />
             </div>
          </div>
       </main>

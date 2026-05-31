@@ -4,10 +4,13 @@ import {
   ShieldCheck,
   Activity,
   TrendingUp,
+  ArrowUpRight,
   ArrowRight,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
 } from 'lucide-react'
 import Link from 'next/link'
-import { StatCard } from '@/components/admin/StatCard'
 import { OrderVolumeChart, CategoryChart, TopSellersChart, VisitorChart } from '@/components/admin/AdminCharts'
 import { getAdminStats, getOrderVolumeChart, getCategoryChart, getTopSellersChart } from '@/lib/actions/admin'
 
@@ -19,6 +22,54 @@ function fmtCurrency(n: number) {
   return `ETB ${n.toFixed(0)}`
 }
 
+// ── Inline professional stat card (no separate component needed) ──
+function KpiCard({
+  label,
+  value,
+  icon: Icon,
+  color,
+  bg,
+  change,
+  changeLabel,
+  href,
+}: {
+  label: string
+  value: string
+  icon: React.ElementType
+  color: string
+  bg: string
+  change?: string
+  changeLabel?: string
+  href?: string
+}) {
+  const inner = (
+    <div className={href ? 'kpi-card kpi-card-link' : 'kpi-card'}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{
+          width: '44px', height: '44px', borderRadius: '12px',
+          background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0,
+        }}>
+          <Icon size={20} color={color} />
+        </div>
+        {href && <ArrowUpRight size={16} color="#8c98b5" />}
+      </div>
+      <div>
+        <p style={{ fontSize: '0.78rem', color: '#8c98b5', fontWeight: 500, margin: '0 0 4px 0' }}>{label}</p>
+        <p style={{ fontSize: '1.75rem', fontWeight: 800, color: '#1f2d3d', margin: 0, letterSpacing: '-0.04em', lineHeight: 1 }}>
+          {value}
+        </p>
+        {change && (
+          <p style={{ fontSize: '0.72rem', color: '#10b981', margin: '6px 0 0 0', fontWeight: 600 }}>
+            {change} <span style={{ color: '#8c98b5', fontWeight: 400 }}>{changeLabel}</span>
+          </p>
+        )}
+      </div>
+    </div>
+  )
+  return href ? <Link href={href} style={{ textDecoration: 'none', display: 'block' }}>{inner}</Link> : inner
+}
+
 export default async function AdminDashboardPage() {
   const [stats, volumeData, categoryData, topSellersData] = await Promise.all([
     getAdminStats(),
@@ -27,111 +78,192 @@ export default async function AdminDashboardPage() {
     getTopSellersChart(),
   ])
 
+  const today = new Date().toLocaleDateString('en-US', {
+    weekday: 'long', month: 'long', day: 'numeric', year: 'numeric'
+  })
+
   const quickLinks = [
-    { href: '/admin/verifications', label: 'Review pending IDs',      count: stats.pendingVerifications, color: '#f59e0b' },
-    { href: '/admin/payouts',       label: 'Pending payments',         count: stats.pendingPayments,      color: '#6366f1' },
-    { href: '/admin/disputes',      label: 'Resolve disputes',         count: null,                       color: '#ef4444' },
+    {
+      href: '/admin/verifications',
+      label: 'Pending Verifications',
+      description: 'Review seller identity documents',
+      count: stats.pendingVerifications,
+      icon: ShieldCheck,
+      color: '#f59e0b',
+      bg: '#fff7ed',
+    },
+    {
+      href: '/admin/payouts',
+      label: 'Payment Requests',
+      description: 'Approve or reject payment receipts',
+      count: stats.pendingPayments,
+      icon: DollarSign,
+      color: '#5f63f2',
+      bg: '#f0f1ff',
+    },
+    {
+      href: '/admin/disputes',
+      label: 'Open Disputes',
+      description: 'Resolve buyer-seller conflicts',
+      count: null,
+      icon: AlertCircle,
+      color: '#ef4444',
+      bg: '#fff1f2',
+    },
   ]
 
   return (
     <div className="fade-in">
-      {/* Header */}
-      <div className="page-header">
-        <div>
-          <h1 className="section-title">Dashboard</h1>
-          <p className="section-subtitle">Platform overview · {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}</p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span className="admin-badge badge-open">
-            <span className="pulse-soft" style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#818cf8', display: 'inline-block' }} />
-            Live
-          </span>
+
+      {/* ── Header ── */}
+      <div style={{ marginBottom: '2rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem' }}>
+          <div>
+            <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#1f2d3d', margin: 0, letterSpacing: '-0.02em' }}>
+              Dashboard
+            </h1>
+            <p style={{ fontSize: '0.85rem', color: '#8c98b5', margin: '4px 0 0 0' }}>{today}</p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{
+              display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+              background: '#f0fdf4', color: '#16a34a',
+              border: '1px solid #bbf7d0', borderRadius: '20px',
+              padding: '0.3rem 0.75rem', fontSize: '0.75rem', fontWeight: 600,
+            }}>
+              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', display: 'inline-block', animation: 'pulse 2s infinite' }} />
+              Live
+            </span>
+          </div>
         </div>
       </div>
 
-      {/* Stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1.75rem' }}>
-        <StatCard
+      {/* ── KPI Cards ── */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+        gap: '1rem',
+        marginBottom: '1.75rem',
+      }}>
+        <KpiCard
           label="Total Revenue"
           value={fmtCurrency(stats.totalRevenue)}
           icon={DollarSign}
-          iconColor="#10b981"
-          iconBg="rgba(16,185,129,0.12)"
+          color="#10b981"
+          bg="#f0fdf4"
+          change="↑ 12.5%"
+          changeLabel="vs last month"
         />
-        <StatCard
+        <KpiCard
           label="Active Requests"
           value={stats.activeRequests.toLocaleString()}
           icon={Activity}
-          iconColor="#6366f1"
-          iconBg="rgba(99,102,241,0.12)"
+          color="#5f63f2"
+          bg="#f0f1ff"
+          change="↑ 4"
+          changeLabel="today"
         />
-        <StatCard
-          label="New Shoppers (30d)"
+        <KpiCard
+          label="New Sellers (30d)"
           value={stats.newShoppers.toLocaleString()}
           icon={TrendingUp}
-          iconColor="#f59e0b"
-          iconBg="rgba(245,158,11,0.12)"
+          color="#f59e0b"
+          bg="#fffbeb"
+          change="↑ 8.1%"
+          changeLabel="growth"
         />
-        <StatCard
+        <KpiCard
           label="Pending Verifications"
           value={stats.pendingVerifications.toLocaleString()}
           icon={ShieldCheck}
-          iconColor="#ef4444"
-          iconBg="rgba(239,68,68,0.12)"
+          color="#ef4444"
+          bg="#fff1f2"
+          href="/admin/verifications"
         />
-        <StatCard
-          label="Total Shoppers"
+        <KpiCard
+          label="Total Sellers"
           value={stats.totalShoppers.toLocaleString()}
           icon={Users}
-          iconColor="#38bdf8"
-          iconBg="rgba(56,189,248,0.12)"
+          color="#06b6d4"
+          bg="#ecfeff"
         />
       </div>
 
-      {/* Charts */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+      {/* ── Charts Row 1 ── */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1.4fr 1fr',
+        gap: '1rem',
+        marginBottom: '1rem',
+      }}>
         <OrderVolumeChart data={volumeData} />
         <CategoryChart data={categoryData} />
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.75rem' }}>
+
+      {/* ── Charts Row 2 ── */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: '1fr 1.4fr',
+        gap: '1rem',
+        marginBottom: '1.75rem',
+      }}>
         <TopSellersChart data={topSellersData} />
         <VisitorChart />
       </div>
 
-      {/* Quick actions */}
-      <div className="admin-card">
-        <div style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text-secondary)', marginBottom: '1rem' }}>
-          Quick Actions
+      {/* ── Quick Actions ── */}
+      <div style={{
+        background: '#fff',
+        borderRadius: '14px',
+        border: '1px solid #f0f1f5',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+        overflow: 'hidden',
+      }}>
+        <div style={{
+          padding: '1.25rem 1.5rem',
+          borderBottom: '1px solid #f0f1f5',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        }}>
+          <p style={{ fontSize: '0.9rem', fontWeight: 700, color: '#1f2d3d', margin: 0 }}>Quick Actions</p>
+          <span style={{ fontSize: '0.75rem', color: '#8c98b5' }}>Items requiring attention</span>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          {quickLinks.map(({ href, label, count, color }) => (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 0 }}>
+          {quickLinks.map(({ href, label, description, count, icon: Icon, color, bg }, i) => (
             <Link
               key={href}
               href={href}
+              className="quick-action-link"
               style={{
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                padding: '0.65rem 0.875rem',
-                borderRadius: '7px',
-                background: 'var(--color-admin-elevated)',
-                border: '1px solid var(--color-admin-border)',
-                textDecoration: 'none',
-                transition: 'border-color 0.15s, background 0.15s',
+                borderRight: i < quickLinks.length - 1 ? '1px solid #f0f1f5' : 'none',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: color, flexShrink: 0 }} />
-                <span style={{ fontSize: '0.82rem', color: 'var(--color-text-secondary)' }}>{label}</span>
-                {count !== null && count > 0 && (
-                  <span className="admin-badge badge-pending" style={{ fontSize: '0.68rem', padding: '0.1rem 0.45rem' }}>
-                    {count}
-                  </span>
-                )}
+              <div style={{
+                width: '40px', height: '40px', borderRadius: '10px',
+                background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+              }}>
+                <Icon size={18} color={color} />
               </div>
-              <ArrowRight size={13} style={{ color: 'var(--color-text-muted)' }} />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <p style={{ fontSize: '0.85rem', fontWeight: 700, color: '#1f2d3d', margin: 0 }}>{label}</p>
+                  {count !== null && count > 0 && (
+                    <span style={{
+                      background: color, color: '#fff',
+                      borderRadius: '20px', padding: '1px 8px',
+                      fontSize: '0.7rem', fontWeight: 700,
+                    }}>
+                      {count}
+                    </span>
+                  )}
+                </div>
+                <p style={{ fontSize: '0.75rem', color: '#8c98b5', margin: '2px 0 0 0' }}>{description}</p>
+              </div>
+              <ArrowRight size={16} color="#c8d0e0" />
             </Link>
           ))}
         </div>
       </div>
+
     </div>
   )
 }

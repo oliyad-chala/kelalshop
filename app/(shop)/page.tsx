@@ -4,6 +4,9 @@ import { HomeProductCard } from '@/components/products/HomeProductCard'
 import { HeroCarousel } from '@/components/home/HeroCarousel'
 import { MOCK_PRODUCTS } from '@/lib/constants/mock-data'
 import type { ProductWithDetails } from '@/types/app.types'
+import { getUserLocation } from '@/lib/utils/geo'
+import { GeoPromoBanner } from '@/components/promotions/GeoPromoBanner'
+import { FlashSaleCarousel } from '@/components/promotions/FlashSaleCarousel'
 
 export const metadata = {
   title: 'KelalShop — Ethiopian Marketplace',
@@ -115,6 +118,52 @@ export default async function Home() {
       .limit(6),
   ])
 
+  // Geo-targeting
+  const location = await getUserLocation();
+
+  // Fetch banners
+  let bannerQuery = supabase
+    .from('promotions')
+    .select('*')
+    .eq('type', 'banner')
+    .eq('is_active', true)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false });
+  
+  if (location.country) {
+    bannerQuery = bannerQuery.or(`target_country.eq.${location.country},target_country.is.null`)
+  } else {
+    bannerQuery = bannerQuery.is('target_country', null)
+  }
+  const { data: banners } = await bannerQuery.limit(3);
+
+  // Fetch flash sale campaign
+  let flashCampaignQuery = supabase
+    .from('promotions')
+    .select('*')
+    .eq('type', 'flash_sale_campaign')
+    .eq('is_active', true)
+    .eq('status', 'active');
+  
+  if (location.country) {
+    flashCampaignQuery = flashCampaignQuery.or(`target_country.eq.${location.country},target_country.is.null`)
+  } else {
+    flashCampaignQuery = flashCampaignQuery.is('target_country', null)
+  }
+  
+  const { data: flashCampaigns } = await flashCampaignQuery.limit(1);
+  const flashCampaign = flashCampaigns?.[0] || null;
+
+  let flashSaleItems = [];
+  if (flashCampaign) {
+    const { data: items } = await supabase
+      .from('promotion_products')
+      .select('*, products(*, product_images(url, is_primary))')
+      .eq('promotion_id', flashCampaign.id)
+      .eq('status', 'approved');
+    flashSaleItems = items || [];
+  }
+
   // Combine boosts and recent products
   const combinedProducts = [...(activeBoosts ?? []), ...(recentProducts ?? [])]
 
@@ -148,6 +197,13 @@ export default async function Home() {
   return (
     <main className="flex-1 bg-slate-50 pb-20">
 
+      {/* ── 0. GEO BANNERS ─────────────────────────────────────────────── */}
+      {(banners && banners.length > 0) && (
+        <section className="px-3 sm:px-4 pt-4 max-w-[1400px] mx-auto">
+          <GeoPromoBanner promotions={banners as any} />
+        </section>
+      )}
+
       {/* ── 1. HERO BANNER ─────────────────────────────────────────────── */}
       <section className="px-3 sm:px-4 pt-2 pb-2 max-w-[1400px] mx-auto">
         <HeroCarousel />
@@ -179,41 +235,47 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* ── 3. FLASH DEALS ─────────────────────────────────────────────── */}
-      <section className="max-w-[1400px] mx-auto px-3 sm:px-4 py-3">
-        <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
-          {/* Header */}
-          <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-slate-50">
-            <div className="flex items-center gap-2">
-              <span className="text-base leading-none">⚡</span>
-              <h2 className="text-sm font-bold text-navy-900">Flash Deals</h2>
-            </div>
-            <Link href="/products" className="text-xs text-amber-600 hover:text-amber-700 font-medium">
-              See All →
-            </Link>
-          </div>
-          {/* Scroll strip */}
-          <div className="flex lg:grid lg:grid-cols-6 gap-3 md:gap-4 lg:gap-5 overflow-x-auto lg:overflow-visible scrollbar-hide p-3 md:p-5 scroll-snap-x lg:scroll-snap-none">
-            {flashItems.map(({ product, discount, endsAt }, i) => (
-              <div key={`${product.id}-${i}`} className="shrink-0 w-[140px] sm:w-[160px] md:w-[200px] lg:w-auto scroll-snap-item">
-                <HomeProductCard product={product} discount={discount} endsAt={endsAt} />
+      {/* ── 3. FLASH DEALS (Campaign based) ───────────────────────────── */}
+      {flashCampaign ? (
+        <section className="max-w-[1400px] mx-auto px-3 sm:px-4">
+          <FlashSaleCarousel campaign={flashCampaign as any} items={flashSaleItems as any} />
+        </section>
+      ) : (
+        <section className="max-w-[1400px] mx-auto px-3 sm:px-4 py-3">
+          <div className="bg-white rounded-xl border border-slate-100 shadow-sm overflow-hidden">
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 pt-3 pb-2 border-b border-slate-50">
+              <div className="flex items-center gap-2">
+                <span className="text-base leading-none">⚡</span>
+                <h2 className="text-sm font-bold text-navy-900">Flash Deals</h2>
               </div>
-            ))}
-            {/* See More card */}
-            <div className="shrink-0 w-[100px] sm:w-[120px] md:w-[160px] lg:w-auto scroll-snap-item">
-              <Link
-                href="/products"
-                className="h-full min-h-[180px] md:min-h-[200px] lg:min-h-full flex flex-col items-center justify-center gap-2 md:gap-3 rounded-xl bg-amber-50 border border-amber-100 hover:bg-amber-100 transition-colors text-amber-600 font-bold text-xs md:text-sm text-center p-3"
-              >
-                <svg className="w-8 h-8 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
-                </svg>
-                See All Deals
+              <Link href="/products" className="text-xs text-amber-600 hover:text-amber-700 font-medium">
+                See All →
               </Link>
             </div>
+            {/* Scroll strip */}
+            <div className="flex lg:grid lg:grid-cols-6 gap-3 md:gap-4 lg:gap-5 overflow-x-auto lg:overflow-visible scrollbar-hide p-3 md:p-5 scroll-snap-x lg:scroll-snap-none">
+              {flashItems.map(({ product, discount, endsAt }, i) => (
+                <div key={`${product.id}-${i}`} className="shrink-0 w-[140px] sm:w-[160px] md:w-[200px] lg:w-auto scroll-snap-item">
+                  <HomeProductCard product={product} discount={discount} endsAt={endsAt} />
+                </div>
+              ))}
+              {/* See More card */}
+              <div className="shrink-0 w-[100px] sm:w-[120px] md:w-[160px] lg:w-auto scroll-snap-item">
+                <Link
+                  href="/products"
+                  className="h-full min-h-[180px] md:min-h-[200px] lg:min-h-full flex flex-col items-center justify-center gap-2 md:gap-3 rounded-xl bg-amber-50 border border-amber-100 hover:bg-amber-100 transition-colors text-amber-600 font-bold text-xs md:text-sm text-center p-3"
+                >
+                  <svg className="w-8 h-8 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5l7 7-7 7" />
+                  </svg>
+                  See All Deals
+                </Link>
+              </div>
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ── 4. TRENDING PRODUCTS ───────────────────────────────────────── */}
       <section className="max-w-[1400px] mx-auto px-3 sm:px-4 py-3">

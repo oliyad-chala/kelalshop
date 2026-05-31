@@ -31,9 +31,14 @@ export default async function AdminProtectedLayout({
   if (profile?.role !== 'admin') redirect('/admin/login')
 
   const admin = createAdminClient()
-  const [{ count: pendingVerifications }, { count: pendingPayments }] = await Promise.all([
+  const [
+    { count: pendingVerifications },
+    { count: pendingPayments },
+    { count: pendingCampaignReviews },
+  ] = await Promise.all([
     admin.from('shopper_profiles').select('*', { count: 'exact', head: true }).eq('verification_status', 'pending'),
     admin.from('payment_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+    admin.from('promotion_products').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
   ])
 
   return (
@@ -43,6 +48,7 @@ export default async function AdminProtectedLayout({
         user={profile as Profile}
         pendingVerifications={pendingVerifications ?? 0}
         pendingPayments={pendingPayments ?? 0}
+        pendingCampaignReviews={pendingCampaignReviews ?? 0}
       >
         {children}
       </AdminShellClient>
