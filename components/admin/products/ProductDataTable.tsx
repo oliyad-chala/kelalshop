@@ -61,10 +61,18 @@ function AvailabilityToggle({ productId, initial }: { productId: string; initial
   )
 }
 
-function BoostToggle({ productId, isFeatured, boostedUntil }: { productId: string; isFeatured: boolean; boostedUntil: string | null }) {
+function BoostToggle({ productId, isFeatured, boostedUntil, canManage }: { productId: string; isFeatured: boolean; boostedUntil: string | null; canManage: boolean }) {
   const isCurrentlyBoosted = isFeatured && boostedUntil && new Date(boostedUntil) > new Date()
   const [enabled, setEnabled] = useState(!!isCurrentlyBoosted)
   const [pending, startTransition] = useTransition()
+
+  if (!canManage) {
+    return (
+      <span style={{ fontSize: '0.78rem', color: isCurrentlyBoosted ? 'var(--color-warning)' : 'var(--color-text-muted)' }}>
+        {isCurrentlyBoosted ? 'Featured' : 'Standard'}
+      </span>
+    )
+  }
 
   const toggle = () => {
     const next = !enabled
@@ -144,7 +152,7 @@ function ApprovalActions({ productId, currentStatus, reason }: { productId: stri
   )
 }
 
-const columns: ColumnDef<ProductRow, any>[] = [
+const buildColumns = (canManage: boolean): ColumnDef<ProductRow, any>[] => [
   {
     id: 'product_details',
     header: 'Product Details',
@@ -194,7 +202,7 @@ const columns: ColumnDef<ProductRow, any>[] = [
     id: 'boost',
     header: 'Promotion',
     enableSorting: false,
-    cell: ({ row }) => <BoostToggle productId={row.original.id} isFeatured={row.original.is_featured} boostedUntil={row.original.boosted_until} />,
+    cell: ({ row }) => <BoostToggle productId={row.original.id} isFeatured={row.original.is_featured} boostedUntil={row.original.boosted_until} canManage={canManage} />,
   },
   {
     id: 'approval',
@@ -223,9 +231,10 @@ const columns: ColumnDef<ProductRow, any>[] = [
   },
 ]
 
-export function ProductDataTable({ rows }: { rows: ProductRow[] }) {
+export function ProductDataTable({ rows, canManage = true }: { rows: ProductRow[]; canManage?: boolean }) {
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [approvalFilter, setApprovalFilter] = useState<string>('all')
+  const columns = useMemo(() => buildColumns(canManage), [canManage])
 
   const uniqueCategories = useMemo(() => {
     const cats = new Set<string>()

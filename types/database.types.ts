@@ -6,7 +6,7 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export type UserRole = 'buyer' | 'shopper' | 'admin'
+export type UserRole = 'buyer' | 'shopper' | 'admin' | 'staff'
 export type VerificationStatus = 'unverified' | 'pending' | 'verified' | 'rejected'
 export type OrderStatus = 'pending' | 'accepted' | 'shipped' | 'delivered' | 'cancelled' | 'disputed'
 export type RequestStatus = 'open' | 'assigned' | 'completed' | 'cancelled'

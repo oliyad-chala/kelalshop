@@ -1,32 +1,12 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
-
-/** Verify the request comes from a logged-in admin. Returns the service-role client. */
-async function requireAdmin() {
-  const supabase = await createClient()
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-  if (!user) throw new Error('Unauthorized')
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (profile?.role !== 'admin') throw new Error('Forbidden: admin access only')
-
-  return createAdminClient()
-}
+import { requireAdmin, requireStaffOrAdmin } from '@/lib/actions/admin-access'
 
 // ── Verifications ────────────────────────────────────────────────────────────
 
 export async function approveVerification(shopperId: string) {
-  const admin = await requireAdmin()
+  const { adminClient: admin } = await requireStaffOrAdmin()
   const { error } = await admin
     .from('shopper_profiles')
     .update({ verification_status: 'verified', updated_at: new Date().toISOString() } as any)
@@ -38,7 +18,7 @@ export async function approveVerification(shopperId: string) {
 }
 
 export async function rejectVerification(shopperId: string) {
-  const admin = await requireAdmin()
+  const { adminClient: admin } = await requireStaffOrAdmin()
   const { error } = await admin
     .from('shopper_profiles')
     .update({ verification_status: 'rejected', updated_at: new Date().toISOString() } as any)
@@ -52,7 +32,7 @@ export async function rejectVerification(shopperId: string) {
 // ── Payments & Subscriptions ───────────────────────────────────────────────────
 
 export async function approvePayment(paymentId: string) {
-  const admin = await requireAdmin()
+  const { adminClient: admin } = await requireAdmin()
 
   // 1. Get payment details
   const { data: payment, error: getError } = await admin
@@ -109,7 +89,7 @@ export async function approvePayment(paymentId: string) {
 }
 
 export async function rejectPayment(paymentId: string) {
-  const admin = await requireAdmin()
+  const { adminClient: admin } = await requireAdmin()
   const { error } = await admin
     .from('payment_requests')
     .update({
@@ -126,7 +106,7 @@ export async function rejectPayment(paymentId: string) {
 // ── Manual Subscriptions ──────────────────────────────────────────────────────
 
 export async function adminUpdateSubscription(shopperId: string, plan: 'free' | 'pro') {
-  const admin = await requireAdmin()
+  const { adminClient: admin } = await requireAdmin()
 
   let expiresAt = null
   if (plan === 'pro') {
@@ -152,7 +132,7 @@ export async function adminUpdateSubscription(shopperId: string, plan: 'free' | 
 // ── Top Shoppers ─────────────────────────────────────────────────────────────
 
 export async function toggleTopShopper(shopperId: string, isTop: boolean) {
-  const admin = await requireAdmin()
+  const { adminClient: admin } = await requireAdmin()
 
   const { error } = await admin
     .from('shopper_profiles')
@@ -171,7 +151,7 @@ export async function toggleTopShopper(shopperId: string, isTop: boolean) {
 // ── Products ─────────────────────────────────────────────────────────────────
 
 export async function toggleProductAvailability(productId: string, isAvailable: boolean) {
-  const admin = await requireAdmin()
+  const { adminClient: admin } = await requireStaffOrAdmin()
   const { error } = await admin
     .from('products')
     .update({ is_available: isAvailable, updated_at: new Date().toISOString() } as any)
@@ -181,7 +161,7 @@ export async function toggleProductAvailability(productId: string, isAvailable: 
 }
 
 export async function adminToggleProductBoost(productId: string, boost: boolean) {
-  const admin = await requireAdmin()
+  const { adminClient: admin } = await requireAdmin()
 
   let boostedUntil = null
   if (boost) {
@@ -208,7 +188,7 @@ export async function adminToggleProductBoost(productId: string, boost: boolean)
 // ── Analytics ────────────────────────────────────────────────────────────────
 
 export async function getAdminStats() {
-  const admin = await requireAdmin()
+  const { adminClient: admin } = await requireStaffOrAdmin()
 
   const [
     { data: orders },
@@ -245,7 +225,7 @@ export async function getAdminStats() {
 }
 
 export async function getOrderVolumeChart() {
-  const admin = await requireAdmin()
+  const { adminClient: admin } = await requireStaffOrAdmin()
   const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
 
   const { data } = await admin
@@ -269,7 +249,7 @@ export async function getOrderVolumeChart() {
 }
 
 export async function getCategoryChart() {
-  const admin = await requireAdmin()
+  const { adminClient: admin } = await requireStaffOrAdmin()
   const { data } = await admin
     .from('products')
     .select('categories(name)')
@@ -290,7 +270,7 @@ export async function getCategoryChart() {
 }
 
 export async function getTopSellersChart() {
-  const admin = await requireAdmin()
+  const { adminClient: admin } = await requireStaffOrAdmin()
   const { data: orders } = await admin
     .from('orders')
     .select('amount, shopper_id, shopper:profiles!orders_shopper_id_fkey(full_name)')
@@ -315,7 +295,7 @@ export async function getTopSellersChart() {
 // ── Orders ───────────────────────────────────────────────────────────────────
 
 export async function adminUpdateOrderStatus(orderId: string, status: string) {
-  const admin = await requireAdmin()
+  const { adminClient: admin } = await requireStaffOrAdmin()
   const { error } = await admin
     .from('orders')
     .update({
@@ -330,7 +310,7 @@ export async function adminUpdateOrderStatus(orderId: string, status: string) {
 }
 
 export async function adminDeleteProduct(productId: string) {
-  const admin = await requireAdmin()
+  const { adminClient: admin } = await requireStaffOrAdmin()
 
   // Professional delete: clean up related data first
   // 1. Delete product images from storage
@@ -376,7 +356,7 @@ export async function adminUpdateProduct(
   _prevState: any,
   formData: FormData
 ) {
-  const admin = await requireAdmin()
+  const { adminClient: admin } = await requireStaffOrAdmin()
 
   const rawName = formData.get('name') as string
   const customName = formData.get('custom_name') as string | null
@@ -471,7 +451,7 @@ export async function adminUpdateProduct(
 }
 
 export async function adminApproveProduct(productId: string) {
-  const admin = await requireAdmin()
+  const { adminClient: admin } = await requireStaffOrAdmin()
   const { error } = await admin
     .from('products')
     .update({ approval_status: 'approved', updated_at: new Date().toISOString() } as any)
@@ -497,7 +477,7 @@ export async function adminApproveProduct(productId: string) {
 }
 
 export async function adminRejectProduct(productId: string, reason: string) {
-  const admin = await requireAdmin()
+  const { adminClient: admin } = await requireStaffOrAdmin()
   const { error } = await admin
     .from('products')
     .update({ 

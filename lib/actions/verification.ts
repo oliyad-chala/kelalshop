@@ -19,6 +19,9 @@ export async function submitVerification(
   const agreedToTerms = formData.get('agreed_to_terms') === 'true'
 
   if (!storagePath) throw new Error('No document path received. Please re-upload your ID.')
+  if (!storagePath.startsWith(`${user.id}/`)) {
+    throw new Error('Invalid document path. Please re-upload your ID.')
+  }
   if (!phone) throw new Error('Please enter your phone number.')
   if (!agreedToTerms) throw new Error('You must agree to the Seller Contract before submitting.')
 

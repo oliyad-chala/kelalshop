@@ -2,7 +2,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { updateCampaignStatus, deleteCampaign } from '@/lib/actions/campaigns'
+import { updateCampaignStatus } from '@/lib/actions/campaigns'
+import { isAdminRole } from '@/lib/utils/admin-roles'
 
 export const metadata = { title: 'Marketing Center | KelalShop Admin' }
 
@@ -22,6 +23,14 @@ export default async function AdminPromotionsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/admin/login')
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  const canManage = isAdminRole(profile?.role)
 
   const admin = createAdminClient()
 
@@ -49,6 +58,7 @@ export default async function AdminPromotionsPage() {
             Create flash sales, geo-targeted banners, and shipping deals. Sellers see and join your campaigns.
           </p>
         </div>
+        {canManage && (
         <Link
           href="/admin/promotions/new"
           style={{
@@ -62,6 +72,7 @@ export default async function AdminPromotionsPage() {
         >
           + New Campaign
         </Link>
+        )}
       </div>
 
       {/* Stat Cards */}
@@ -98,10 +109,12 @@ export default async function AdminPromotionsPage() {
           <div style={{ padding: '4rem', textAlign: 'center', color: '#9ca3af' }}>
             <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📢</div>
             <h3 style={{ fontWeight: 700, color: '#374151', marginBottom: '0.5rem' }}>No campaigns yet</h3>
-            <p style={{ fontSize: '0.9rem' }}>Create your first flash sale and announce it to sellers.</p>
+            <p style={{ fontSize: '0.9rem' }}>{canManage ? 'Create your first flash sale and announce it to sellers.' : 'No campaigns have been created yet.'}</p>
+            {canManage && (
             <Link href="/admin/promotions/new" style={{ display: 'inline-block', marginTop: '1rem', background: '#f59e0b', color: '#fff', padding: '0.6rem 1.4rem', borderRadius: '8px', fontWeight: 600, textDecoration: 'none', fontSize: '0.875rem' }}>
               Create Campaign
             </Link>
+            )}
           </div>
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
@@ -141,11 +154,16 @@ export default async function AdminPromotionsPage() {
                     </span>
                   </td>
                   <td style={{ padding: '1rem 1.25rem', textAlign: 'center' }}>
+                    {canManage ? (
                     <Link href={`/admin/promotions/${promo.id}`} style={{ color: '#3b82f6', fontSize: '0.8rem', fontWeight: 600, textDecoration: 'none' }}>
                       View →
                     </Link>
+                    ) : (
+                    <span style={{ color: '#9ca3af', fontSize: '0.8rem' }}>View only</span>
+                    )}
                   </td>
                   <td style={{ padding: '1rem 1.25rem' }}>
+                    {canManage ? (
                     <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                       <Link
                         href={`/admin/promotions/${promo.id}`}
@@ -174,6 +192,9 @@ export default async function AdminPromotionsPage() {
                         </form>
                       )}
                     </div>
+                    ) : (
+                    <span style={{ color: '#9ca3af', fontSize: '0.78rem' }}>—</span>
+                    )}
                   </td>
                 </tr>
               ))}

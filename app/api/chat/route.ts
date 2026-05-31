@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { createClient as createServerClient } from '@/lib/supabase/server'
+import { checkRateLimit, generateDeviceFingerprint } from '@/lib/utils/security'
 
-// Force Node.js runtime (Groq SDK requires Node APIs not available in Edge)
 export const runtime = 'nodejs'
 
-// Initialize Supabase admin client to bypass RLS
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+
+const MAX_MESSAGE_LENGTH = 2000
 
 const SYSTEM_PROMPT = `You are a helpful, friendly AI Support Assistant for KelalShop.
 KelalShop is a multi-vendor ecommerce marketplace connecting Ethiopian buyers with verified shoppers (sellers) who import goods from Amazon, AliExpress, Shein, Temu, and local markets.
@@ -21,9 +23,8 @@ Key Information:
 
 export async function POST(req: Request) {
   try {
-    // --- Validate environment variables at runtime ---
     if (!supabaseUrl || !supabaseServiceKey) {
-      console.error('Missing Supabase env vars. NEXT_PUBLIC_SUPABASE_URL:', !!supabaseUrl, 'SUPABASE_SERVICE_ROLE_KEY:', !!supabaseServiceKey)
+      console.error('Missing Supabase env vars')
       return NextResponse.json(
         { error: 'Server configuration error', reply: "I'm sorry, I'm having trouble connecting right now. Please try again later." },
         { status: 500 }
@@ -32,28 +33,76 @@ export async function POST(req: Request) {
 
     const groqApiKey = process.env.GROQ_API_KEY
     if (!groqApiKey) {
-      console.error('GROQ_API_KEY is not set in environment variables')
       return NextResponse.json(
         { error: 'AI service not configured', reply: "I'm sorry, the AI service is temporarily unavailable. Please try again later." },
         { status: 500 }
       )
     }
 
-    const supabase = createClient(supabaseUrl, supabaseServiceKey)
-
-    const { message, sessionId, guestId, userId } = await req.json()
+    const body = await req.json()
+    const message = typeof body.message === 'string' ? body.message.trim() : ''
+    const sessionId = typeof body.sessionId === 'string' ? body.sessionId : null
+    const guestId = typeof body.guestId === 'string' ? body.guestId : null
+    const clientUserId = typeof body.userId === 'string' ? body.userId : null
 
     if (!message) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 })
     }
 
+    if (message.length > MAX_MESSAGE_LENGTH) {
+      return NextResponse.json({ error: 'Message is too long' }, { status: 400 })
+    }
+
+    if (!guestId || guestId.length < 8 || guestId.length > 64) {
+      return NextResponse.json({ error: 'Invalid session' }, { status: 400 })
+    }
+
+    const serverSupabase = await createServerClient()
+    const { data: { user } } = await serverSupabase.auth.getUser()
+    const userId = user?.id ?? null
+
+    if (clientUserId && clientUserId !== userId) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const { ip } = await generateDeviceFingerprint()
+    const rateKey = userId ? `chat_user:${userId}` : `chat_guest:${guestId}`
+    const ipAllowed = await checkRateLimit(`chat_ip:${ip}`, 30, 900)
+    const keyAllowed = await checkRateLimit(rateKey, 40, 900)
+
+    if (!ipAllowed || !keyAllowed) {
+      return NextResponse.json(
+        { error: 'Too many messages', reply: "You're sending messages too quickly. Please wait a moment and try again." },
+        { status: 429 }
+      )
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
     let currentSessionId = sessionId
 
-    // 1. Create a session if one doesn't exist yet
-    if (!currentSessionId) {
+    if (currentSessionId) {
+      const { data: existing } = await supabase
+        .from('support_sessions')
+        .select('user_id, guest_id')
+        .eq('id', currentSessionId)
+        .single()
+
+      if (!existing) {
+        return NextResponse.json({ error: 'Session not found' }, { status: 404 })
+      }
+
+      if (userId) {
+        if (existing.user_id !== userId) {
+          return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+        }
+      } else if (existing.guest_id !== guestId) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
+    } else {
       const { data: session, error: sessionError } = await supabase
         .from('support_sessions')
-        .insert({ user_id: userId || null, guest_id: guestId || null, status: 'bot' })
+        .insert({ user_id: userId, guest_id: guestId, status: 'bot' })
         .select()
         .single()
 
@@ -67,7 +116,6 @@ export async function POST(req: Request) {
       currentSessionId = session.id
     }
 
-    // 2. Fetch chat history BEFORE inserting new message (clean history for context)
     const { data: history } = await supabase
       .from('support_messages')
       .select('sender_type, content')
@@ -75,30 +123,27 @@ export async function POST(req: Request) {
       .order('created_at', { ascending: true })
       .limit(15)
 
-    // 3. Save the user's message to DB
     await supabase.from('support_messages').insert({
       session_id: currentSessionId,
       sender_type: 'user',
-      content: message
+      content: message,
     })
 
-    // 4. Build messages array (system + history + new message)
     const formattedHistory = (history || []).map(msg => ({
       role: msg.sender_type === 'user' ? 'user' as const : 'assistant' as const,
-      content: msg.content
+      content: msg.content,
     }))
 
     const chatMessages = [
       { role: 'system' as const, content: SYSTEM_PROMPT },
       ...formattedHistory,
-      { role: 'user' as const, content: message }
+      { role: 'user' as const, content: message },
     ]
 
-    // 5. Call Groq API directly via fetch (avoids SDK edge/node compatibility issues on Vercel)
     const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${groqApiKey}`,
+        Authorization: `Bearer ${groqApiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -121,18 +166,18 @@ export async function POST(req: Request) {
     const groqData = await groqResponse.json()
     const responseText = groqData.choices?.[0]?.message?.content || "I'm sorry, I'm having trouble connecting right now."
 
-    // 6. Save bot response to DB
     await supabase.from('support_messages').insert({
       session_id: currentSessionId,
       sender_type: 'bot',
-      content: responseText
+      content: responseText,
     })
 
     return NextResponse.json({ sessionId: currentSessionId, reply: responseText, success: true })
-  } catch (error: any) {
-    console.error('Chat API Error:', error?.message || error)
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : 'Unknown error'
+    console.error('Chat API Error:', msg)
     return NextResponse.json(
-      { error: 'Internal Server Error', details: error?.message, reply: "I'm sorry, something went wrong. Please try again." },
+      { error: 'Internal Server Error', reply: "I'm sorry, something went wrong. Please try again." },
       { status: 500 }
     )
   }

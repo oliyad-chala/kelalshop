@@ -166,6 +166,19 @@ export async function submitReview(orderId: string, revieweeId: string, rating: 
     throw new Error('You have already reviewed this order.')
   }
 
+  const { data: order } = await supabase
+    .from('orders')
+    .select('buyer_id, shopper_id, status')
+    .eq('id', orderId)
+    .single()
+
+  if (!order || order.buyer_id !== user.id || order.shopper_id !== revieweeId) {
+    throw new Error('You can only review orders you purchased.')
+  }
+  if (order.status !== 'delivered') {
+    throw new Error('You can only review delivered orders.')
+  }
+
   // Insert the review
   const { error } = await supabase
     .from('reviews')

@@ -2,29 +2,12 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
-import { createAdminClient } from '@/lib/supabase/admin'
-import { createClient } from '@/lib/supabase/server'
-
-/** Guard: only admins may call these actions */
-async function requireAdmin() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) throw new Error('Unauthorized')
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single()
-
-  if (profile?.role !== 'admin') throw new Error('Forbidden: admin access only')
-  return createAdminClient()
-}
+import { requireAdmin } from '@/lib/actions/admin-access'
 
 // ── Create Campaign ───────────────────────────────────────────────────────────
 
 export async function createCampaign(_prevState: any, formData: FormData) {
-  const admin = await requireAdmin()
+  const { adminClient: admin } = await requireAdmin()
 
   const name             = (formData.get('name') as string)?.trim()
   const type             = (formData.get('type') as string) || 'flash_sale_campaign'
@@ -73,7 +56,7 @@ export async function createCampaign(_prevState: any, formData: FormData) {
 // ── Update Campaign Status ────────────────────────────────────────────────────
 
 export async function updateCampaignStatus(campaignId: string, status: 'upcoming' | 'active' | 'ended') {
-  const admin = await requireAdmin()
+  const { adminClient: admin } = await requireAdmin()
   const { error } = await admin
     .from('promotions')
     .update({ status, is_active: status !== 'ended', updated_at: new Date().toISOString() } as any)
@@ -86,7 +69,7 @@ export async function updateCampaignStatus(campaignId: string, status: 'upcoming
 // ── Delete Campaign ───────────────────────────────────────────────────────────
 
 export async function deleteCampaign(campaignId: string) {
-  const admin = await requireAdmin()
+  const { adminClient: admin } = await requireAdmin()
   const { error } = await admin.from('promotions').delete().eq('id', campaignId)
   if (error) throw new Error(error.message)
   revalidatePath('/admin/promotions')
@@ -95,7 +78,7 @@ export async function deleteCampaign(campaignId: string) {
 // ── Approve / Reject Seller Submissions ──────────────────────────────────────
 
 export async function approveSubmission(promotionId: string, productId: string) {
-  const admin = await requireAdmin()
+  const { adminClient: admin } = await requireAdmin()
   const { error } = await admin
     .from('promotion_products')
     .update({ status: 'approved', updated_at: new Date().toISOString() } as any)
@@ -124,7 +107,7 @@ export async function approveSubmission(promotionId: string, productId: string) 
 }
 
 export async function rejectSubmission(promotionId: string, productId: string, reason: string) {
-  const admin = await requireAdmin()
+  const { adminClient: admin } = await requireAdmin()
   const { error } = await admin
     .from('promotion_products')
     .update({ status: 'rejected', updated_at: new Date().toISOString() } as any)
@@ -155,7 +138,7 @@ export async function rejectSubmission(promotionId: string, productId: string, r
 // ── Admin Force-Add Product to Campaign ──────────────────────────────────────
 
 export async function adminForceAddProduct(promotionId: string, productId: string, specialPrice: number) {
-  const admin = await requireAdmin()
+  const { adminClient: admin } = await requireAdmin()
 
   // Get product's shopper_id
   const { data: product } = await admin
@@ -193,7 +176,7 @@ export async function adminForceAddProduct(promotionId: string, productId: strin
 // ── Remove product from campaign ─────────────────────────────────────────────
 
 export async function removeProductFromCampaign(promotionId: string, productId: string) {
-  const admin = await requireAdmin()
+  const { adminClient: admin } = await requireAdmin()
   const { error } = await admin
     .from('promotion_products')
     .delete()

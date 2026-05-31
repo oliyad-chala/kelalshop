@@ -152,22 +152,22 @@ export async function signIn(
 
   if (error) {
     // Log failed attempt
-    await supabase.from('login_attempts').insert({
-      email,
-      ip_address: ip,
-      device_fingerprint: fingerprint,
-      is_success: false
+    await supabase.rpc('log_login_attempt', {
+      p_email: email,
+      p_ip_address: ip,
+      p_device_fingerprint: fingerprint,
+      p_is_success: false,
     })
     return { error: 'Invalid email or password.' }
   }
 
   // ── Login tracking & Device Fingerprinting ────────────────────────────
   // Log successful attempt
-  await supabase.from('login_attempts').insert({
-    email,
-    ip_address: ip,
-    device_fingerprint: fingerprint,
-    is_success: true
+  await supabase.rpc('log_login_attempt', {
+    p_email: email,
+    p_ip_address: ip,
+    p_device_fingerprint: fingerprint,
+    p_is_success: true,
   })
 
   // Check if device is recognized
@@ -216,10 +216,10 @@ export async function signIn(
     .eq('id', data.user.id)
     .single()
 
-  if (profile?.role === 'admin') {
+  if (profile?.role === 'admin' || profile?.role === 'staff') {
     await supabase.auth.signOut()
     return {
-      error: 'Admin accounts cannot sign in here. Please use the Admin Portal.',
+      error: 'Admin and staff accounts cannot sign in here. Please use the Admin Portal.',
     }
   }
 

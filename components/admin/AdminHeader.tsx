@@ -1,16 +1,20 @@
 'use client'
 
-import { useState } from 'react'
 import { Bell, Settings, Menu, X } from 'lucide-react'
 import Link from 'next/link'
+import { isAdminRole } from '@/lib/utils/admin-roles'
+import type { UserRole } from '@/types/database.types'
 
 interface AdminHeaderProps {
-  user: any
+  user: { full_name?: string | null }
+  userRole: UserRole
   onMenuToggle?: () => void
   isMobileMenuOpen?: boolean
 }
 
-export function AdminHeader({ user, onMenuToggle, isMobileMenuOpen }: AdminHeaderProps) {
+export function AdminHeader({ user, userRole, onMenuToggle, isMobileMenuOpen }: AdminHeaderProps) {
+  const isAdmin = isAdminRole(userRole)
+
   return (
     <header className="admin-top-header">
       {/* Hamburger (mobile only) */}
@@ -27,6 +31,7 @@ export function AdminHeader({ user, onMenuToggle, isMobileMenuOpen }: AdminHeade
 
       {/* Right Actions */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+        {isAdmin && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', color: 'var(--color-text-secondary)' }}>
           <Link href="/admin/settings" className="admin-header-icon-btn" title="Settings">
             <Settings size={20} color="currentColor" />
@@ -40,8 +45,11 @@ export function AdminHeader({ user, onMenuToggle, isMobileMenuOpen }: AdminHeade
             }} />
           </Link>
         </div>
+        )}
 
+        {isAdmin && (
         <div style={{ width: '1px', height: '24px', background: 'var(--color-admin-border)' }} />
+        )}
 
         {/* User Profile */}
         <div style={{

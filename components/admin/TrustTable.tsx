@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { type ColumnDef } from '@tanstack/react-table'
 import { Star } from 'lucide-react'
 import { DataTable } from '@/components/admin/DataTable'
@@ -51,7 +52,7 @@ function TrustBar({ score }: { score: number }) {
   )
 }
 
-const columns: ColumnDef<TrustRow, any>[] = [
+const buildColumns = (canManage: boolean): ColumnDef<TrustRow, any>[] => [
   {
     accessorKey: 'name',
     header: 'Shopper',
@@ -89,6 +90,13 @@ const columns: ColumnDef<TrustRow, any>[] = [
     header: 'Top Shopper',
     cell: ({ row }) => {
       const isTop = row.original.isTopShopper
+      if (!canManage) {
+        return (
+          <span className={`admin-badge ${isTop ? 'badge-verified' : 'badge-default'}`}>
+            {isTop ? 'Yes' : 'No'}
+          </span>
+        )
+      }
       return (
         <button
           onClick={async () => {
@@ -119,7 +127,8 @@ const columns: ColumnDef<TrustRow, any>[] = [
   }
 ]
 
-export function TrustTable({ rows }: { rows: TrustRow[] }) {
+export function TrustTable({ rows, canManage = true }: { rows: TrustRow[]; canManage?: boolean }) {
+  const columns = useMemo(() => buildColumns(canManage), [canManage])
   return (
     <DataTable
       data={rows}

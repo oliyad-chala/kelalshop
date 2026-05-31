@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import type { Database } from '@/types/database.types'
+import { isAdminOnlyPath, isAdminPortalRole } from '@/lib/utils/admin-roles'
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -45,7 +46,7 @@ export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname
 
   // ── Admin RBAC ──────────────────────────────────────────────────────────────
-  // All /admin/* routes except /admin/login require role = 'admin'
+  // All /admin/* routes except /admin/login require admin or staff role
   if (pathname.startsWith('/admin') && pathname !== '/admin/login') {
     if (!user) {
       const url = request.nextUrl.clone()
@@ -53,24 +54,28 @@ export async function updateSession(request: NextRequest) {
       return NextResponse.redirect(url)
     }
 
-    // Fetch role — use the supabase client already created above
     const { data: profile } = await supabase
       .from('profiles')
       .select('role')
       .eq('id', user.id)
       .single()
 
-    if (profile?.role !== 'admin') {
+    if (!isAdminPortalRole(profile?.role)) {
       const url = request.nextUrl.clone()
       url.pathname = '/admin/login'
       return NextResponse.redirect(url)
     }
 
-    // Authenticated admin accessing /admin/login → send to dashboard
+    if (profile?.role === 'staff' && isAdminOnlyPath(pathname)) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/admin/dashboard'
+      return NextResponse.redirect(url)
+    }
+
     return supabaseResponse
   }
 
-  // If authenticated admin tries to access /admin/login → redirect to dashboard
+  // If authenticated admin/staff tries to access /admin/login → redirect to dashboard
   if (pathname === '/admin/login' && user) {
     const { data: profile } = await supabase
       .from('profiles')
@@ -78,7 +83,7 @@ export async function updateSession(request: NextRequest) {
       .eq('id', user.id)
       .single()
 
-    if (profile?.role === 'admin') {
+    if (isAdminPortalRole(profile?.role)) {
       const url = request.nextUrl.clone()
       url.pathname = '/admin/dashboard'
       return NextResponse.redirect(url)

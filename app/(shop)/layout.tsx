@@ -45,8 +45,8 @@ export default async function ShopLayout({
 
     profile = profileResult.data as Profile | null
 
-    // Prevent Admins from accessing the public storefront or shopper dashboard
-    if (profile?.role === 'admin') {
+    // Prevent admin/staff from accessing the public storefront or shopper dashboard
+    if (profile?.role === 'admin' || profile?.role === 'staff') {
       redirect('/admin/dashboard')
     }
 

@@ -11,6 +11,9 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import Link from 'next/link'
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { isAdminRole } from '@/lib/utils/admin-roles'
 import { OrderVolumeChart, CategoryChart, TopSellersChart, VisitorChart } from '@/components/admin/AdminCharts'
 import { getAdminStats, getOrderVolumeChart, getCategoryChart, getTopSellersChart } from '@/lib/actions/admin'
 
@@ -71,6 +74,18 @@ function KpiCard({
 }
 
 export default async function AdminDashboardPage() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) redirect('/admin/login')
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  const isAdmin = isAdminRole(profile?.role)
+
   const [stats, volumeData, categoryData, topSellersData] = await Promise.all([
     getAdminStats(),
     getOrderVolumeChart(),
@@ -101,7 +116,7 @@ export default async function AdminDashboardPage() {
       color: '#5f63f2',
       bg: '#f0f1ff',
     },
-    {
+    ...(isAdmin ? [{
       href: '/admin/disputes',
       label: 'Open Disputes',
       description: 'Resolve buyer-seller conflicts',
@@ -109,7 +124,7 @@ export default async function AdminDashboardPage() {
       icon: AlertCircle,
       color: '#ef4444',
       bg: '#fff1f2',
-    },
+    }] : []),
   ]
 
   return (

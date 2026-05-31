@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { ProductDataTable } from '@/components/admin/products/ProductDataTable'
+import { isAdminRole } from '@/lib/utils/admin-roles'
 import { PackageSearch } from 'lucide-react'
 
 export const metadata = { title: 'Product Moderation' }
@@ -10,6 +11,14 @@ export default async function ProductsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/admin/login')
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  const canManage = isAdminRole(profile?.role)
 
   const admin = createAdminClient()
 
@@ -55,7 +64,7 @@ export default async function ProductsPage() {
         </div>
       </div>
 
-      <ProductDataTable rows={rows} />
+      <ProductDataTable rows={rows} canManage={canManage} />
     </div>
   )
 }

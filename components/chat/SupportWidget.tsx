@@ -39,8 +39,16 @@ function BotMessageContent({ content }: { content: string }) {
   )
 }
 
+function escapeHtml(text: string) {
+  return text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+}
+
 function formatBold(text: string) {
-  return text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+  return escapeHtml(text).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
 }
 
 // Typewriter hook
@@ -124,7 +132,8 @@ export function SupportWidget() {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: messageContent, sessionId, guestId, userId: user?.id || null })
+        credentials: 'include',
+        body: JSON.stringify({ message: messageContent, sessionId, guestId, userId: user?.id ?? null })
       })
 
       const data = await res.json()

@@ -9,7 +9,7 @@ create extension if not exists "uuid-ossp";
 -- ============================================================
 -- ENUM TYPES
 -- ============================================================
-create type user_role as enum ('buyer', 'shopper', 'admin');
+create type user_role as enum ('buyer', 'shopper', 'admin', 'staff');
 create type verification_status as enum ('unverified', 'pending', 'verified', 'rejected');
 create type order_status as enum ('pending', 'accepted', 'shipped', 'delivered', 'cancelled', 'disputed');
 create type request_status as enum ('open', 'assigned', 'completed', 'cancelled');
@@ -224,6 +224,9 @@ declare
   _role text;
 begin
   _role := coalesce(new.raw_user_meta_data->>'role', 'buyer');
+  if _role not in ('buyer', 'shopper') then
+    _role := 'buyer';
+  end if;
 
   insert into public.profiles (id, full_name, role)
   values (
@@ -264,6 +267,24 @@ $$ language plpgsql;
 create trigger on_review_created
   after insert on reviews
   for each row execute function update_trust_score();
+
+-- Prevent users from escalating role or trust_score via direct updates
+create or replace function protect_profile_sensitive_columns()
+returns trigger as $$
+begin
+  if tg_op = 'UPDATE' then
+    if coalesce(auth.jwt() ->> 'role', '') <> 'service_role' then
+      new.role := old.role;
+      new.trust_score := old.trust_score;
+    end if;
+  end if;
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+create trigger protect_profiles_sensitive
+  before update on profiles
+  for each row execute function protect_profile_sensitive_columns();
 
 -- ============================================================
 -- ROW LEVEL SECURITY
@@ -380,7 +401,16 @@ create policy "Reviews are public"
   on reviews for select using (true);
 
 create policy "Users can write reviews for completed orders"
-  on reviews for insert with check (auth.uid() = reviewer_id);
+  on reviews for insert with check (
+    auth.uid() = reviewer_id
+    and exists (
+      select 1 from orders o
+      where o.id = order_id
+        and o.buyer_id = auth.uid()
+        and o.status = 'delivered'
+        and o.shopper_id = reviewee_id
+    )
+  );
 
 -- Messages
 create policy "Messages visible to sender and recipient"

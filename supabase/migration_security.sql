@@ -54,5 +54,5 @@ create policy "Admins can view user devices" on user_devices for select using (e
 -- Users can view their own devices
 create policy "Users view own devices" on user_devices for select using (auth.uid() = user_id);
 
--- System functions (Bypassing RLS for inserts/updates using security definer if needed, 
--- but since server actions use service_role or we can just use service_role client, it's fine).
+-- Rate limits, login attempts, and admin audit logging use SECURITY DEFINER RPCs.
+-- Run supabase/migration_security_hardening.sql after this file.

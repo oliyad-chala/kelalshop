@@ -22,7 +22,7 @@ function fmtCurrency(n: number) {
 
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
 
-function PaymentAction({ paymentId, status }: { paymentId: string, status: string }) {
+function PaymentAction({ paymentId, status, canManage }: { paymentId: string; status: string; canManage: boolean }) {
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   
@@ -53,9 +53,9 @@ function PaymentAction({ paymentId, status }: { paymentId: string, status: strin
     })
   }
 
-  if (status !== 'pending') {
+  if (status !== 'pending' || !canManage) {
     return (
-      <span className={`admin-badge ${status === 'approved' ? 'badge-verified' : 'badge-danger'}`}>
+      <span className={`admin-badge ${status === 'approved' ? 'badge-verified' : status === 'rejected' ? 'badge-danger' : 'badge-pending'}`}>
         {status.charAt(0).toUpperCase() + status.slice(1)}
       </span>
     )
@@ -99,7 +99,7 @@ function PaymentAction({ paymentId, status }: { paymentId: string, status: strin
   )
 }
 
-const columns: ColumnDef<PaymentRow, any>[] = [
+const buildColumns = (canManage: boolean): ColumnDef<PaymentRow, any>[] => [
   {
     accessorKey: 'receipt_url',
     header: 'Receipt',
@@ -145,12 +145,13 @@ const columns: ColumnDef<PaymentRow, any>[] = [
     id: 'action',
     header: 'Action',
     enableSorting: false,
-    cell: ({ row }) => <PaymentAction paymentId={row.original.id} status={row.original.status} />,
+    cell: ({ row }) => <PaymentAction paymentId={row.original.id} status={row.original.status} canManage={canManage} />,
   },
 ]
 
-export function PaymentDataTable({ rows }: { rows: PaymentRow[] }) {
+export function PaymentDataTable({ rows, canManage = true }: { rows: PaymentRow[]; canManage?: boolean }) {
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const columns = useMemo(() => buildColumns(canManage), [canManage])
 
   const filteredRows = useMemo(() => {
     if (statusFilter === 'all') return rows

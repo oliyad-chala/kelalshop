@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
+import { isAdminPortalRole } from '@/lib/utils/admin-roles'
 
 type AdminAuthState = { error?: string } | null
 
@@ -20,16 +21,41 @@ async function getClientIp(): Promise<string> {
 
 async function writeAuditLog(
   supabase: Awaited<ReturnType<typeof createClient>>,
-  action: string,
+  action: 'login_failed' | 'login_denied_not_admin' | 'login_success',
   email: string,
   ip: string
 ) {
-  // Silently insert — don't block auth flow if this fails
-  await supabase.from('admin_audit_log').insert({
-    admin_email: email,
-    action,
-    ip_address: ip,
+  await supabase.rpc('log_admin_audit', {
+    p_action: action,
+    p_email: email,
+    p_ip: ip,
   }).then(() => {})
+}
+
+async function isAdminLoginBlocked(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  email: string,
+  ip: string
+): Promise<boolean> {
+  // Local dev: don't lock yourself out while testing (production still rate-limits)
+  if (process.env.NODE_ENV === 'development') {
+    return false
+  }
+
+  const normalizedEmail = email.toLowerCase()
+
+  const [{ data: ipFailures }, { data: emailFailures }] = await Promise.all([
+    supabase.rpc('count_admin_login_failures', {
+      p_ip: ip,
+      p_window_minutes: WINDOW_MINUTES,
+    }),
+    supabase.rpc('count_admin_login_failures_by_email', {
+      p_email: normalizedEmail,
+      p_window_minutes: WINDOW_MINUTES,
+    }),
+  ])
+
+  return (ipFailures ?? 0) >= MAX_ATTEMPTS || (emailFailures ?? 0) >= MAX_ATTEMPTS
 }
 
 export async function adminSignIn(state: AdminAuthState, formData: FormData) {
@@ -43,21 +69,11 @@ export async function adminSignIn(state: AdminAuthState, formData: FormData) {
   const supabase = await createClient()
   const ip = await getClientIp()
 
-  // ── Rate limiting ───────────────────────────────────────────────────
-  const windowStart = new Date(Date.now() - WINDOW_MINUTES * 60 * 1000).toISOString()
-  const { count: recentAttempts } = await supabase
-    .from('admin_audit_log')
-    .select('*', { count: 'exact', head: true })
-    .eq('action', 'login_failed')
-    .eq('ip_address', ip)
-    .gte('created_at', windowStart)
-
-  if ((recentAttempts ?? 0) >= MAX_ATTEMPTS) {
+  if (await isAdminLoginBlocked(supabase, email, ip)) {
     return {
       error: `Too many failed attempts. Please wait ${WINDOW_MINUTES} minutes before trying again.`,
     }
   }
-  // ────────────────────────────────────────────────────────────────────
 
   const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
@@ -66,17 +82,16 @@ export async function adminSignIn(state: AdminAuthState, formData: FormData) {
     return { error: 'Invalid email or password.' }
   }
 
-  // Role check — must be admin
   const { data: profile } = await supabase
     .from('profiles')
     .select('role')
     .eq('id', data.user.id)
     .single()
 
-  if (profile?.role !== 'admin') {
+  if (!isAdminPortalRole(profile?.role)) {
     await supabase.auth.signOut()
     await writeAuditLog(supabase, 'login_denied_not_admin', email, ip)
-    return { error: 'Access denied. This portal is restricted to admin users only.' }
+    return { error: 'Access denied. This portal is restricted to admin and staff users only.' }
   }
 
   await writeAuditLog(supabase, 'login_success', email, ip)
@@ -88,4 +103,3 @@ export async function adminSignOut() {
   await supabase.auth.signOut()
   redirect('/admin/login')
 }
-

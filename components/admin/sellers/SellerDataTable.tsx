@@ -19,7 +19,7 @@ interface SellerRow {
 
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
 
-function SellerActions({ sellerId, currentPlan, verificationStatus }: { sellerId: string; currentPlan: string; verificationStatus: string }) {
+function SellerActions({ sellerId, currentPlan, verificationStatus, canManage }: { sellerId: string; currentPlan: string; verificationStatus: string; canManage: boolean }) {
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   
@@ -60,6 +60,7 @@ function SellerActions({ sellerId, currentPlan, verificationStatus }: { sellerId
 
   return (
     <div style={{ position: 'relative', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+      {canManage && (
       <button
         className={`admin-btn ${isPro ? 'admin-btn-outline' : 'admin-btn-primary'}`}
         disabled={pending}
@@ -68,6 +69,7 @@ function SellerActions({ sellerId, currentPlan, verificationStatus }: { sellerId
       >
         {isPro ? <UserX size={14} /> : <Crown size={14} />}
       </button>
+      )}
 
       <button
         className={`admin-btn ${isSuspended ? 'admin-btn-primary' : 'admin-btn-outline'}`}
@@ -102,7 +104,7 @@ function SellerActions({ sellerId, currentPlan, verificationStatus }: { sellerId
   )
 }
 
-const columns: ColumnDef<SellerRow, any>[] = [
+const buildColumns = (canManage: boolean): ColumnDef<SellerRow, any>[] => [
   { 
     accessorKey: 'full_name', 
     header: 'Name', 
@@ -176,15 +178,17 @@ const columns: ColumnDef<SellerRow, any>[] = [
         <SellerActions 
           sellerId={row.original.id} 
           currentPlan={activePlan} 
-          verificationStatus={row.original.verification_status} 
+          verificationStatus={row.original.verification_status}
+          canManage={canManage}
         />
       )
     },
   },
 ]
 
-export function SellerDataTable({ rows }: { rows: SellerRow[] }) {
+export function SellerDataTable({ rows, canManage = true }: { rows: SellerRow[]; canManage?: boolean }) {
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const columns = useMemo(() => buildColumns(canManage), [canManage])
 
   const filteredRows = useMemo(() => {
     if (statusFilter === 'all') return rows

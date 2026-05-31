@@ -2,6 +2,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { PaymentDataTable, RevenueCard } from '@/components/admin/payments/PaymentDataTable'
+import { getSignedReceiptUrl } from '@/lib/utils/storage'
+import { isAdminRole } from '@/lib/utils/admin-roles'
 import { Info } from 'lucide-react'
 
 export const metadata = { title: 'Payment Management' }
@@ -10,6 +12,14 @@ export default async function PaymentsPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/admin/login')
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  const canManage = isAdminRole(profile?.role)
 
   const admin = createAdminClient()
 
@@ -30,15 +40,17 @@ export default async function PaymentsPage() {
     shopperMap = Object.fromEntries((profiles ?? []).map((p: any) => [p.id, p.full_name ?? '—']))
   }
 
-  const rows = (payments ?? []).map((p: any) => ({
-    id: p.id,
-    shopper: shopperMap[p.shopper_id] ?? '—',
-    payment_type: p.payment_type,
-    amount: p.amount,
-    receipt_url: p.receipt_url,
-    status: p.status,
-    created_at: p.created_at,
-  }))
+  const rows = await Promise.all(
+    (payments ?? []).map(async (p: any) => ({
+      id: p.id,
+      shopper: shopperMap[p.shopper_id] ?? '—',
+      payment_type: p.payment_type,
+      amount: p.amount,
+      receipt_url: (await getSignedReceiptUrl(p.receipt_url)) ?? '',
+      status: p.status,
+      created_at: p.created_at,
+    }))
+  )
 
   const totalRevenue = rows.filter((r: any) => r.status === 'approved').reduce((s: number, p: any) => s + Number(p.amount), 0)
   const pendingCount = rows.filter((r: any) => r.status === 'pending').length
@@ -68,7 +80,7 @@ export default async function PaymentsPage() {
 
       <div className="admin-card">
         <h2 style={{ fontSize: '1.1rem', marginBottom: '1rem', fontWeight: 600 }}>Transaction History</h2>
-        <PaymentDataTable rows={rows} />
+        <PaymentDataTable rows={rows} canManage={canManage} />
       </div>
     </div>
   )

@@ -4,9 +4,11 @@ import { useState, useEffect } from 'react'
 import { AdminSidebar } from '@/components/admin/AdminSidebar'
 import { AdminHeader } from '@/components/admin/AdminHeader'
 import type { Profile } from '@/types/app.types'
+import type { UserRole } from '@/types/database.types'
 
 interface AdminShellClientProps {
   user: Profile
+  userRole: UserRole
   pendingVerifications: number
   pendingPayments: number
   pendingCampaignReviews: number
@@ -15,6 +17,7 @@ interface AdminShellClientProps {
 
 export function AdminShellClient({
   user,
+  userRole,
   pendingVerifications,
   pendingPayments,
   pendingCampaignReviews,
@@ -50,6 +53,7 @@ export function AdminShellClient({
       <div className={`admin-sidebar-wrapper${mobileOpen ? ' admin-sidebar-open' : ''}`}>
         <AdminSidebar
           user={user}
+          userRole={userRole}
           pendingVerifications={pendingVerifications}
           pendingPayments={pendingPayments}
           pendingCampaignReviews={pendingCampaignReviews}
@@ -61,6 +65,7 @@ export function AdminShellClient({
       <main className="admin-main">
         <AdminHeader
           user={user}
+          userRole={userRole}
           onMenuToggle={toggleMenu}
           isMobileMenuOpen={mobileOpen}
         />

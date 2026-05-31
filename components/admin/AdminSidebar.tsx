@@ -19,7 +19,9 @@ import {
   Megaphone,
 } from 'lucide-react'
 import { adminSignOut } from '@/lib/actions/admin-auth'
+import { isAdminRole, portalRoleLabel } from '@/lib/utils/admin-roles'
 import type { Profile } from '@/types/app.types'
+import type { UserRole } from '@/types/database.types'
 
 const navItems = [
   { href: '/admin/dashboard',      label: 'Dashboard',        icon: LayoutDashboard },
@@ -33,18 +35,21 @@ const navItems = [
   { href: '/admin/promotions',     label: 'Marketing Center', icon: Megaphone },
 ]
 
-const bottomNavItems = [
+const adminOnlyNavItems = [
+  { href: '/admin/staff',          label: 'Staff',            icon: Users },
   { href: '/admin/settings',       label: 'Settings',         icon: Settings },
 ]
 
 export function AdminSidebar({
   user,
+  userRole,
   pendingVerifications = 0,
   pendingPayments = 0,
   pendingCampaignReviews = 0,
   onLinkClick,
 }: {
   user: Profile
+  userRole: UserRole
   pendingVerifications?: number
   pendingPayments?: number
   pendingCampaignReviews?: number
@@ -52,6 +57,11 @@ export function AdminSidebar({
 }) {
   const pathname = usePathname()
   const [isCollapsed, setIsCollapsed] = useState(false)
+  const isAdmin = isAdminRole(userRole)
+  const bottomNavItems = isAdmin ? adminOnlyNavItems : []
+  const visibleNavItems = isAdmin
+    ? navItems
+    : navItems.filter((item) => item.href !== '/admin/disputes')
 
   return (
     <aside style={{
@@ -173,7 +183,7 @@ export function AdminSidebar({
 
       {/* Nav */}
       <nav style={{ flex: 1, padding: isCollapsed ? '0.5rem 0.75rem' : '0.5rem 1rem', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-        {navItems.map(({ href, label, icon: Icon }) => {
+        {visibleNavItems.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || (href !== '/admin/dashboard' && pathname.startsWith(href))
 
           let count = 0
@@ -284,7 +294,7 @@ export function AdminSidebar({
               <div style={{ fontSize: '0.82rem', fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {user.full_name ?? 'Admin'}
               </div>
-              <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>Administrator</div>
+              <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.4)', fontWeight: 500 }}>{portalRoleLabel(userRole)}</div>
             </div>
           </div>
         )}

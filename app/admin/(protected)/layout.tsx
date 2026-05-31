@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { AdminInactivityGuard } from '@/components/admin/AdminInactivityGuard'
 import { AdminShellClient } from '@/components/admin/AdminShellClient'
+import { isAdminPortalRole } from '@/lib/utils/admin-roles'
 import type { Profile } from '@/types/app.types'
 
 /**
@@ -28,7 +29,7 @@ export default async function AdminProtectedLayout({
     .eq('id', user.id)
     .single()
 
-  if (profile?.role !== 'admin') redirect('/admin/login')
+  if (!isAdminPortalRole(profile?.role)) redirect('/admin/login')
 
   const admin = createAdminClient()
   const [
@@ -46,6 +47,7 @@ export default async function AdminProtectedLayout({
       <AdminInactivityGuard />
       <AdminShellClient
         user={profile as Profile}
+        userRole={profile!.role}
         pendingVerifications={pendingVerifications ?? 0}
         pendingPayments={pendingPayments ?? 0}
         pendingCampaignReviews={pendingCampaignReviews ?? 0}

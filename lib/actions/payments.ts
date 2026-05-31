@@ -4,6 +4,9 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import type { ActionState } from '@/types/app.types'
 
+const ALLOWED_RECEIPT_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+const MAX_RECEIPT_BYTES = 5 * 1024 * 1024
+
 export async function submitPaymentRequest(
   _prevState: ActionState,
   formData: FormData
@@ -20,38 +23,39 @@ export async function submitPaymentRequest(
     return { error: 'Payment type and receipt image are required.' }
   }
 
-  // Determine amount based on type
+  if (receiptFile.size > MAX_RECEIPT_BYTES) {
+    return { error: 'Receipt image must be 5 MB or smaller.' }
+  }
+
+  if (!ALLOWED_RECEIPT_TYPES.includes(receiptFile.type)) {
+    return { error: 'Receipt must be a JPEG, PNG, or WebP image.' }
+  }
+
   let amount = 0
   if (paymentType === 'pro_subscription') amount = 1000
   else if (paymentType === 'boost_7_days') amount = 300
   else if (paymentType === 'boost_28_days') amount = 3000
-  else if (paymentType === 'banner_ad') amount = 5000 // Placeholder
+  else if (paymentType === 'banner_ad') amount = 5000
   else return { error: 'Invalid payment type selected.' }
 
-  // Upload receipt
-  const fileExt = receiptFile.name.split('.').pop()
-  const fileName = `${user.id}-${Date.now()}.${fileExt}`
-  const { data: uploadData, error: uploadError } = await supabase.storage
+  const ext = receiptFile.type === 'image/png' ? 'png' : receiptFile.type === 'image/webp' ? 'webp' : 'jpg'
+  const storagePath = `${user.id}/${Date.now()}.${ext}`
+
+  const { error: uploadError } = await supabase.storage
     .from('receipts')
-    .upload(fileName, receiptFile)
+    .upload(storagePath, receiptFile, { contentType: receiptFile.type, upsert: false })
 
   if (uploadError) {
     console.error('Failed to upload receipt:', uploadError)
     return { error: 'Failed to upload receipt image. Please try again.' }
   }
 
-  const { data: publicUrlData } = supabase.storage
-    .from('receipts')
-    .getPublicUrl(uploadData.path)
-
-  const receiptUrl = publicUrlData.publicUrl
-
   const { error } = await supabase.from('payment_requests').insert({
     shopper_id: user.id,
     payment_type: paymentType,
     target_id: targetId || null,
     amount,
-    receipt_url: receiptUrl,
+    receipt_url: storagePath,
     status: 'pending',
   } as any)
 
@@ -63,4 +67,3 @@ export async function submitPaymentRequest(
   revalidatePath('/dashboard/billing')
   return { success: 'Your payment request has been submitted for verification. We will review it shortly!' }
 }
-

@@ -1,6 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
+import { isAdminRole } from '@/lib/utils/admin-roles'
 import { MessageSquare, Search, AlertOctagon, ArrowLeft } from 'lucide-react'
 import { DisputeActions } from '@/components/admin/disputes/DisputeActions'
 import Link from 'next/link'
@@ -60,6 +61,14 @@ export default async function DisputesPage({
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/admin/login')
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  if (!isAdminRole(profile?.role)) redirect('/admin/dashboard')
 
   const sp = await searchParams
   const orderId   = sp.order_id?.trim()   || null

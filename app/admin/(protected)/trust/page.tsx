@@ -2,6 +2,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { TrustTable } from '@/components/admin/TrustTable'
+import { isAdminRole } from '@/lib/utils/admin-roles'
 
 export const metadata = { title: 'Trust Scores' }
 
@@ -9,6 +10,14 @@ export default async function TrustScoresPage() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/admin/login')
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  const canManage = isAdminRole(profile?.role)
 
   const admin = createAdminClient()
 
@@ -61,7 +70,7 @@ export default async function TrustScoresPage() {
         <span className="admin-badge badge-default">{rows.length} shoppers</span>
       </div>
 
-      <TrustTable rows={rows} />
+      <TrustTable rows={rows} canManage={canManage} />
     </div>
   )
 }
