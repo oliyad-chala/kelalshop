@@ -1,8 +1,10 @@
 'use client'
 
 import { useActionState, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { clsx } from 'clsx'
 import { signUp, signInWithGoogle } from '@/lib/actions/auth'
+import { getSafeRedirectPath, redirectQueryString } from '@/lib/utils/auth-redirect'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 
@@ -106,7 +108,7 @@ function PasswordStrengthMeter({ password }: { password: string }) {
 
 // ── Email confirmation success screen ─────────────────────────────────────────
 
-function ConfirmEmailScreen() {
+function ConfirmEmailScreen({ loginHref }: { loginHref: string }) {
   return (
     <div className="text-center space-y-4 py-2 fade-in">
       <div className="w-16 h-16 bg-amber-50 rounded-full flex items-center justify-center mx-auto border border-amber-100">
@@ -122,7 +124,7 @@ function ConfirmEmailScreen() {
         Didn&apos;t receive it? Check your spam folder.
       </p>
       <a
-        href="/auth/login"
+        href={loginHref}
         className="inline-block mt-2 text-sm font-medium text-amber-500 hover:text-amber-600 transition-colors"
       >
         ← Back to Sign In
@@ -134,6 +136,8 @@ function ConfirmEmailScreen() {
 // ── Main component ────────────────────────────────────────────────────────────
 
 export function SignupForm() {
+  const searchParams = useSearchParams()
+  const loginHref = `/auth/login${redirectQueryString(searchParams)}`
   const [state, formAction, pending] = useActionState(signUp, initialState)
   const [role, setRole] = useState<'buyer' | 'shopper'>('buyer')
   const [password, setPassword] = useState('')
@@ -150,7 +154,7 @@ export function SignupForm() {
 
   // Show success screen when email confirmation is needed
   if (state?.success === 'confirm-email') {
-    return <ConfirmEmailScreen />
+    return <ConfirmEmailScreen loginHref={loginHref} />
   }
 
   function handleNameChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -166,7 +170,8 @@ export function SignupForm() {
     setGoogleLoading(true)
     setGoogleError('')
     try {
-      const result = await signInWithGoogle('/dashboard')
+      const redirectTo = getSafeRedirectPath(searchParams) ?? '/dashboard'
+      const result = await signInWithGoogle(redirectTo)
       if ('error' in result) {
         setGoogleError(result.error)
         setGoogleLoading(false)

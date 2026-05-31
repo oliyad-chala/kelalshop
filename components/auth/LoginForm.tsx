@@ -4,6 +4,7 @@ import { useActionState, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { signIn, signInWithGoogle } from '@/lib/actions/auth'
+import { getSafeRedirectPath } from '@/lib/utils/auth-redirect'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 
@@ -50,8 +51,7 @@ export function LoginForm() {
 
   useEffect(() => {
     if (state?.success === 'true') {
-      const raw = searchParams.get('redirectTo')
-      const safe = raw && raw.startsWith('/') && !raw.startsWith('//') ? raw : '/dashboard'
+      const safe = getSafeRedirectPath(searchParams) ?? '/dashboard'
       router.push(safe)
       router.refresh()
     }
@@ -61,7 +61,7 @@ export function LoginForm() {
     setGoogleLoading(true)
     setGoogleError('')
     try {
-      const redirectTo = searchParams.get('redirectTo') ?? '/dashboard'
+      const redirectTo = getSafeRedirectPath(searchParams) ?? '/dashboard'
       const result = await signInWithGoogle(redirectTo)
       if ('error' in result) {
         setGoogleError(result.error)

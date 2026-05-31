@@ -1,5 +1,8 @@
 import Link from 'next/link'
+import { Suspense } from 'react'
 import { SignupForm } from '@/components/auth/SignupForm'
+import { AuthBackButton } from '@/components/auth/AuthBackButton'
+import { AuthSwitchLink } from '@/components/auth/AuthSwitchLink'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -15,12 +18,9 @@ export default function SignupPage() {
       <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-100 rounded-full blur-[100px] opacity-50" />
 
       <div className="absolute top-4 left-4 z-20">
-        <Link href="/" className="flex items-center gap-2 text-slate-600 hover:text-navy-900 transition-colors bg-white/80 backdrop-blur px-4 py-2 rounded-full shadow-sm border border-slate-200/50">
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-          </svg>
-          <span className="font-medium text-sm">Back to Home</span>
-        </Link>
+        <Suspense fallback={null}>
+          <AuthBackButton />
+        </Suspense>
       </div>
 
       <div className="w-full max-w-[480px] bg-white rounded-[2rem] p-8 sm:p-10 shadow-2xl shadow-slate-200/50 relative z-10 fade-in border border-slate-100">
@@ -38,13 +38,20 @@ export default function SignupPage() {
           </p>
         </div>
 
-        <SignupForm />
+        <Suspense fallback={<div className="h-64 animate-pulse bg-slate-100 rounded-xl" />}>
+          <SignupForm />
+        </Suspense>
 
         <p className="text-center text-sm text-slate-500 mt-8">
           Already have an account?{' '}
-          <Link href="/auth/login" className="font-medium text-amber-500 hover:text-amber-600 transition-colors">
-            Sign in
-          </Link>
+          <Suspense fallback={<span className="font-medium text-amber-500">Sign in</span>}>
+            <AuthSwitchLink
+              mode="login"
+              className="font-medium text-amber-500 hover:text-amber-600 transition-colors"
+            >
+              Sign in
+            </AuthSwitchLink>
+          </Suspense>
         </p>
       </div>
     </main>

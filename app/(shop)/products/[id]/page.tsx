@@ -285,7 +285,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
               <Link
                 href={user
                   ? `/dashboard/chat/dm/${product.shopper_id}`
-                  : `/auth/login?redirect=/products/${product.id}`}
+                  : `/auth/login?redirectTo=${encodeURIComponent(`/products/${product.id}`)}`}
                 className="flex items-center justify-center gap-2 w-full rounded-2xl border-2 border-slate-200 bg-white px-6 py-3 text-sm font-semibold text-navy-900 hover:border-amber-400 hover:text-amber-600 transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

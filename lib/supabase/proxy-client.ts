@@ -101,7 +101,13 @@ export async function updateSession(request: NextRequest) {
   // Redirect authenticated users away from auth pages
   if (user && (pathname === '/auth/login' || pathname === '/auth/signup')) {
     const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
+    const redirectTo = url.searchParams.get('redirectTo') ?? url.searchParams.get('redirect')
+    const safePath =
+      redirectTo && redirectTo.startsWith('/') && !redirectTo.startsWith('//')
+        ? redirectTo
+        : '/dashboard'
+    url.pathname = safePath
+    url.search = ''
     return NextResponse.redirect(url)
   }
 

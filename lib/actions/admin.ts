@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { requireAdmin, requireStaffOrAdmin } from '@/lib/actions/admin-access'
+import { uploadWatermarkedProductImages } from '@/lib/utils/product-image-storage'
 
 // ── Verifications ────────────────────────────────────────────────────────────
 
@@ -415,32 +416,7 @@ export async function adminUpdateProduct(
   if (validImages.length > 0) {
     await admin.from('product_images').delete().eq('product_id', productId)
 
-    for (let i = 0; i < validImages.length; i++) {
-      const file = validImages[i]
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${productId}/${crypto.randomUUID()}.${fileExt}`
-      const fileBuffer = await file.arrayBuffer()
-
-      const { error: uploadError } = await admin.storage
-        .from('products')
-        .upload(fileName, fileBuffer, {
-          contentType: file.type,
-          upsert: true
-        })
-
-      if (!uploadError) {
-        const { data: publicUrl } = admin.storage
-          .from('products')
-          .getPublicUrl(fileName)
-
-        await admin.from('product_images').insert({
-          product_id: productId,
-          url: publicUrl.publicUrl,
-          is_primary: i === 0,
-          sort_order: i,
-        } as any)
-      }
-    }
+    await uploadWatermarkedProductImages(admin, productId, validImages)
   }
 
   revalidatePath('/admin/products')

@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { uploadWatermarkedProductImages } from '@/lib/utils/product-image-storage'
 import type { ActionState } from '@/types/app.types'
 
 export async function createProduct(
@@ -103,33 +104,8 @@ export async function createProduct(
 
   if (insertError) return { error: insertError.message }
 
-  // 2. Upload images
-  for (let i = 0; i < validImages.length; i++) {
-    const file = validImages[i]
-    const fileExt = file.name.split('.').pop()
-    const fileName = `${product.id}/${crypto.randomUUID()}.${fileExt}`
-    const fileBuffer = await file.arrayBuffer()
-
-    const { error: uploadError } = await supabase.storage
-      .from('products')
-      .upload(fileName, fileBuffer, {
-        contentType: file.type,
-        upsert: true
-      })
-
-    if (!uploadError) {
-      const { data: publicUrl } = supabase.storage
-        .from('products')
-        .getPublicUrl(fileName)
-
-      await supabase.from('product_images').insert({
-        product_id: product.id,
-        url: publicUrl.publicUrl,
-        is_primary: i === 0, // first image is primary
-        sort_order: i,
-      } as any)
-    }
-  }
+  // 2. Upload images (watermarked)
+  await uploadWatermarkedProductImages(supabase, product.id, validImages)
 
   revalidatePath('/dashboard/listings')
   revalidatePath('/dashboard/billing')
@@ -317,32 +293,7 @@ export async function updateProduct(
     // but better to clean up db records at least)
     await supabase.from('product_images').delete().eq('product_id', productId)
 
-    for (let i = 0; i < validImages.length; i++) {
-      const file = validImages[i]
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${productId}/${crypto.randomUUID()}.${fileExt}`
-      const fileBuffer = await file.arrayBuffer()
-
-      const { error: uploadError } = await supabase.storage
-        .from('products')
-        .upload(fileName, fileBuffer, {
-          contentType: file.type,
-          upsert: true
-        })
-
-      if (!uploadError) {
-        const { data: publicUrl } = supabase.storage
-          .from('products')
-          .getPublicUrl(fileName)
-
-        await supabase.from('product_images').insert({
-          product_id: productId,
-          url: publicUrl.publicUrl,
-          is_primary: i === 0,
-          sort_order: i,
-        } as any)
-      }
-    }
+    await uploadWatermarkedProductImages(supabase, productId, validImages)
   }
 
   revalidatePath('/dashboard/listings')
