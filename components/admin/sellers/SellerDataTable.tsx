@@ -17,39 +17,37 @@ interface SellerRow {
   verification_status: string
 }
 
+import { ConfirmModal } from '@/components/ui/ConfirmModal'
+
 function SellerActions({ sellerId, currentPlan, verificationStatus }: { sellerId: string; currentPlan: string; verificationStatus: string }) {
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  
+  // Modal state
+  const [modalConfig, setModalConfig] = useState<{
+    isOpen: boolean
+    action: 'subscription' | 'suspension' | null
+  }>({ isOpen: false, action: null })
 
   const isPro = currentPlan === 'pro'
   const isSuspended = verificationStatus === 'rejected' || verificationStatus === 'unverified'
 
-  const toggleSubscription = () => {
-    setError(null)
-    const action = isPro ? 'Downgrade to Free' : 'Upgrade to Pro'
-    if (!confirm(`Are you sure you want to ${action} this seller?`)) return;
+  const handleConfirm = () => {
+    const action = modalConfig.action
+    setModalConfig({ ...modalConfig, isOpen: false })
+    if (!action) return
 
     startTransition(async () => {
       try {
-        const res = await adminUpdateSubscription(sellerId, isPro ? 'free' : 'pro')
-        // if (res?.error) throw new Error(res.error)
-      } catch (e: any) {
-        setError(e.message ?? 'Failed')
-      }
-    })
-  }
-
-  const toggleSuspension = () => {
-    setError(null)
-    const action = isSuspended ? 'Reactivate' : 'Suspend'
-    if (!confirm(`Are you sure you want to ${action} this seller?`)) return;
-
-    startTransition(async () => {
-      try {
-        if (isSuspended) {
-          await approveVerification(sellerId)
-        } else {
-          await rejectVerification(sellerId)
+        setError(null)
+        if (action === 'subscription') {
+          await adminUpdateSubscription(sellerId, isPro ? 'free' : 'pro')
+        } else if (action === 'suspension') {
+          if (isSuspended) {
+            await approveVerification(sellerId)
+          } else {
+            await rejectVerification(sellerId)
+          }
         }
       } catch (e: any) {
         setError(e.message ?? 'Failed')
@@ -57,12 +55,15 @@ function SellerActions({ sellerId, currentPlan, verificationStatus }: { sellerId
     })
   }
 
+  const subActionName = isPro ? 'Downgrade to Free' : 'Upgrade to Pro'
+  const suspActionName = isSuspended ? 'Reactivate' : 'Suspend'
+
   return (
     <div style={{ position: 'relative', display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
       <button
         className={`admin-btn ${isPro ? 'admin-btn-outline' : 'admin-btn-primary'}`}
         disabled={pending}
-        onClick={toggleSubscription}
+        onClick={() => setModalConfig({ isOpen: true, action: 'subscription' })}
         title={isPro ? 'Revoke Pro' : 'Grant Pro'}
       >
         {isPro ? <UserX size={14} /> : <Crown size={14} />}
@@ -71,7 +72,7 @@ function SellerActions({ sellerId, currentPlan, verificationStatus }: { sellerId
       <button
         className={`admin-btn ${isSuspended ? 'admin-btn-primary' : 'admin-btn-outline'}`}
         disabled={pending}
-        onClick={toggleSuspension}
+        onClick={() => setModalConfig({ isOpen: true, action: 'suspension' })}
         title={isSuspended ? 'Reactivate Seller' : 'Suspend Seller'}
         style={{ borderColor: !isSuspended ? 'var(--color-danger)' : undefined, color: !isSuspended ? 'var(--color-danger)' : undefined }}
       >
@@ -83,6 +84,20 @@ function SellerActions({ sellerId, currentPlan, verificationStatus }: { sellerId
       </Link>
 
       {error && <span style={{ fontSize: '0.68rem', color: 'var(--color-danger)', position: 'absolute', bottom: '-20px', left: 0, whiteSpace: 'nowrap' }}>{error}</span>}
+
+      <ConfirmModal
+        isOpen={modalConfig.isOpen}
+        onClose={() => setModalConfig({ isOpen: false, action: null })}
+        onConfirm={handleConfirm}
+        title={modalConfig.action === 'subscription' ? subActionName : suspActionName}
+        message={`Are you sure you want to ${modalConfig.action === 'subscription' ? subActionName.toLowerCase() : suspActionName.toLowerCase()} this seller?`}
+        confirmText={modalConfig.action === 'subscription' ? subActionName : suspActionName}
+        variant={
+          (modalConfig.action === 'subscription' && isPro) || 
+          (modalConfig.action === 'suspension' && !isSuspended) ? 'danger' : 'success'
+        }
+        isLoading={pending}
+      />
     </div>
   )
 }

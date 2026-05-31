@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { createFlashDeal, deleteFlashDeal, toggleFlashDeal } from '@/lib/actions/flash-deals'
 import { formatPrice, formatDate } from '@/lib/utils/formatters'
 import { Select } from '@/components/ui/Select'
+import { ConfirmModal } from '@/components/ui/ConfirmModal'
 
 interface Product { id: string; name: string; price: number }
 interface Deal {
@@ -130,6 +131,10 @@ function CreateDealForm({ products, activeCount }: { products: Product[]; active
 function DealCard({ deal }: { deal: Deal }) {
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  
+  // Modal state
+  const [isModalOpen, setIsModalOpen] = useState(false)
+
   const expired = new Date(deal.ends_at) <= new Date()
 
   const handleToggle = () => {
@@ -140,8 +145,8 @@ function DealCard({ deal }: { deal: Deal }) {
     })
   }
 
-  const handleDelete = () => {
-    if (!confirm('Delete this flash deal?')) return
+  const handleConfirmDelete = () => {
+    setIsModalOpen(false)
     startTransition(async () => {
       try { await deleteFlashDeal(deal.id) }
       catch (e: any) { setError(e.message) }
@@ -186,13 +191,24 @@ function DealCard({ deal }: { deal: Deal }) {
           </button>
         )}
         <button
-          onClick={handleDelete}
+          onClick={() => setIsModalOpen(true)}
           disabled={isPending}
           className="flex-1 py-2 rounded-xl text-xs font-bold bg-red-50 text-red-600 hover:bg-red-100 transition-colors disabled:opacity-50"
         >
           🗑 Delete
         </button>
       </div>
+
+      <ConfirmModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onConfirm={handleConfirmDelete}
+        title="Delete Flash Deal"
+        message="Are you sure you want to delete this flash deal? This action cannot be undone."
+        confirmText="Delete Deal"
+        variant="danger"
+        isLoading={isPending}
+      />
     </div>
   )
 }

@@ -15,19 +15,23 @@ interface SellerRow {
   created_at: string
 }
 
+import { ConfirmModal } from '@/components/ui/ConfirmModal'
+
 function SubscriptionAction({ sellerId, currentPlan }: { sellerId: string; currentPlan: string }) {
   const [pending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
+  
+  // Modal state
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   const isPro = currentPlan === 'pro'
+  const actionName = isPro ? 'Downgrade to Free' : 'Upgrade to Pro'
 
-  const toggleSubscription = () => {
-    setError(null)
-    const action = isPro ? 'Downgrade to Free' : 'Upgrade to Pro'
-    if (!confirm(`Are you sure you want to ${action} this seller manually?`)) return;
-
+  const handleConfirm = () => {
+    setIsModalOpen(false)
     startTransition(async () => {
       try {
+        setError(null)
         const res = await adminUpdateSubscription(sellerId, isPro ? 'free' : 'pro')
         if (res?.error) throw new Error(res.error)
       } catch (e: any) {
@@ -41,12 +45,23 @@ function SubscriptionAction({ sellerId, currentPlan }: { sellerId: string; curre
       <button
         className={`admin-btn ${isPro ? 'admin-btn-outline' : 'admin-btn-primary'}`}
         disabled={pending}
-        onClick={toggleSubscription}
+        onClick={() => setIsModalOpen(true)}
       >
         {isPro ? <UserX size={14} /> : <Crown size={14} />}
         {pending ? '...' : isPro ? 'Revoke Pro' : 'Grant Pro'}
       </button>
       {error && <span style={{ fontSize: '0.68rem', color: 'var(--color-danger)', position: 'absolute', bottom: '-15px', left: 0 }}>{error}</span>}
+
+      <ConfirmModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onConfirm={handleConfirm}
+        title={actionName}
+        message={`Are you sure you want to ${actionName.toLowerCase()} this seller manually?`}
+        confirmText={actionName}
+        variant={isPro ? 'danger' : 'success'}
+        isLoading={pending}
+      />
     </div>
   )
 }

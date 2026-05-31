@@ -19,10 +19,41 @@ function fmtCurrency(n: number) {
   return `ETB ${Number(n).toFixed(2)}`
 }
 
+import { ConfirmModal } from '@/components/ui/ConfirmModal'
+
 function PaymentAction({ paymentId }: { paymentId: string }) {
   const [pending, startTransition] = useTransition()
   const [done, setDone] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  
+  // Modal state
+  const [modalConfig, setModalConfig] = useState<{
+    isOpen: boolean
+    action: 'approve' | 'reject' | null
+  }>({ isOpen: false, action: null })
+
+  const handleConfirm = () => {
+    const action = modalConfig.action
+    setModalConfig({ ...modalConfig, isOpen: false })
+    if (!action) return
+
+    startTransition(async () => {
+      try {
+        setError(null)
+        if (action === 'approve') {
+          const res = await approvePayment(paymentId)
+          if (res?.error) throw new Error(res.error)
+          setDone(true)
+        } else {
+          const res = await rejectPayment(paymentId)
+          if (res?.error) throw new Error(res.error)
+          setDone(true)
+        }
+      } catch (e: any) {
+        setError(e.message ?? 'Failed')
+      }
+    })
+  }
 
   if (done) {
     return <span className="admin-badge badge-verified">Processed ✓</span>
@@ -33,46 +64,35 @@ function PaymentAction({ paymentId }: { paymentId: string }) {
       <button
         className="admin-btn admin-btn-success"
         disabled={pending}
-        onClick={() => {
-          setError(null)
-          if (!confirm('Are you sure you want to approve this payment? This will activate their subscription or boost immediately.')) return;
-          startTransition(async () => {
-            try {
-              const res = await approvePayment(paymentId)
-              if (res?.error) throw new Error(res.error)
-              setDone(true)
-            } catch (e: any) {
-              setError(e.message ?? 'Failed')
-            }
-          })
-        }}
+        onClick={() => setModalConfig({ isOpen: true, action: 'approve' })}
       >
         <CheckCircle size={14} />
-        {pending ? '...' : 'Approve'}
+        {pending && modalConfig.action === 'approve' ? '...' : 'Approve'}
       </button>
 
       <button
         className="admin-btn admin-btn-danger"
         disabled={pending}
-        onClick={() => {
-          setError(null)
-          if (!confirm('Are you sure you want to reject this payment request?')) return;
-          startTransition(async () => {
-            try {
-              const res = await rejectPayment(paymentId)
-              if (res?.error) throw new Error(res.error)
-              setDone(true)
-            } catch (e: any) {
-              setError(e.message ?? 'Failed')
-            }
-          })
-        }}
+        onClick={() => setModalConfig({ isOpen: true, action: 'reject' })}
       >
         <XCircle size={14} />
         Reject
       </button>
 
       {error && <span style={{ fontSize: '0.68rem', color: 'var(--color-danger)', position: 'absolute', bottom: '-15px' }}>{error}</span>}
+      
+      <ConfirmModal
+        isOpen={modalConfig.isOpen}
+        onClose={() => setModalConfig({ isOpen: false, action: null })}
+        onConfirm={handleConfirm}
+        title={modalConfig.action === 'approve' ? 'Approve Payment' : 'Reject Payment'}
+        message={modalConfig.action === 'approve' 
+          ? 'Are you sure you want to approve this payment? This will activate their subscription or boost immediately.' 
+          : 'Are you sure you want to reject this payment request?'}
+        confirmText={modalConfig.action === 'approve' ? 'Approve' : 'Reject'}
+        variant={modalConfig.action === 'approve' ? 'success' : 'danger'}
+        isLoading={pending}
+      />
     </div>
   )
 }
