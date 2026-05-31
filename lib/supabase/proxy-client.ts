@@ -105,7 +105,8 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // ── Security headers ────────────────────────────────────────────────────────
+  // ── Security headers (shop routes only — admin returns above without CSP) ──
+  const supabaseOrigin = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
   supabaseResponse.headers.set('X-Frame-Options', 'DENY')
   supabaseResponse.headers.set('X-Content-Type-Options', 'nosniff')
   supabaseResponse.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
@@ -114,14 +115,20 @@ export async function updateSession(request: NextRequest) {
     'Content-Security-Policy',
     [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-eval' 'unsafe-inline'", // Next.js requires these
+      "script-src 'self' 'unsafe-eval' 'unsafe-inline'",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
       "font-src 'self' https://fonts.gstatic.com",
-      // Supabase storage + Google profile images
-      `img-src 'self' data: blob: ${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''} https://lh3.googleusercontent.com https://googleusercontent.com`,
-      // Supabase API/realtime + Google OAuth endpoints
-      `connect-src 'self' ${process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''} wss: https://accounts.google.com https://oauth2.googleapis.com`,
-      // Google OAuth consent page runs in a redirect (not iframe), but allow accounts.google.com for any popup flows
+      // Campaign/product images: Supabase storage + common external banner hosts
+      [
+        "img-src 'self' data: blob:",
+        supabaseOrigin,
+        'https://*.supabase.co',
+        'https://lh3.googleusercontent.com',
+        'https://googleusercontent.com',
+        'https://*.pinimg.com',
+        'https://images.unsplash.com',
+      ].filter(Boolean).join(' '),
+      `connect-src 'self' ${supabaseOrigin} wss: https://accounts.google.com https://oauth2.googleapis.com`,
       "frame-src 'none'",
       "frame-ancestors 'none'",
     ].join('; ')

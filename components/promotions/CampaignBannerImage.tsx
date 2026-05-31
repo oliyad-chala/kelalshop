@@ -1,7 +1,6 @@
 'use client'
 
 import { useState } from 'react'
-import Image from 'next/image'
 
 type Props = {
   src: string
@@ -11,15 +10,10 @@ type Props = {
   height?: number
 }
 
-function isSupabaseStorageUrl(url: string) {
-  try {
-    const host = new URL(url).hostname
-    return host.endsWith('.supabase.co') && url.includes('/storage/v1/object/')
-  } catch {
-    return false
-  }
-}
-
+/**
+ * Campaign banners use a native img (same as admin) so they work on shop routes
+ * where CSP may block next/image or third-party hosts.
+ */
 export function CampaignBannerImage({ src, alt, className = '', fill, height }: Props) {
   const [failed, setFailed] = useState(false)
 
@@ -31,20 +25,6 @@ export function CampaignBannerImage({ src, alt, className = '', fill, height }: 
       >
         <span className="text-sm px-4 text-center drop-shadow">{alt}</span>
       </div>
-    )
-  }
-
-  if (isSupabaseStorageUrl(src)) {
-    return (
-      <Image
-        src={src}
-        alt={alt}
-        fill={fill}
-        unoptimized
-        className={className}
-        onError={() => setFailed(true)}
-        style={height && !fill ? { height } : undefined}
-      />
     )
   }
 

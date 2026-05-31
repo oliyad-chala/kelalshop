@@ -40,10 +40,23 @@ export default async function DashboardLayout({
     .eq('user_id', user.id)
     .eq('is_read', false)
 
+  // Unread campaign invites / updates (badge on Campaigns menu)
+  const { count: unreadCampaignAlerts } = await supabase
+    .from('notifications' as any)
+    .select('id', { count: 'exact', head: true })
+    .eq('user_id', user.id)
+    .eq('is_read', false)
+    .in('type', ['campaign_invite', 'campaign_approved', 'campaign_rejected', 'campaign_force_added'])
+
   return (
     <div className="flex flex-1 min-h-[calc(100vh-4rem)]">
       {/* Desktop sidebar — hidden on mobile */}
-      <Sidebar user={profile as Profile} unreadMessages={unreadMessages ?? 0} unreadNotifications={unreadNotifications ?? 0} />
+      <Sidebar
+        user={profile as Profile}
+        unreadMessages={unreadMessages ?? 0}
+        unreadNotifications={unreadNotifications ?? 0}
+        unreadCampaignAlerts={unreadCampaignAlerts ?? 0}
+      />
 
       {/* Main content — extra bottom padding on mobile for the nav bar */}
       <div className="flex-1 w-full p-4 sm:p-8 lg:p-10 max-w-7xl mx-auto overflow-x-hidden pb-24 md:pb-10">

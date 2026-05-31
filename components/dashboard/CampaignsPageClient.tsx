@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { CampaignJoinModal } from '@/components/dashboard/CampaignJoinModal'
 import { withdrawCampaignProduct } from '@/lib/actions/campaigns-seller'
+import { markCampaignInvitesAsRead } from '@/lib/actions/notifications'
 import { formatPrice } from '@/lib/utils/formatters'
 import { CampaignBannerImage } from '@/components/promotions/CampaignBannerImage'
 import Link from 'next/link'
@@ -11,6 +12,7 @@ import Link from 'next/link'
 export type SellerCampaign = {
   id: string
   name: string
+  description: string | null
   status: string
   start_date: string
   end_date: string
@@ -44,7 +46,9 @@ export function CampaignsPageClient({ campaigns, optIns, campaignAlerts = [] }: 
   const router = useRouter()
   const [joinCampaign, setJoinCampaign] = useState<SellerCampaign | null>(null)
   const [withdrawing, startWithdraw] = useTransition()
+  const [dismissingAlerts, startDismissAlerts] = useTransition()
   const [withdrawError, setWithdrawError] = useState<string | null>(null)
+  const [showAlerts, setShowAlerts] = useState(campaignAlerts.length > 0)
 
   const optInsForCampaign = (promoId: string) =>
     optIns.filter((o) => o.promotion_id === promoId)
@@ -61,6 +65,14 @@ export function CampaignsPageClient({ campaigns, optIns, campaignAlerts = [] }: 
     })
   }
 
+  const handleDismissAlerts = () => {
+    startDismissAlerts(async () => {
+      await markCampaignInvitesAsRead()
+      setShowAlerts(false)
+      router.refresh()
+    })
+  }
+
   return (
     <>
       {withdrawError && (
@@ -69,10 +81,15 @@ export function CampaignsPageClient({ campaigns, optIns, campaignAlerts = [] }: 
         </p>
       )}
 
-      {campaignAlerts.length > 0 && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-2">
+      {showAlerts && campaignAlerts.length > 0 && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50/80 p-4 space-y-3">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="text-sm font-bold text-amber-900">New campaign invitations</h2>
+            <h2 className="text-sm font-bold text-amber-900 flex items-center gap-2">
+              <span className="inline-flex w-6 h-6 items-center justify-center rounded-full bg-red-500 text-white text-xs font-bold">
+                {campaignAlerts.length}
+              </span>
+              New campaign messages
+            </h2>
             <Link
               href="/dashboard/notifications"
               className="text-xs font-semibold text-amber-700 hover:text-amber-900"
@@ -80,11 +97,27 @@ export function CampaignsPageClient({ campaigns, optIns, campaignAlerts = [] }: 
               All notifications →
             </Link>
           </div>
-          {campaignAlerts.map((alert) => (
-            <p key={alert.id} className="text-sm text-amber-900/90">
-              <span className="font-semibold">{alert.title}</span> — {alert.message}
-            </p>
-          ))}
+          <div className="space-y-3 max-h-64 overflow-y-auto pr-1">
+            {campaignAlerts.map((alert) => (
+              <div key={alert.id} className="flex gap-2.5 items-start">
+                <div className="w-9 h-9 rounded-full bg-white border border-amber-200 flex items-center justify-center shrink-0 text-base shadow-sm">
+                  ⚡
+                </div>
+                <div className="flex-1 min-w-0 bg-white rounded-2xl rounded-tl-md border border-slate-200 px-3.5 py-2.5 shadow-sm">
+                  <p className="text-xs font-bold text-navy-900">{alert.title}</p>
+                  <p className="text-sm text-slate-600 mt-1 leading-relaxed whitespace-pre-line">{alert.message}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+          <button
+            type="button"
+            onClick={handleDismissAlerts}
+            disabled={dismissingAlerts}
+            className="w-full sm:w-auto px-4 py-2 text-sm font-semibold bg-amber-500 hover:bg-amber-400 text-navy-950 rounded-lg disabled:opacity-50"
+          >
+            {dismissingAlerts ? 'Clearing…' : 'Got it — mark as read'}
+          </button>
         </div>
       )}
 
@@ -129,6 +162,17 @@ export function CampaignsPageClient({ campaigns, optIns, campaignAlerts = [] }: 
                       {campaign.status}
                     </span>
                   </div>
+
+                  {campaign.description && (
+                    <div className="mb-4 rounded-lg bg-slate-50 border border-slate-100 px-3 py-2.5">
+                      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
+                        About this campaign
+                      </p>
+                      <p className="text-sm text-slate-700 leading-relaxed whitespace-pre-line">
+                        {campaign.description}
+                      </p>
+                    </div>
+                  )}
 
                   <div className="text-sm text-gray-600 mb-4 space-y-1">
                     <p>Starts: {new Date(campaign.start_date).toLocaleDateString()}</p>
@@ -209,6 +253,7 @@ export function CampaignsPageClient({ campaigns, optIns, campaignAlerts = [] }: 
           isOpen
           promotionId={joinCampaign.id}
           campaignName={joinCampaign.name}
+          campaignDescription={joinCampaign.description}
           minDiscountPct={joinCampaign.discount_percentage}
           onClose={() => setJoinCampaign(null)}
           onSuccess={() => router.refresh()}

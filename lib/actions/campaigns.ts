@@ -59,6 +59,7 @@ export async function createCampaign(_prevState: any, formData: FormData) {
       name,
       startDate: start_date,
       endDate: end_date,
+      description,
     })
   }
 
@@ -69,7 +70,7 @@ export async function createCampaign(_prevState: any, formData: FormData) {
 
 async function notifyVerifiedShoppersOfCampaign(
   admin: Awaited<ReturnType<typeof requireAdmin>>['adminClient'],
-  opts: { campaignId: string; name: string; startDate: string; endDate: string }
+  opts: { campaignId: string; name: string; startDate: string; endDate: string; description?: string | null }
 ) {
   const { data: shoppers } = await admin
     .from('shopper_profiles')
@@ -84,10 +85,15 @@ async function notifyVerifiedShoppersOfCampaign(
     year: 'numeric',
   })
 
+  const desc = opts.description?.trim()
+  const message = desc
+    ? `${desc}\n\n"${opts.name}" starts ${startLabel}. Open Campaigns in your dashboard to join.`
+    : `"${opts.name}" starts ${startLabel}. Opt in your products on Campaigns before spots fill up.`
+
   const rows = shoppers.map((s) => ({
     user_id: s.id,
-    title: '⚡ New flash sale — join now',
-    message: `"${opts.name}" starts ${startLabel}. Opt in your products on Campaigns before spots fill up.`,
+    title: `⚡ New campaign: ${opts.name}`,
+    message,
     type: 'campaign_invite',
     is_read: false,
   }))

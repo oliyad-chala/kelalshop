@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { markCampaignInvitesAsRead } from '@/lib/actions/notifications'
 import { CampaignsPageClient } from '@/components/dashboard/CampaignsPageClient'
 import type { SellerCampaign, SellerOptIn } from '@/components/dashboard/CampaignsPageClient'
 
@@ -25,7 +24,7 @@ export default async function CampaignsPage() {
     supabase
       .from('promotions')
       .select(
-        'id, name, status, start_date, end_date, banner_image_url, target_country, target_region, discount_percentage'
+        'id, name, description, status, start_date, end_date, banner_image_url, target_country, target_region, discount_percentage'
       )
       .in('status', ['upcoming', 'active'])
       .eq('is_active', true)
@@ -39,15 +38,11 @@ export default async function CampaignsPage() {
       .from('notifications' as any)
       .select('id, title, message')
       .eq('user_id', user.id)
-      .eq('type', 'campaign_invite')
       .eq('is_read', false)
+      .in('type', ['campaign_invite', 'campaign_approved', 'campaign_rejected', 'campaign_force_added'])
       .order('created_at', { ascending: false })
-      .limit(5),
+      .limit(10),
   ])
-
-  if (campaignAlerts && campaignAlerts.length > 0) {
-    await markCampaignInvitesAsRead()
-  }
 
   const optIns: SellerOptIn[] = (optInsRaw ?? []).map((row: any) => ({
     promotion_id: row.promotion_id,
