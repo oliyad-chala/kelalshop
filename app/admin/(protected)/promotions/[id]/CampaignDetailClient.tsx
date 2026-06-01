@@ -43,6 +43,7 @@ export function CampaignDetailClient({ campaignId, campaignStatus, submissions, 
   const [forceMessage, setForceMessage] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [isPending, startTransition] = useTransition()
+  const [statusError, setStatusError] = useState<string | null>(null)
 
   const pendingCount = submissions.filter((s) => s.status === 'pending').length
 
@@ -102,8 +103,13 @@ export function CampaignDetailClient({ campaignId, campaignStatus, submissions, 
   }
 
   const handleStatusChange = (status: 'upcoming' | 'active' | 'ended') => {
+    setStatusError(null)
     startTransition(async () => {
-      await updateCampaignStatus(campaignId, status)
+      const result = await updateCampaignStatus(campaignId, status)
+      if (result?.error) {
+        setStatusError(result.error)
+        return
+      }
       refresh()
     })
   }
@@ -114,7 +120,13 @@ export function CampaignDetailClient({ campaignId, campaignStatus, submissions, 
     <div style={{ display: 'grid', gap: '1.5rem' }}>
 
       {/* Status controls */}
-      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.5rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '0.5rem' }}>
+        {statusError && (
+          <div className="admin-alert admin-alert-error" style={{ margin: 0 }}>
+            {statusError}
+          </div>
+        )}
+      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
         {campaignStatus === 'upcoming' && (
           <button type="button" className="admin-btn admin-btn-success" disabled={isPending} onClick={() => handleStatusChange('active')}>
             Activate Campaign
@@ -125,6 +137,7 @@ export function CampaignDetailClient({ campaignId, campaignStatus, submissions, 
             End Campaign
           </button>
         )}
+      </div>
       </div>
 
       {/* Force-Add Panel Toggle */}

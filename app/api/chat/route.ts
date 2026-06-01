@@ -16,7 +16,7 @@ KelalShop is a multi-vendor ecommerce marketplace connecting Ethiopian buyers wi
 Key Information:
 - Buyers can browse products, message shoppers directly, or post custom "Buyer Requests" if they can't find what they are looking for.
 - Shoppers must be verified by admin before they can sell.
-- Payments are secure. Accepted methods: CBE Birr, Telebirr, Mastercard, and Visa.
+- Payments are arranged directly between buyer and shopper. Accepted methods on KelalShop: CBE Birr and Telebirr only (no card processing on the platform yet).
 - If a user needs help with a specific order, advise them to check the "Orders" page in their Dashboard and use the Order Chat.
 - Keep your answers concise, professional, and friendly (1-3 short paragraphs max).
 - Do not use markdown other than simple bolding or bullet points. Do not write code.`

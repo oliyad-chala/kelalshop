@@ -1,12 +1,15 @@
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { HomeProductCard } from '@/components/products/HomeProductCard'
 import { HeroCarousel } from '@/components/home/HeroCarousel'
 import { MOCK_PRODUCTS } from '@/lib/constants/mock-data'
 import type { ProductWithDetails } from '@/types/app.types'
 import { getUserLocation } from '@/lib/utils/geo'
+import { syncCampaignStatuses } from '@/lib/utils/campaign-status'
 import { GeoPromoBanner } from '@/components/promotions/GeoPromoBanner'
 import { FlashSaleCarousel } from '@/components/promotions/FlashSaleCarousel'
+import { FlashSaleTeaser } from '@/components/promotions/FlashSaleTeaser'
 import { OrganizationJsonLd } from '@/components/seo/OrganizationJsonLd'
 import { SITE_URL } from '@/lib/seo/site'
 
@@ -118,6 +121,8 @@ async function fetchApprovedCampaignProducts(
 
 export default async function Home() {
   const supabase = await createClient()
+  const admin = createAdminClient()
+  await syncCampaignStatuses(admin)
   const now = new Date().toISOString()
 
   const [{ data: activeBoosts }, { data: recentProducts }] = await Promise.all([
@@ -145,11 +150,11 @@ export default async function Home() {
   // Geo-targeting
   const location = await getUserLocation();
 
-  // Fetch banners
+  // Fetch geo banners + shipping promos
   let bannerQuery = supabase
     .from('promotions')
     .select('*')
-    .eq('type', 'banner')
+    .in('type', ['banner', 'shipping'])
     .eq('is_active', true)
     .eq('status', 'active')
     .order('created_at', { ascending: false });
@@ -196,8 +201,7 @@ export default async function Home() {
 
   const trendingProducts = allProducts.slice(0, 12)
 
-  const showCampaignFlashDeals =
-    flashCampaign != null && flashSaleItems.length > 0
+  const hasFlashSaleProducts = flashSaleItems.length > 0
 
   return (
     <main className="flex-1 bg-slate-50 pb-20">
@@ -241,9 +245,12 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* ── 3. FLASH DEALS (active campaign + approved seller opt-ins only) ─ */}
-      {showCampaignFlashDeals && (
+      {/* ── 3. FLASH DEALS (active campaign; carousel when products approved) ─ */}
+      {flashCampaign && hasFlashSaleProducts && (
         <FlashSaleCarousel campaign={flashCampaign as any} items={flashSaleItems as any} />
+      )}
+      {flashCampaign && !hasFlashSaleProducts && (
+        <FlashSaleTeaser campaign={flashCampaign as any} />
       )}
 
       {/* ── 4. TRENDING PRODUCTS ───────────────────────────────────────── */}

@@ -282,6 +282,9 @@ export interface Database {
           buyer_id: string
           shopper_id: string
           amount: number
+          shipping_fee: number
+          shipping_discount: number
+          shipping_promotion_id: string | null
           status: OrderStatus
           notes: string | null
           created_at: string
@@ -294,12 +297,18 @@ export interface Database {
           buyer_id: string
           shopper_id: string
           amount: number
+          shipping_fee?: number
+          shipping_discount?: number
+          shipping_promotion_id?: string | null
           status?: OrderStatus
           notes?: string | null
         }
         Update: {
           status?: OrderStatus
           notes?: string | null
+          shipping_fee?: number
+          shipping_discount?: number
+          shipping_promotion_id?: string | null
           updated_at?: string
         }
       }

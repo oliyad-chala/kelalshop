@@ -3,6 +3,9 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { resolveOrderPrice } from '@/lib/utils/campaign-pricing'
+import { computeShippingFee, getActiveShippingPromotion } from '@/lib/utils/shipping-promotion'
+import { DEFAULT_SHIPPING_FEE_ETB } from '@/lib/config/checkout'
+import { getUserLocation } from '@/lib/utils/geo'
 
 /**
  * Shopper marks an order as Shipped.
@@ -114,8 +117,12 @@ export async function cancelOrder(orderId: string) {
 
 /**
  * Buyer places an order for a product.
+ * Pass shippingPromotionId only once per checkout (first cart line) to apply platform shipping deal.
  */
-export async function createOrder(productId: string) {
+export async function createOrder(
+  productId: string,
+  shippingPromotionId?: string | null
+) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Unauthorized')
@@ -150,10 +157,30 @@ export async function createOrder(productId: string) {
 
   const amount = await resolveOrderPrice(supabase, finalProductId, Number(product.price))
 
-  const { data, error } = await supabase.rpc('create_order', {
+  let shippingFee = 0
+  let shippingDiscount = 0
+  let appliedPromotionId: string | null = null
+
+  if (shippingPromotionId) {
+    const location = await getUserLocation()
+    const promotion = await getActiveShippingPromotion(supabase, location)
+    if (promotion && promotion.id === shippingPromotionId) {
+      const shipping = computeShippingFee(DEFAULT_SHIPPING_FEE_ETB, promotion)
+      shippingFee = shipping.fee
+      shippingDiscount = shipping.discount
+      appliedPromotionId = promotion.id
+    }
+  }
+
+  const rpcArgs: Record<string, unknown> = {
     p_product_id: finalProductId,
     p_quantity: 1,
-  })
+  }
+  if (appliedPromotionId) {
+    rpcArgs.p_shipping_promotion_id = appliedPromotionId
+  }
+
+  const { data, error } = await supabase.rpc('create_order', rpcArgs as any)
 
   if (error) {
     const { data: order, error: insertError } = await supabase
@@ -164,6 +191,9 @@ export async function createOrder(productId: string) {
         shopper_id: product.shopper_id,
         amount,
         status: 'pending',
+        shipping_fee: shippingFee,
+        shipping_discount: shippingDiscount,
+        shipping_promotion_id: appliedPromotionId,
       } as any)
       .select('id')
       .single()
@@ -176,8 +206,8 @@ export async function createOrder(productId: string) {
 
   revalidatePath('/dashboard/orders')
   revalidatePath('/dashboard')
-  
-  return data // returns the order_id
+
+  return data
 }
 
 /**

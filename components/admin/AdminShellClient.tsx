@@ -5,27 +5,25 @@ import { AdminSidebar } from '@/components/admin/AdminSidebar'
 import { AdminHeader } from '@/components/admin/AdminHeader'
 import type { Profile } from '@/types/app.types'
 import type { UserRole } from '@/types/database.types'
+import type { AdminAlertCounts } from '@/lib/data/admin-alerts'
 
 interface AdminShellClientProps {
   user: Profile
   userRole: UserRole
-  pendingVerifications: number
-  pendingPayments: number
-  pendingCampaignReviews: number
+  alerts: AdminAlertCounts
+  alertTotal: number
   children: React.ReactNode
 }
 
 export function AdminShellClient({
   user,
   userRole,
-  pendingVerifications,
-  pendingPayments,
-  pendingCampaignReviews,
+  alerts,
+  alertTotal,
   children,
 }: AdminShellClientProps) {
   const [mobileOpen, setMobileOpen] = useState(false)
 
-  // Lock body scroll when mobile sidebar is open
   useEffect(() => {
     if (mobileOpen) {
       document.body.classList.add('admin-menu-open')
@@ -40,7 +38,6 @@ export function AdminShellClient({
 
   return (
     <div className="admin-shell">
-      {/* Dark overlay — rendered BELOW sidebar in z-order but uses z-index 199 */}
       {mobileOpen && (
         <div
           className="admin-sidebar-overlay"
@@ -49,23 +46,21 @@ export function AdminShellClient({
         />
       )}
 
-      {/* Sidebar wrapper: on desktop = normal flex child, on mobile = fixed offscreen */}
       <div className={`admin-sidebar-wrapper${mobileOpen ? ' admin-sidebar-open' : ''}`}>
         <AdminSidebar
           user={user}
           userRole={userRole}
-          pendingVerifications={pendingVerifications}
-          pendingPayments={pendingPayments}
-          pendingCampaignReviews={pendingCampaignReviews}
+          alerts={alerts}
+          alertTotal={alertTotal}
           onLinkClick={closeMenu}
         />
       </div>
 
-      {/* Main content — always takes remaining width */}
       <main className="admin-main">
         <AdminHeader
           user={user}
           userRole={userRole}
+          alertTotal={alertTotal}
           onMenuToggle={toggleMenu}
           isMobileMenuOpen={mobileOpen}
         />

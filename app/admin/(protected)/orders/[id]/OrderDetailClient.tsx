@@ -219,7 +219,37 @@ export function OrderDetailClient({ order }: OrderDetailClientProps) {
             {order.updated_at && (
               <InfoRow label="Last Updated" value={new Date(order.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} />
             )}
-            <InfoRow label="Total Amount" value={<span style={{ fontWeight: 700, fontSize: '1.05rem' }}>ETB {Number(order.amount).toFixed(2)}</span>} />
+            <InfoRow label="Product Amount" value={<span>ETB {Number(order.amount).toFixed(2)}</span>} />
+            {(Number(order.shipping_fee) > 0 || Number(order.shipping_discount) > 0) && (
+              <>
+                <InfoRow
+                  label="Shipping"
+                  value={
+                    Number(order.shipping_discount) > 0 ? (
+                      <span>
+                        <span style={{ textDecoration: 'line-through', color: 'var(--color-text-muted)', marginRight: '0.35rem' }}>
+                          ETB {(Number(order.shipping_fee) + Number(order.shipping_discount)).toFixed(2)}
+                        </span>
+                        ETB {Number(order.shipping_fee).toFixed(2)}
+                      </span>
+                    ) : (
+                      `ETB ${Number(order.shipping_fee).toFixed(2)}`
+                    )
+                  }
+                />
+                <InfoRow
+                  label="Order Total"
+                  value={
+                    <span style={{ fontWeight: 700, fontSize: '1.05rem' }}>
+                      ETB {(Number(order.amount) + Number(order.shipping_fee ?? 0)).toFixed(2)}
+                    </span>
+                  }
+                />
+              </>
+            )}
+            {!(Number(order.shipping_fee) > 0 || Number(order.shipping_discount) > 0) && (
+              <InfoRow label="Total Amount" value={<span style={{ fontWeight: 700, fontSize: '1.05rem' }}>ETB {Number(order.amount).toFixed(2)}</span>} />
+            )}
             <div style={{ paddingTop: '0.5rem' }}>
               <InfoRow label="Status" value={
                 <span style={{ background: cfg.bg, color: cfg.color, padding: '0.2rem 0.65rem', borderRadius: '20px', fontSize: '0.78rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}>

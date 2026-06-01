@@ -106,6 +106,15 @@ export default async function CampaignDetailPage({ params }: Props) {
         </div>
       )}
 
+      {campaign.status === 'active' &&
+        campaign.type === 'flash_sale_campaign' &&
+        approvedCount === 0 && (
+          <div className="admin-alert admin-alert-warning" style={{ marginBottom: '1rem' }}>
+            The homepage shows this campaign header now. Product cards appear after sellers opt in and you
+            approve their submissions.
+          </div>
+        )}
+
       {/* Interactive Client Component — submissions table + force-add form */}
       <CampaignDetailClient
         campaignId={id}

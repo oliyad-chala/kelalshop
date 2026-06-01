@@ -111,6 +111,9 @@ export async function createProduct(
   revalidatePath('/dashboard/billing')
   revalidatePath('/')
   revalidatePath('/products')
+  revalidatePath('/admin/products')
+  revalidatePath('/admin/notifications')
+  revalidatePath('/admin', 'layout')
   redirect('/dashboard/listings')
 }
 
@@ -299,5 +302,8 @@ export async function updateProduct(
   revalidatePath('/dashboard/listings')
   revalidatePath('/')
   revalidatePath('/products')
+  revalidatePath('/admin/products')
+  revalidatePath('/admin/notifications')
+  revalidatePath('/admin', 'layout')
   redirect('/dashboard/listings')
 }

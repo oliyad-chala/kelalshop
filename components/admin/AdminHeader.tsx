@@ -8,11 +8,12 @@ import type { UserRole } from '@/types/database.types'
 interface AdminHeaderProps {
   user: { full_name?: string | null }
   userRole: UserRole
+  alertTotal?: number
   onMenuToggle?: () => void
   isMobileMenuOpen?: boolean
 }
 
-export function AdminHeader({ user, userRole, onMenuToggle, isMobileMenuOpen }: AdminHeaderProps) {
+export function AdminHeader({ user, userRole, alertTotal = 0, onMenuToggle, isMobileMenuOpen }: AdminHeaderProps) {
   const isAdmin = isAdminRole(userRole)
 
   return (
@@ -38,11 +39,18 @@ export function AdminHeader({ user, userRole, onMenuToggle, isMobileMenuOpen }: 
           </Link>
           <Link href="/admin/notifications" className="admin-header-icon-btn" style={{ position: 'relative', color: 'inherit' }} title="Notifications">
             <Bell size={20} color="currentColor" />
-            <span style={{
-              position: 'absolute', top: '-4px', right: '-4px',
-              width: '8px', height: '8px', background: 'var(--color-danger)',
-              borderRadius: '50%', border: '2px solid var(--color-admin-surface)'
-            }} />
+            {alertTotal > 0 && (
+              <span style={{
+                position: 'absolute', top: '-6px', right: '-8px',
+                minWidth: '18px', height: '18px', padding: '0 4px',
+                background: 'var(--color-danger)', color: '#fff',
+                borderRadius: '10px', border: '2px solid var(--color-admin-surface)',
+                fontSize: '0.65rem', fontWeight: 700,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                {alertTotal > 99 ? '99+' : alertTotal}
+              </span>
+            )}
           </Link>
         </div>
         )}

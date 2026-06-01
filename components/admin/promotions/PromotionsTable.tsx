@@ -37,14 +37,20 @@ function StatusActions({ row, canManage }: { row: PromotionRow; canManage: boole
   const router = useRouter()
   const [pending, startTransition] = useTransition()
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [actionError, setActionError] = useState<string | null>(null)
 
   if (!canManage) {
     return <span style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem' }}>View only</span>
   }
 
   const runStatus = (status: 'upcoming' | 'active' | 'ended') => {
+    setActionError(null)
     startTransition(async () => {
-      await updateCampaignStatus(row.id, status)
+      const result = await updateCampaignStatus(row.id, status)
+      if (result?.error) {
+        setActionError(result.error)
+        return
+      }
       router.refresh()
     })
   }
@@ -58,6 +64,10 @@ function StatusActions({ row, canManage }: { row: PromotionRow; canManage: boole
   }
 
   return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', alignItems: 'flex-start' }}>
+      {actionError && (
+        <span style={{ fontSize: '0.75rem', color: '#ef4444', maxWidth: '220px' }}>{actionError}</span>
+      )}
     <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
       <Link href={`/admin/promotions/${row.id}`} className="admin-btn admin-btn-outline" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }}>
         Manage
@@ -88,6 +98,7 @@ function StatusActions({ row, canManage }: { row: PromotionRow; canManage: boole
         variant="danger"
         isLoading={pending}
       />
+    </div>
     </div>
   )
 }

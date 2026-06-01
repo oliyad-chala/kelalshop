@@ -1,17 +1,10 @@
 import type { Metadata, Viewport } from 'next'
-import { Inter } from 'next/font/google'
 import {
   SITE_DESCRIPTION,
   SITE_KEYWORDS,
   SITE_NAME,
   SITE_URL,
 } from '@/lib/seo/site'
-
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-sans',
-  display: 'swap',
-})
 
 export const viewport: Viewport = {
   themeColor: '#FF6A00',
@@ -85,7 +78,7 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en" className={inter.variable} data-scroll-behavior="smooth">
+    <html lang="en" className="font-sans" data-scroll-behavior="smooth">
       <body>{children}</body>
     </html>
   )

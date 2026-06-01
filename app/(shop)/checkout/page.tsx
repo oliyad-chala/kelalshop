@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { CheckoutForm } from '@/components/cart/CheckoutForm'
+import { getUserLocation } from '@/lib/utils/geo'
+import { resolveCheckoutShipping } from '@/lib/utils/shipping-promotion'
 import Link from 'next/link'
 
 export const metadata = {
@@ -13,6 +15,16 @@ export default async function CheckoutPage() {
 
   if (!user) {
     redirect('/auth/login?redirectTo=/checkout')
+  }
+
+  const location = await getUserLocation()
+  const shippingResult = await resolveCheckoutShipping(supabase, location)
+  const shipping = {
+    baseFee: shippingResult.baseFee,
+    fee: shippingResult.fee,
+    discount: shippingResult.discount,
+    promotionId: shippingResult.promotionId,
+    promotionName: shippingResult.promotion?.name ?? null,
   }
 
   return (
@@ -29,7 +41,7 @@ export default async function CheckoutPage() {
           Checkout
         </h1>
 
-        <CheckoutForm />
+        <CheckoutForm shipping={shipping} />
       </div>
     </main>
   )

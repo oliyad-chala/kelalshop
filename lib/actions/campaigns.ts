@@ -155,15 +155,69 @@ export async function updateCampaign(campaignId: string, _prevState: any, formDa
 
 // ── Update Campaign Status ────────────────────────────────────────────────────
 
-export async function updateCampaignStatus(campaignId: string, status: 'upcoming' | 'active' | 'ended') {
-  const { adminClient: admin } = await requireAdmin()
-  const { error } = await admin
-    .from('promotions')
-    .update({ status, is_active: status !== 'ended', updated_at: new Date().toISOString() } as any)
-    .eq('id', campaignId)
-  if (error) throw new Error(error.message)
-  revalidatePath('/admin/promotions')
-  revalidatePath(`/admin/promotions/${campaignId}`)
+export async function updateCampaignStatus(
+  campaignId: string,
+  status: 'upcoming' | 'active' | 'ended'
+): Promise<{ error?: string }> {
+  try {
+    const { adminClient: admin } = await requireAdmin()
+    const now = new Date()
+    const nowIso = now.toISOString()
+
+    if (status === 'active') {
+      const { data: campaign, error: fetchError } = await admin
+        .from('promotions')
+        .select('start_date, end_date')
+        .eq('id', campaignId)
+        .single()
+
+      if (fetchError || !campaign) {
+        return { error: fetchError?.message ?? 'Campaign not found' }
+      }
+
+      const end = new Date(campaign.end_date)
+      if (end <= now) {
+        return { error: 'Cannot activate: end date is in the past. Edit the schedule first.' }
+      }
+
+      const payload: Record<string, unknown> = {
+        status: 'active',
+        is_active: true,
+        updated_at: nowIso,
+      }
+
+      // Early activation: move start to now so date sync does not revert to upcoming
+      if (new Date(campaign.start_date) > now) {
+        payload.start_date = nowIso
+      }
+
+      const { error } = await admin
+        .from('promotions')
+        .update(payload as any)
+        .eq('id', campaignId)
+
+      if (error) return { error: error.message }
+    } else {
+      const { error } = await admin
+        .from('promotions')
+        .update({
+          status,
+          is_active: status !== 'ended',
+          updated_at: nowIso,
+        } as any)
+        .eq('id', campaignId)
+
+      if (error) return { error: error.message }
+    }
+
+    revalidatePath('/admin/promotions')
+    revalidatePath(`/admin/promotions/${campaignId}`)
+    revalidatePath('/')
+    revalidatePath('/dashboard/campaigns')
+    return {}
+  } catch (e) {
+    return { error: e instanceof Error ? e.message : 'Failed to update campaign status' }
+  }
 }
 
 // ── Delete Campaign ───────────────────────────────────────────────────────────

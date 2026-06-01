@@ -1,11 +1,12 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { Database } from '@/types/database.types'
 import { CampaignBannerField } from '@/components/admin/promotions/CampaignBannerField'
 
 type Promotion = Database['public']['Tables']['promotions']['Row']
+type CampaignType = Promotion['type']
 
 type CampaignFormProps = {
   action: (prevState: any, formData: FormData) => Promise<{ error?: string } | void>
@@ -22,6 +23,24 @@ function toDatetimeLocal(iso: string) {
 export function CampaignForm({ action, submitLabel, campaign }: CampaignFormProps) {
   const router = useRouter()
   const [state, formAction, pending] = useActionState(action, { error: '' })
+  const [campaignType, setCampaignType] = useState<CampaignType>(
+    campaign?.type ?? 'flash_sale_campaign'
+  )
+
+  const showSellerRules = campaignType === 'flash_sale_campaign'
+  const discountLabel =
+    campaignType === 'shipping'
+      ? 'Shipping discount (%)'
+      : 'Minimum Discount Required (%)'
+  const discountHint =
+    campaignType === 'shipping'
+      ? '100 = free shipping at checkout. Applies to the platform delivery fee.'
+      : undefined
+  const discountMax = campaignType === 'shipping' ? 100 : 95
+  const discountDefault =
+    campaignType === 'shipping'
+      ? (campaign?.discount_percentage ?? 100)
+      : (campaign?.discount_percentage ?? 20)
 
   return (
     <div className="fade-in" style={{ maxWidth: '760px', margin: '0 auto' }}>
@@ -38,12 +57,12 @@ export function CampaignForm({ action, submitLabel, campaign }: CampaignFormProp
         <div>
           <h1 className="section-title">{campaign ? 'Edit Campaign' : 'Create New Campaign'}</h1>
           <p className="section-subtitle">
-            Announce a flash sale or geo-targeted promotion. Sellers will see it in their dashboard and can opt-in products.
+            Flash sales, geo banners, or shipping deals for buyers at checkout.
           </p>
         </div>
       </div>
 
-      <form action={formAction} encType="multipart/form-data">
+      <form action={formAction}>
         {state?.error && (
           <div className="admin-alert admin-alert-error" style={{ marginBottom: '1rem' }}>
             {state.error}
@@ -59,11 +78,17 @@ export function CampaignForm({ action, submitLabel, campaign }: CampaignFormProp
             </div>
             <div>
               <label className="admin-label">Description</label>
-              <textarea name="description" rows={3} defaultValue={campaign?.description ?? ''} placeholder="Tell sellers what this campaign is about…" className="admin-input" style={{ resize: 'vertical' }} />
+              <textarea name="description" rows={3} defaultValue={campaign?.description ?? ''} placeholder="Tell sellers or buyers what this campaign is about…" className="admin-input" style={{ resize: 'vertical' }} />
             </div>
             <div>
               <label className="admin-label">Campaign Type *</label>
-              <select name="type" required defaultValue={campaign?.type ?? 'flash_sale_campaign'} className="admin-input">
+              <select
+                name="type"
+                required
+                value={campaignType}
+                onChange={(e) => setCampaignType(e.target.value as CampaignType)}
+                className="admin-input"
+              >
                 <option value="flash_sale_campaign">Flash Sale Campaign</option>
                 <option value="banner">Geo-Targeted Banner</option>
                 <option value="shipping">Shipping Deal</option>
@@ -110,10 +135,23 @@ export function CampaignForm({ action, submitLabel, campaign }: CampaignFormProp
         </div>
 
         <div className="admin-card" style={{ marginBottom: '1.5rem' }}>
-          <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem' }}>Seller Rules</h2>
+          <h2 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '1rem' }}>
+            {showSellerRules ? 'Seller Rules' : 'Promotion Settings'}
+          </h2>
           <div>
-            <label className="admin-label">Minimum Discount Required (%)</label>
-            <input name="min_discount_pct" type="number" min={0} max={95} defaultValue={campaign?.discount_percentage ?? 20} className="admin-input" style={{ width: '180px' }} />
+            <label className="admin-label">{discountLabel}</label>
+            {discountHint && (
+              <p className="section-subtitle" style={{ marginBottom: '0.5rem' }}>{discountHint}</p>
+            )}
+            <input
+              name="min_discount_pct"
+              type="number"
+              min={0}
+              max={discountMax}
+              defaultValue={discountDefault}
+              className="admin-input"
+              style={{ width: '180px' }}
+            />
           </div>
         </div>
 

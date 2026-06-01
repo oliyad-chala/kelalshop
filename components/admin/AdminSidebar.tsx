@@ -17,9 +17,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Megaphone,
+  Bell,
 } from 'lucide-react'
 import { adminSignOut } from '@/lib/actions/admin-auth'
 import { isAdminRole, portalRoleLabel } from '@/lib/utils/admin-roles'
+import type { AdminAlertCounts } from '@/lib/data/admin-alerts'
 import type { Profile } from '@/types/app.types'
 import type { UserRole } from '@/types/database.types'
 
@@ -36,23 +38,33 @@ const navItems = [
 ]
 
 const adminOnlyNavItems = [
+  { href: '/admin/notifications',  label: 'Notifications',    icon: Bell },
   { href: '/admin/staff',          label: 'Staff',            icon: Users },
   { href: '/admin/settings',       label: 'Settings',         icon: Settings },
 ]
 
+function badgeForHref(href: string, alerts: AdminAlertCounts, alertTotal: number): number {
+  if (href === '/admin/products') return alerts.pendingProducts
+  if (href === '/admin/orders') return alerts.pendingOrders
+  if (href === '/admin/verifications') return alerts.pendingVerifications
+  if (href === '/admin/payouts') return alerts.pendingPayments
+  if (href === '/admin/disputes') return alerts.openDisputes
+  if (href === '/admin/promotions') return alerts.pendingCampaignReviews
+  if (href === '/admin/notifications') return alertTotal
+  return 0
+}
+
 export function AdminSidebar({
   user,
   userRole,
-  pendingVerifications = 0,
-  pendingPayments = 0,
-  pendingCampaignReviews = 0,
+  alerts,
+  alertTotal = 0,
   onLinkClick,
 }: {
   user: Profile
   userRole: UserRole
-  pendingVerifications?: number
-  pendingPayments?: number
-  pendingCampaignReviews?: number
+  alerts: AdminAlertCounts
+  alertTotal?: number
   onLinkClick?: () => void
 }) {
   const pathname = usePathname()
@@ -186,10 +198,7 @@ export function AdminSidebar({
         {visibleNavItems.map(({ href, label, icon: Icon }) => {
           const active = pathname === href || (href !== '/admin/dashboard' && pathname.startsWith(href))
 
-          let count = 0
-          if (href === '/admin/verifications') count = pendingVerifications
-          if (href === '/admin/payouts') count = pendingPayments
-          if (href === '/admin/promotions') count = pendingCampaignReviews
+          const count = badgeForHref(href, alerts, alertTotal)
 
           return (
             <Link
@@ -249,6 +258,7 @@ export function AdminSidebar({
       <div style={{ padding: isCollapsed ? '0 0.75rem 0.5rem' : '0 1rem 0.5rem' }}>
         {bottomNavItems.map(({ href, label, icon: Icon }) => {
           const active = pathname.startsWith(href)
+          const count = badgeForHref(href, alerts, alertTotal)
           return (
             <Link
               key={href}
@@ -264,10 +274,25 @@ export function AdminSidebar({
                 color: active ? 'var(--color-sidebar-active-text)' : 'var(--color-sidebar-text)',
                 background: active ? 'var(--color-sidebar-active-bg)' : 'transparent',
                 textDecoration: 'none', transition: 'all 0.2s ease',
+                position: 'relative',
               }}
             >
               <Icon size={18} style={{ flexShrink: 0, opacity: active ? 1 : 0.7 }} />
-              {!isCollapsed && <span style={{ whiteSpace: 'nowrap' }}>{label}</span>}
+              {!isCollapsed && <span style={{ flex: 1, whiteSpace: 'nowrap' }}>{label}</span>}
+              {!isCollapsed && count > 0 && (
+                <span style={{
+                  background: active ? 'rgba(255,255,255,0.2)' : '#ff4d4f',
+                  color: 'white',
+                  fontSize: '0.65rem',
+                  fontWeight: 700,
+                  padding: '1px 7px',
+                  borderRadius: '10px',
+                  minWidth: '20px',
+                  textAlign: 'center',
+                }}>
+                  {count > 99 ? '99+' : count}
+                </span>
+              )}
             </Link>
           )
         })}

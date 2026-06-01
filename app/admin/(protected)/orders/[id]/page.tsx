@@ -20,7 +20,8 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
   const { data: order, error } = await admin
     .from('orders')
     .select(`
-      id, amount, status, created_at, updated_at,
+      id, amount, shipping_fee, shipping_discount, shipping_promotion_id,
+      status, created_at, updated_at,
       products(id, name, price, product_images(url)),
       buyer:profiles!orders_buyer_id_fkey(id, full_name, phone),
       shopper:profiles!orders_shopper_id_fkey(id, full_name, phone)
