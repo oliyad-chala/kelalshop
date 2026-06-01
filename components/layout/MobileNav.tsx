@@ -8,7 +8,7 @@ import type { Profile } from '@/types/app.types'
 interface MobileNavProps {
   user: Profile | null
   unreadMessages?: number
-  unreadNotifications?: number
+  totalInboxCount?: number
 }
 
 const buyerTabs = [
@@ -139,7 +139,7 @@ const shopperTabs = [
   },
 ]
 
-export function MobileNav({ user, unreadMessages = 0, unreadNotifications = 0 }: MobileNavProps) {
+export function MobileNav({ user, unreadMessages = 0, totalInboxCount = 0 }: MobileNavProps) {
   const pathname = usePathname()
   if (!user) return null
 
@@ -175,9 +175,9 @@ export function MobileNav({ user, unreadMessages = 0, unreadNotifications = 0 }:
                     {unreadMessages > 9 ? '9+' : unreadMessages}
                   </span>
                 )}
-                {(tab as any).isNotifications && unreadNotifications > 0 && (
+                {(tab as any).isNotifications && totalInboxCount > 0 && (
                   <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-amber-500 border border-white flex items-center justify-center text-[8px] font-bold text-white leading-none">
-                    {unreadNotifications > 9 ? '9+' : unreadNotifications}
+                    {totalInboxCount > 9 ? '9+' : totalInboxCount}
                   </span>
                 )}
               </span>

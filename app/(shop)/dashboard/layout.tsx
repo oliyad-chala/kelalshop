@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { MobileNav } from '@/components/layout/MobileNav'
+import { getSellerInboxCounts, totalInboxCount } from '@/lib/data/seller-alerts'
 import type { Profile } from '@/types/app.types'
 
 export const metadata = {
@@ -26,36 +27,16 @@ export default async function DashboardLayout({
     .eq('id', user.id)
     .single()
 
-  // Fetch total unread messages count for the nav badge
-  const { count: unreadMessages } = await supabase
-    .from('messages')
-    .select('id', { count: 'exact', head: true })
-    .eq('recipient_id', user.id)
-    .eq('is_read', false)
-
-  // Fetch total unread notifications count
-  const { count: unreadNotifications } = await supabase
-    .from('notifications' as any)
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', user.id)
-    .eq('is_read', false)
-
-  // Unread campaign invites / updates (badge on Campaigns menu)
-  const { count: unreadCampaignAlerts } = await supabase
-    .from('notifications' as any)
-    .select('id', { count: 'exact', head: true })
-    .eq('user_id', user.id)
-    .eq('is_read', false)
-    .in('type', ['campaign_invite', 'campaign_approved', 'campaign_rejected', 'campaign_force_added'])
+  const inbox = await getSellerInboxCounts(supabase, user.id)
+  const totalInbox = totalInboxCount(inbox)
 
   return (
     <div className="flex flex-1 min-h-[calc(100vh-4rem)]">
       {/* Desktop sidebar — hidden on mobile */}
       <Sidebar
         user={profile as Profile}
-        unreadMessages={unreadMessages ?? 0}
-        unreadNotifications={unreadNotifications ?? 0}
-        unreadCampaignAlerts={unreadCampaignAlerts ?? 0}
+        unreadMessages={inbox.unreadMessages}
+        totalInboxCount={totalInbox}
       />
 
       {/* Main content — extra bottom padding on mobile for the nav bar */}
@@ -64,7 +45,11 @@ export default async function DashboardLayout({
       </div>
 
       {/* Mobile bottom nav — hidden on desktop */}
-      <MobileNav user={profile as Profile} unreadMessages={unreadMessages ?? 0} />
+      <MobileNav
+        user={profile as Profile}
+        unreadMessages={inbox.unreadMessages}
+        totalInboxCount={totalInbox}
+      />
     </div>
   )
 }

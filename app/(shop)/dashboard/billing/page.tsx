@@ -5,7 +5,13 @@ import { Badge } from '@/components/ui/Badge'
 import { formatDate } from '@/lib/utils/formatters'
 import { PaymentForm } from '@/components/billing/PaymentForm'
 import { PaymentHistory } from '@/components/billing/PaymentHistory'
-import { CheckCircle2, ArrowRight, Zap, ShieldCheck } from 'lucide-react'
+import { CheckCircle2, Zap, ShieldCheck } from 'lucide-react'
+import {
+  PRO_SUBSCRIPTION_MONTHLY_ETB,
+  BOOST_7_DAYS_ETB,
+  BOOST_28_DAYS_ETB,
+  formatEtb,
+} from '@/lib/config/billing-pricing'
 
 export const metadata = {
   title: 'Billing & Subscriptions | KelalShop',
@@ -17,13 +23,25 @@ export default async function BillingPage({
   searchParams: Promise<{ boostProductId?: string; plan?: string; tab?: string }>
 }) {
   const resolvedParams = await searchParams
-  const boostProductId = resolvedParams.boostProductId
-  const activeTab = resolvedParams.tab === 'boosts' ? 'boosts' : 'subscription'
+  const boostProductIdParam = resolvedParams.boostProductId
+  const activeTab =
+    resolvedParams.tab === 'boosts' || boostProductIdParam ? 'boosts' : 'subscription'
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
   if (!user) return null
+
+  let boostProductId: string | undefined
+  if (boostProductIdParam) {
+    const { data: owned } = await supabase
+      .from('products')
+      .select('id')
+      .eq('id', boostProductIdParam)
+      .eq('shopper_id', user.id)
+      .maybeSingle()
+    if (owned) boostProductId = owned.id
+  }
 
   const { data: profile, error } = await supabase
     .from('shopper_profiles')
@@ -71,7 +89,7 @@ export default async function BillingPage({
         <div className="bg-white rounded-3xl shadow-xl border border-slate-100 overflow-hidden">
           <div className="bg-gradient-to-r from-navy-900 to-navy-800 p-8 text-center border-b border-navy-700">
              <h2 className="text-2xl font-bold text-white mb-2">Upgrade to Pro</h2>
-             <div className="text-amber-400 text-3xl font-black">1,000 ETB <span className="text-base font-normal text-navy-200">/ month</span></div>
+             <div className="text-amber-400 text-3xl font-black">{formatEtb(PRO_SUBSCRIPTION_MONTHLY_ETB)} <span className="text-base font-normal text-navy-200">/ month</span></div>
           </div>
           <div className="p-8">
             <PaymentForm 
@@ -164,7 +182,7 @@ export default async function BillingPage({
                 <div className="space-y-4">
                   <div className="p-4 rounded-2xl border border-slate-100 bg-slate-50 flex items-center justify-between">
                     <div className="font-semibold text-navy-900">7 Days Boost</div>
-                    <div className="font-bold text-amber-600">300 ETB</div>
+                    <div className="font-bold text-amber-600">{formatEtb(BOOST_7_DAYS_ETB)}</div>
                   </div>
                   <div className="p-4 rounded-2xl border border-amber-200 bg-amber-50 flex items-center justify-between shadow-sm relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-16 h-16 bg-amber-100 rounded-bl-full -z-0"></div>
@@ -172,7 +190,7 @@ export default async function BillingPage({
                        28 Days Boost
                        <span className="text-[10px] bg-amber-500 text-white px-2 py-0.5 rounded-full uppercase font-bold tracking-wider">Best Value</span>
                     </div>
-                    <div className="font-bold text-amber-700 relative z-10">3,000 ETB</div>
+                    <div className="font-bold text-amber-700 relative z-10">{formatEtb(BOOST_28_DAYS_ETB)}</div>
                   </div>
                 </div>
              </div>
@@ -180,7 +198,14 @@ export default async function BillingPage({
         </div>
 
         {/* RIGHT COLUMN: PAYMENT FORM */}
-        <div>
+        <div className="space-y-4">
+          {activeTab === 'subscription' && (
+            <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 text-center">
+              <p className="text-xs font-bold uppercase tracking-wider text-amber-700 mb-1">Pro Plan price</p>
+              <p className="text-2xl font-extrabold text-navy-900">{formatEtb(PRO_SUBSCRIPTION_MONTHLY_ETB)}<span className="text-sm font-medium text-slate-500"> / month</span></p>
+              <p className="text-xs text-slate-500 mt-2">Unlimited listings · 0% commission · priority support</p>
+            </div>
+          )}
            <PaymentForm 
              userId={user.id} 
              products={products || []} 

@@ -4,6 +4,28 @@ import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import type { ActionState } from '@/types/app.types'
 
+async function notifyNewMessage(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  opts: { recipientId: string; senderId: string; preview: string }
+) {
+  const { data: sender } = await supabase
+    .from('profiles')
+    .select('full_name')
+    .eq('id', opts.senderId)
+    .single()
+
+  const name = sender?.full_name ?? 'Someone'
+  const preview = opts.preview.length > 120 ? `${opts.preview.slice(0, 117)}...` : opts.preview
+
+  await supabase.from('notifications' as any).insert({
+    user_id: opts.recipientId,
+    type: 'new_message',
+    title: `New message from ${name}`,
+    message: preview,
+    is_read: false,
+  })
+}
+
 export async function sendMessage(
   _prevState: ActionState,
   formData: FormData
@@ -90,9 +112,16 @@ export async function sendMessage(
 
   if (error) return { error: error.message }
 
-  // Revalidate both the chat room and the chat list (unread badge)
+  const preview = content?.trim() || 'Sent an attachment'
+  await notifyNewMessage(supabase, {
+    recipientId: recipient_id,
+    senderId: user.id,
+    preview,
+  })
+
   revalidatePath(`/dashboard/chat/${order_id}`)
   revalidatePath('/dashboard/chat')
+  revalidatePath('/dashboard/notifications')
 
   return { success: 'Sent' }
 }
@@ -150,8 +179,15 @@ export async function sendDirectMessage(
 
   if (error) return { error: error.message }
 
+  await notifyNewMessage(supabase, {
+    recipientId: recipient_id,
+    senderId: user.id,
+    preview: content.trim(),
+  })
+
   revalidatePath(`/dashboard/chat/dm/${recipient_id}`)
   revalidatePath('/dashboard/chat')
+  revalidatePath('/dashboard/notifications')
 
   return { success: 'Sent' }
 }

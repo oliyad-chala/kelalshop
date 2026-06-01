@@ -1,10 +1,16 @@
 'use client'
 
-import { useActionState, useState } from 'react'
+import { useActionState, useMemo, useState } from 'react'
 import { submitPaymentRequest } from '@/lib/actions/payments'
 import { Button } from '@/components/ui/Button'
 import { Select } from '@/components/ui/Select'
-import { CheckCircle2 } from 'lucide-react'
+import { CheckCircle2, Package } from 'lucide-react'
+import {
+  formatBoostOptionLabel,
+  formatEtb,
+  getPaymentAmount,
+  PRO_SUBSCRIPTION_MONTHLY_ETB,
+} from '@/lib/config/billing-pricing'
 
 interface PaymentFormProps {
   userId: string
@@ -18,7 +24,20 @@ const initialState = { error: '', success: '' }
 export function PaymentForm({ userId, products, mode, initialBoostProductId }: PaymentFormProps) {
   const [state, formAction, isPending] = useActionState(submitPaymentRequest, initialState)
   const [paymentMethod, setPaymentMethod] = useState<'cbe' | 'telebirr'>('cbe')
-  const [paymentType, setPaymentType] = useState(mode === 'subscription' ? 'pro_subscription' : (initialBoostProductId ? 'boost_7_days' : 'boost_7_days'))
+  const [paymentType, setPaymentType] = useState(
+    mode === 'subscription' ? 'pro_subscription' : 'boost_7_days'
+  )
+  const lockedProduct = initialBoostProductId
+    ? products.find((p) => p.id === initialBoostProductId)
+    : undefined
+  const [targetProductId, setTargetProductId] = useState(
+    lockedProduct?.id ?? initialBoostProductId ?? ''
+  )
+
+  const amountDue = useMemo(() => {
+    const amount = getPaymentAmount(paymentType)
+    return amount ?? 0
+  }, [paymentType])
 
   if (state?.success) {
     return (
@@ -39,7 +58,6 @@ export function PaymentForm({ userId, products, mode, initialBoostProductId }: P
 
   return (
     <form action={formAction} className="bg-slate-50 border border-slate-200 rounded-3xl p-5 sm:p-8 relative">
-      {/* Hidden input for payment type if subscription, else we show a select */}
       {mode === 'subscription' && <input type="hidden" name="payment_type" value="pro_subscription" />}
 
       {state?.error && (
@@ -52,14 +70,12 @@ export function PaymentForm({ userId, products, mode, initialBoostProductId }: P
       )}
 
       <div className="space-y-8">
-        
-        {/* Step 1: Transfer */}
         <div>
           <div className="flex items-center gap-3 mb-4">
             <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">1</div>
             <h3 className="text-base font-bold text-navy-900">Transfer the Amount</h3>
           </div>
-          
+
           {mode === 'boosts' && (
             <div className="pl-9 mb-6 space-y-4">
               <div>
@@ -71,27 +87,57 @@ export function PaymentForm({ userId, products, mode, initialBoostProductId }: P
                   value={paymentType}
                   onChange={(val) => setPaymentType(val)}
                   options={[
-                    { value: 'boost_7_days', label: '7 Days - 300 ETB' },
-                    { value: 'boost_28_days', label: '28 Days - 3,000 ETB' },
+                    { value: 'boost_7_days', label: formatBoostOptionLabel('boost_7_days') },
+                    { value: 'boost_28_days', label: formatBoostOptionLabel('boost_28_days') },
                   ]}
                 />
               </div>
-              <div>
-                <label htmlFor="target_id" className="block text-sm font-semibold text-navy-900 mb-2">Select Product to Boost <span className="text-red-500">*</span></label>
-                <Select
-                  id="target_id"
-                  name="target_id"
-                  required
-                  defaultValue={initialBoostProductId || ''}
-                  options={[
-                    { value: '', label: '-- Select a product --', disabled: true },
-                    ...products.map(p => ({
-                      value: p.id,
-                      label: `${p.name}`
-                    }))
-                  ]}
-                />
-              </div>
+
+              {lockedProduct ? (
+                <div>
+                  <p className="block text-sm font-semibold text-navy-900 mb-2">Product to boost</p>
+                  <div className="flex items-center gap-3 p-4 rounded-xl border border-amber-200 bg-amber-50">
+                    <Package className="w-5 h-5 text-amber-600 shrink-0" />
+                    <div className="min-w-0">
+                      <p className="font-semibold text-navy-900 truncate">{lockedProduct.name}</p>
+                      <p className="text-xs text-slate-500">Selected from your listings</p>
+                    </div>
+                  </div>
+                  <input type="hidden" name="target_id" value={lockedProduct.id} />
+                </div>
+              ) : (
+                <div>
+                  <label htmlFor="target_id" className="block text-sm font-semibold text-navy-900 mb-2">
+                    Select Product to Boost <span className="text-red-500">*</span>
+                  </label>
+                  <Select
+                    id="target_id"
+                    name="target_id"
+                    required
+                    value={targetProductId}
+                    onChange={(val) => setTargetProductId(val)}
+                    options={[
+                      { value: '', label: '-- Select a product --', disabled: true },
+                      ...products.map((p) => ({
+                        value: p.id,
+                        label: p.name,
+                      })),
+                    ]}
+                  />
+                </div>
+              )}
+
+              <p className="text-sm font-bold text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                Amount due: {formatEtb(amountDue)}
+              </p>
+            </div>
+          )}
+
+          {mode === 'subscription' && (
+            <div className="pl-9 mb-4">
+              <p className="text-sm font-bold text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+                Amount due: {formatEtb(PRO_SUBSCRIPTION_MONTHLY_ETB)} / month
+              </p>
             </div>
           )}
 
@@ -131,7 +177,6 @@ export function PaymentForm({ userId, products, mode, initialBoostProductId }: P
           </div>
         </div>
 
-        {/* Step 2: Upload Receipt */}
         <div>
           <div className="flex items-center gap-3 mb-4">
             <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs font-bold">2</div>
@@ -152,10 +197,9 @@ export function PaymentForm({ userId, products, mode, initialBoostProductId }: P
           </div>
         </div>
 
-        {/* Step 3: Verify */}
         <div className="pt-2">
           <Button type="submit" variant="primary" size="lg" className="w-full text-base font-bold shadow-md shadow-blue-500/20" disabled={isPending}>
-            {isPending ? 'Uploading...' : 'Verify My Payment'}
+            {isPending ? 'Uploading...' : `Verify My Payment · ${formatEtb(amountDue)}`}
           </Button>
         </div>
 
@@ -176,4 +220,3 @@ export function PaymentForm({ userId, products, mode, initialBoostProductId }: P
     </form>
   )
 }
-

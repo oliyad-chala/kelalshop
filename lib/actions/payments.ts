@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
+import { getPaymentAmount } from '@/lib/config/billing-pricing'
 import type { ActionState } from '@/types/app.types'
 
 const ALLOWED_RECEIPT_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -31,12 +32,8 @@ export async function submitPaymentRequest(
     return { error: 'Receipt must be a JPEG, PNG, or WebP image.' }
   }
 
-  let amount = 0
-  if (paymentType === 'pro_subscription') amount = 1000
-  else if (paymentType === 'boost_7_days') amount = 300
-  else if (paymentType === 'boost_28_days') amount = 3000
-  else if (paymentType === 'banner_ad') amount = 5000
-  else return { error: 'Invalid payment type selected.' }
+  const amount = getPaymentAmount(paymentType)
+  if (amount == null) return { error: 'Invalid payment type selected.' }
 
   const ext = receiptFile.type === 'image/png' ? 'png' : receiptFile.type === 'image/webp' ? 'webp' : 'jpg'
   const storagePath = `${user.id}/${Date.now()}.${ext}`

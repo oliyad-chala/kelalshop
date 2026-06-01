@@ -168,7 +168,7 @@ export default async function ListingsPage() {
                   <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
                     <span className="text-xs text-slate-400">{formatDate(product.created_at)}</span>
                     <div className="flex items-center gap-2">
-                      <Link href={`/dashboard/billing?boostProductId=${product.id}`}>
+                      <Link href={`/dashboard/billing?tab=boosts&boostProductId=${product.id}`}>
                         <Button variant="ghost" size="sm" className="text-amber-500 hover:text-amber-600 font-semibold bg-amber-50 hover:bg-amber-100 px-3 py-1.5 h-auto rounded-lg">
                           Boost 🚀
                         </Button>
@@ -249,7 +249,7 @@ export default async function ListingsPage() {
                         {formatDate(product.created_at)}
                       </td>
                       <td className="p-4 pr-6 text-right space-x-2">
-                        <Link href={`/dashboard/billing?boostProductId=${product.id}`}>
+                        <Link href={`/dashboard/billing?tab=boosts&boostProductId=${product.id}`}>
                           <Button variant="ghost" size="sm" className="text-amber-500 hover:text-amber-600 font-semibold bg-amber-50 hover:bg-amber-100 px-2 py-1 h-auto rounded">
                             Boost 🚀
                           </Button>
