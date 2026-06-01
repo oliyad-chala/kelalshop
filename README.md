@@ -52,12 +52,18 @@ npm install
 ```
 
 ### 2. Configure Environment Variables
-Create a `.env.local` file in the root directory:
+Copy `.env.example` to `.env.local` and fill in your values:
 ```env
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+NEXT_PUBLIC_SITE_URL=https://kelalshop.com
+GROQ_API_KEY=your_groq_api_key
 ```
+
+**Production (kelalshop.com):** set `NEXT_PUBLIC_SITE_URL=https://kelalshop.com` in Vercel. In Supabase **Authentication → URL Configuration**, add `https://kelalshop.com/**` to Redirect URLs. In Google Cloud OAuth, add `https://kelalshop.com/auth/callback` as an authorized redirect URI.
+
+**SEO:** after deploy, verify the site in [Google Search Console](https://search.google.com/search-console) and submit `https://kelalshop.com/sitemap.xml`.
 
 ### 3. Database Preparation
 Apply the complete schema by running the script in `supabase/schema.sql` inside your Supabase **SQL Editor**. This will:

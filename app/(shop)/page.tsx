@@ -7,11 +7,16 @@ import type { ProductWithDetails } from '@/types/app.types'
 import { getUserLocation } from '@/lib/utils/geo'
 import { GeoPromoBanner } from '@/components/promotions/GeoPromoBanner'
 import { FlashSaleCarousel } from '@/components/promotions/FlashSaleCarousel'
+import { OrganizationJsonLd } from '@/components/seo/OrganizationJsonLd'
+import { SITE_URL } from '@/lib/seo/site'
 
 export const metadata = {
   title: 'KelalShop — Ethiopian Marketplace',
   description:
     'Shop global products and pay locally in ETB. Connect with verified Ethiopian importers on KelalShop.',
+  alternates: {
+    canonical: SITE_URL,
+  },
 }
 
 export const dynamic = 'force-dynamic'
@@ -196,6 +201,7 @@ export default async function Home() {
 
   return (
     <main className="flex-1 bg-slate-50 pb-20">
+      <OrganizationJsonLd />
 
       {/* ── 0. GEO BANNERS ─────────────────────────────────────────────── */}
       {(banners && banners.length > 0) && (

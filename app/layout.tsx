@@ -1,5 +1,11 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
+import {
+  SITE_DESCRIPTION,
+  SITE_KEYWORDS,
+  SITE_NAME,
+  SITE_URL,
+} from '@/lib/seo/site'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -8,20 +14,64 @@ const inter = Inter({
 })
 
 export const viewport: Viewport = {
-  themeColor: '#1a1f36',
+  themeColor: '#FF6A00',
 }
 
+const defaultTitle = `${SITE_NAME} — Ethiopian Marketplace`
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: 'KelalShop — Ethiopian Marketplace',
-    template: '%s | KelalShop',
+    default: defaultTitle,
+    template: `%s | ${SITE_NAME}`,
   },
-  description:
-    'Connect with verified local shoppers and importers. Buy anything from AliExpress, Shein, Amazon and more — delivered across Ethiopia.',
-  keywords: ['marketplace', 'Ethiopia', 'shopping', 'import', 'AliExpress', 'Shein'],
+  description: SITE_DESCRIPTION,
+  keywords: SITE_KEYWORDS,
+  authors: [{ name: SITE_NAME, url: SITE_URL }],
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
+  applicationName: SITE_NAME,
+  icons: {
+    icon: [{ url: '/icon', type: 'image/png', sizes: '32x32' }],
+    apple: [{ url: '/apple-icon', type: 'image/png', sizes: '180x180' }],
+  },
   openGraph: {
-    siteName: 'KelalShop',
     type: 'website',
+    locale: 'en_ET',
+    url: SITE_URL,
+    siteName: SITE_NAME,
+    title: defaultTitle,
+    description: SITE_DESCRIPTION,
+    images: [
+      {
+        url: '/opengraph-image',
+        width: 1200,
+        height: 630,
+        alt: SITE_NAME,
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: defaultTitle,
+    description: SITE_DESCRIPTION,
+    images: ['/opengraph-image'],
+  },
+  alternates: {
+    canonical: SITE_URL,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
+  verification: {
+    google: 't3VdTZrAuUp7s1yI_wScxm4JagcBM790GU_1VvJI1LQ',
   },
 }
 
