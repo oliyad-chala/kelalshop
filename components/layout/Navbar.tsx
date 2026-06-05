@@ -17,6 +17,7 @@ interface NavbarProps {
 const navLinks = [
   { href: '/products', label: 'Discover Products', icon: '✨' },
   { href: '/shoppers', label: 'Top Shoppers', icon: '⭐' },
+  { href: '/contact', label: 'Contact Us', icon: '📞' },
 ]
 
 export function Navbar({ user }: NavbarProps) {

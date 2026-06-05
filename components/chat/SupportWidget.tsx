@@ -178,7 +178,7 @@ export function SupportWidget() {
       {showHint && !isOpen && (
         <div
           onClick={() => { setIsOpen(true); setShowHint(false) }}
-          className="fixed bottom-[5.5rem] md:bottom-24 right-6 z-50 cursor-pointer"
+          className="fixed bottom-[5.5rem] md:bottom-24 right-6 z-50 cursor-pointer hidden sm:block"
           style={{ animation: 'slideInRight 0.4s cubic-bezier(0.34,1.56,0.64,1) forwards' }}
         >
           <div className="bg-white rounded-2xl rounded-br-sm shadow-xl border border-slate-100 px-4 py-3 text-sm font-medium text-navy-900 whitespace-nowrap flex items-center gap-2">
