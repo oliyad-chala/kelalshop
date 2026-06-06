@@ -11,7 +11,7 @@ export function isAdminRole(role: string | null | undefined): role is 'admin' {
   return role === 'admin'
 }
 
-const ADMIN_ONLY_EXACT_PATHS = ['/admin/settings', '/admin/staff', '/admin/promotions/new', '/admin/disputes', '/admin/notifications']
+const ADMIN_ONLY_EXACT_PATHS = ['/admin/settings', '/admin/staff', '/admin/promotions/new', '/admin/disputes', '/admin/notifications', '/admin/activity-logs']
 
 export function isAdminOnlyPath(pathname: string): boolean {
   if (ADMIN_ONLY_EXACT_PATHS.includes(pathname)) return true

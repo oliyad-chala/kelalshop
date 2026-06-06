@@ -3,28 +3,33 @@
 import { revalidatePath } from 'next/cache'
 import { requireAdmin, requireStaffOrAdmin } from '@/lib/actions/admin-access'
 import { uploadWatermarkedProductImages } from '@/lib/utils/product-image-storage'
+import { logAdminAction } from '@/lib/actions/activity-log'
 
 // ── Verifications ────────────────────────────────────────────────────────────
 
 export async function approveVerification(shopperId: string) {
-  const { adminClient: admin } = await requireStaffOrAdmin()
+  const { adminClient: admin, user } = await requireStaffOrAdmin()
+  const { data: profile } = await admin.from('profiles').select('full_name').eq('id', user.id).single()
   const { error } = await admin
     .from('shopper_profiles')
     .update({ verification_status: 'verified', updated_at: new Date().toISOString() } as any)
     .eq('id', shopperId)
   if (error) throw new Error(error.message)
+  await logAdminAction({ adminId: user.id, adminName: profile?.full_name ?? 'Admin', actionType: 'approve_seller', entityType: 'seller', entityId: shopperId, description: `Approved seller verification for ID ${shopperId}` })
   revalidatePath('/admin/verifications')
   revalidatePath('/dashboard')
   revalidatePath('/dashboard/verification')
 }
 
 export async function rejectVerification(shopperId: string) {
-  const { adminClient: admin } = await requireStaffOrAdmin()
+  const { adminClient: admin, user } = await requireStaffOrAdmin()
+  const { data: profile } = await admin.from('profiles').select('full_name').eq('id', user.id).single()
   const { error } = await admin
     .from('shopper_profiles')
     .update({ verification_status: 'rejected', updated_at: new Date().toISOString() } as any)
     .eq('id', shopperId)
   if (error) throw new Error(error.message)
+  await logAdminAction({ adminId: user.id, adminName: profile?.full_name ?? 'Admin', actionType: 'reject_seller', entityType: 'seller', entityId: shopperId, description: `Rejected seller verification for ID ${shopperId}` })
   revalidatePath('/admin/verifications')
   revalidatePath('/dashboard')
   revalidatePath('/dashboard/verification')
@@ -86,11 +91,13 @@ export async function approvePayment(paymentId: string) {
     updated_at: new Date().toISOString()
   } as any).eq('id', paymentId)
 
+  const { data: adminProfile } = await admin.from('profiles').select('full_name').eq('id', user.id).single()
+  await logAdminAction({ adminId: user.id, adminName: adminProfile?.full_name ?? 'Admin', actionType: 'approve_payment', entityType: 'payment', entityId: paymentId, description: `Approved payment request (type: ${payment.payment_type})` })
   revalidatePath('/admin/payouts')
 }
 
 export async function rejectPayment(paymentId: string) {
-  const { adminClient: admin } = await requireAdmin()
+  const { adminClient: admin, user } = await requireAdmin()
   const { error } = await admin
     .from('payment_requests')
     .update({
@@ -100,7 +107,8 @@ export async function rejectPayment(paymentId: string) {
     .eq('id', paymentId)
 
   if (error) throw new Error(error.message)
-
+  const { data: adminProfile } = await admin.from('profiles').select('full_name').eq('id', user.id).single()
+  await logAdminAction({ adminId: user.id, adminName: adminProfile?.full_name ?? 'Admin', actionType: 'reject_payment', entityType: 'payment', entityId: paymentId, description: `Rejected payment request ${paymentId}` })
   revalidatePath('/admin/payouts')
 }
 
@@ -152,12 +160,14 @@ export async function toggleTopShopper(shopperId: string, isTop: boolean) {
 // ── Products ─────────────────────────────────────────────────────────────────
 
 export async function toggleProductAvailability(productId: string, isAvailable: boolean) {
-  const { adminClient: admin } = await requireStaffOrAdmin()
+  const { adminClient: admin, user } = await requireStaffOrAdmin()
   const { error } = await admin
     .from('products')
     .update({ is_available: isAvailable, updated_at: new Date().toISOString() } as any)
     .eq('id', productId)
   if (error) throw new Error(error.message)
+  const { data: adminProfile } = await admin.from('profiles').select('full_name').eq('id', user.id).single()
+  await logAdminAction({ adminId: user.id, adminName: adminProfile?.full_name ?? 'Admin', actionType: 'update_product', entityType: 'product', entityId: productId, description: `Set product availability to ${isAvailable ? 'available' : 'unavailable'}` })
   revalidatePath('/admin/products')
 }
 
@@ -299,7 +309,8 @@ export async function getTopSellersChart() {
 // ── Orders ───────────────────────────────────────────────────────────────────
 
 export async function adminUpdateOrderStatus(orderId: string, status: string) {
-  const { adminClient: admin } = await requireStaffOrAdmin()
+  const { adminClient: admin, user } = await requireStaffOrAdmin()
+  const { data: oldOrder } = await admin.from('orders').select('status').eq('id', orderId).single()
   const { error } = await admin
     .from('orders')
     .update({
@@ -309,7 +320,8 @@ export async function adminUpdateOrderStatus(orderId: string, status: string) {
     .eq('id', orderId)
 
   if (error) throw new Error(error.message)
-
+  const { data: adminProfile } = await admin.from('profiles').select('full_name').eq('id', user.id).single()
+  await logAdminAction({ adminId: user.id, adminName: adminProfile?.full_name ?? 'Admin', actionType: 'update_order_status', entityType: 'order', entityId: orderId, description: `Updated order status to "${status}"`, oldData: { status: oldOrder?.status }, newData: { status } })
   revalidatePath('/admin/orders')
 }
 
@@ -430,7 +442,7 @@ export async function adminUpdateProduct(
 }
 
 export async function adminApproveProduct(productId: string) {
-  const { adminClient: admin } = await requireStaffOrAdmin()
+  const { adminClient: admin, user } = await requireStaffOrAdmin()
   const { error } = await admin
     .from('products')
     .update({ approval_status: 'approved', updated_at: new Date().toISOString() } as any)
@@ -449,14 +461,15 @@ export async function adminApproveProduct(productId: string) {
       is_read: false
     })
   }
-
+  const { data: adminProfile } = await admin.from('profiles').select('full_name').eq('id', user.id).single()
+  await logAdminAction({ adminId: user.id, adminName: adminProfile?.full_name ?? 'Admin', actionType: 'approve_product', entityType: 'product', entityId: productId, description: `Approved product "${product?.name ?? productId}"` })
   revalidatePath('/admin/products')
   revalidatePath('/dashboard/listings')
   revalidatePath('/')
 }
 
 export async function adminRejectProduct(productId: string, reason: string) {
-  const { adminClient: admin } = await requireStaffOrAdmin()
+  const { adminClient: admin, user } = await requireStaffOrAdmin()
   const { error } = await admin
     .from('products')
     .update({ 
@@ -479,7 +492,8 @@ export async function adminRejectProduct(productId: string, reason: string) {
       is_read: false
     })
   }
-
+  const { data: adminProfile } = await admin.from('profiles').select('full_name').eq('id', user.id).single()
+  await logAdminAction({ adminId: user.id, adminName: adminProfile?.full_name ?? 'Admin', actionType: 'reject_product', entityType: 'product', entityId: productId, description: `Rejected product "${product?.name ?? productId}". Reason: ${reason}` })
   revalidatePath('/admin/products')
   revalidatePath('/dashboard/listings')
   revalidatePath('/')

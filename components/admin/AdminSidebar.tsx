@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   Megaphone,
   Bell,
+  ClipboardList,
 } from 'lucide-react'
 import { adminSignOut } from '@/lib/actions/admin-auth'
 import { isAdminRole, portalRoleLabel } from '@/lib/utils/admin-roles'
@@ -40,6 +41,7 @@ const adminOnlyNavItems = [
   { href: '/admin/notifications',  label: 'Notifications',    icon: Bell },
   { href: '/admin/users',          label: 'Users',            icon: Users },
   { href: '/admin/staff',          label: 'Staff',            icon: ShieldCheck },
+  { href: '/admin/activity-logs',  label: 'Activity Logs',    icon: ClipboardList },
   { href: '/admin/settings',       label: 'Settings',         icon: Settings },
 ]
 

@@ -16,6 +16,8 @@ import { redirect } from 'next/navigation'
 import { isAdminRole } from '@/lib/utils/admin-roles'
 import { OrderVolumeChart, CategoryChart, TopSellersChart, VisitorChart } from '@/components/admin/AdminCharts'
 import { getAdminStats, getOrderVolumeChart, getCategoryChart, getTopSellersChart } from '@/lib/actions/admin'
+import { getActivityLogStats } from '@/lib/data/activity-log-stats'
+import { DashboardActivityWidget } from '@/components/admin/DashboardActivityWidget'
 
 export const metadata = { title: 'Dashboard' }
 
@@ -86,11 +88,12 @@ export default async function AdminDashboardPage() {
 
   const isAdmin = isAdminRole(profile?.role)
 
-  const [stats, volumeData, categoryData, topSellersData] = await Promise.all([
+  const [stats, volumeData, categoryData, topSellersData, activityStats] = await Promise.all([
     getAdminStats(),
     getOrderVolumeChart(),
     getCategoryChart(),
     getTopSellersChart(),
+    getActivityLogStats()
   ])
 
   const today = new Date().toLocaleDateString('en-US', {
@@ -209,6 +212,10 @@ export default async function AdminDashboardPage() {
           color="#8b5cf6"
           bg="#f3e8ff"
         />
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
+        <DashboardActivityWidget stats={activityStats} />
       </div>
 
       {/* ── Charts Row 1 ── */}

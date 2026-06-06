@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { isAdminPortalRole } from '@/lib/utils/admin-roles'
+import { logAdminAction } from './activity-log'
 
 type AdminAuthState = { error?: string } | null
 
@@ -95,11 +96,36 @@ export async function adminSignIn(state: AdminAuthState, formData: FormData) {
   }
 
   await writeAuditLog(supabase, 'login_success', email, ip)
+  
+  await logAdminAction({
+    adminId: data.user.id,
+    adminName: profile?.full_name || 'Admin',
+    actionType: 'login',
+    description: `Logged into the admin portal`,
+  })
+
   redirect('/admin/dashboard')
 }
 
 export async function adminSignOut() {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('full_name')
+      .eq('id', user.id)
+      .single()
+
+    await logAdminAction({
+      adminId: user.id,
+      adminName: profile?.full_name || 'Admin',
+      actionType: 'logout',
+      description: `Logged out of the admin portal`,
+    })
+  }
+
   await supabase.auth.signOut()
   redirect('/admin/login')
 }

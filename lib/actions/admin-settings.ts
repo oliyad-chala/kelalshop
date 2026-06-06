@@ -2,6 +2,8 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { isAdminRole } from '@/lib/utils/admin-roles'
+import { logAdminAction } from '@/lib/actions/activity-log'
+import { revalidatePath } from 'next/cache'
 
 export async function getPlatformSettings() {
   const supabase = await createClient()
@@ -57,5 +59,15 @@ export async function updatePlatformSettings(maintenanceMode: boolean) {
     throw new Error('Platform settings row not found. Please run migrations.')
   }
 
+  await logAdminAction({
+    adminId: user.id,
+    adminName: (await supabase.from('profiles').select('full_name').eq('id', user.id).single()).data?.full_name ?? 'Admin',
+    actionType: 'update_settings',
+    entityType: 'settings',
+    description: `Set maintenance mode to ${maintenanceMode ? 'ON' : 'OFF'}`,
+    newData: { maintenance_mode: maintenanceMode },
+  })
+
+  revalidatePath('/admin/settings')
   return { success: true }
 }

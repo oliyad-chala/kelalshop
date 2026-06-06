@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { requireAdmin, requireStaffOrAdmin } from '@/lib/actions/admin-access'
+import { logAdminAction } from '@/lib/actions/activity-log'
 
 export async function getUsers(page = 1, roleFilter?: string, searchQuery?: string) {
   const { adminClient: admin } = await requireStaffOrAdmin()
@@ -31,7 +32,7 @@ export async function getUsers(page = 1, roleFilter?: string, searchQuery?: stri
 }
 
 export async function toggleUserSuspend(userId: string, isSuspended: boolean) {
-  const { adminClient: admin } = await requireAdmin()
+  const { adminClient: admin, user } = await requireAdmin()
 
   const { error } = await admin
     .from('profiles')
@@ -42,6 +43,17 @@ export async function toggleUserSuspend(userId: string, isSuspended: boolean) {
     .eq('id', userId)
 
   if (error) throw new Error(error.message)
+
+  const { data: adminProfile } = await admin.from('profiles').select('full_name').eq('id', user.id).single()
+  await logAdminAction({
+    adminId: user.id,
+    adminName: adminProfile?.full_name ?? 'Admin',
+    actionType: isSuspended ? 'suspend_user' : 'unsuspend_user',
+    entityType: 'user',
+    entityId: userId,
+    description: `${isSuspended ? 'Suspended' : 'Unsuspended'} user ${userId}`,
+    newData: { is_suspended: isSuspended },
+  })
 
   revalidatePath('/admin/users')
 }
