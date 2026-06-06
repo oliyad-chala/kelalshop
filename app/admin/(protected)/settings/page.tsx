@@ -3,6 +3,8 @@ import { redirect } from 'next/navigation'
 import { SettingsClient } from './SettingsClient'
 import { isAdminRole } from '@/lib/utils/admin-roles'
 
+import { getPlatformSettings } from '@/lib/actions/admin-settings'
+
 export const metadata = { title: 'Settings' }
 
 export default async function AdminSettingsPage() {
@@ -18,5 +20,7 @@ export default async function AdminSettingsPage() {
 
   if (!isAdminRole(profile?.role)) redirect('/admin/dashboard')
 
-  return <SettingsClient profile={profile} email={user.email ?? ''} />
+  const { maintenanceMode } = await getPlatformSettings()
+
+  return <SettingsClient profile={profile} email={user.email ?? ''} initialMaintenanceMode={maintenanceMode} />
 }

@@ -5,6 +5,8 @@ import { WishlistProvider } from '@/lib/context/WishlistContext'
 import { CartDrawer } from '@/components/cart/CartDrawer'
 import { LayoutWrapper } from '@/components/layout/LayoutWrapper'
 import { SupportWidget } from '@/components/chat/SupportWidget'
+import { MaintenanceView } from '@/components/layout/MaintenanceView'
+import { getPlatformSettings } from '@/lib/actions/admin-settings'
 import type { Profile } from '@/types/app.types'
 import type { CartItem } from '@/lib/context/CartContext'
 import { resolveProductPrices } from '@/lib/utils/campaign-pricing'
@@ -85,6 +87,24 @@ export default async function ShopLayout({
     })
 
     initialWishlistItems = (wishlistResult.data ?? []).map((row) => row.product_id)
+  }
+
+  // Check Maintenance Mode
+  let isMaintenance = false
+  try {
+    const settings = await getPlatformSettings()
+    isMaintenance = settings.maintenanceMode
+  } catch (err) {
+    // Graceful fallback if settings table not seeded
+    console.error('Failed to get maintenance state:', err)
+  }
+
+  if (isMaintenance) {
+    return (
+      <div className="min-h-dvh flex flex-col bg-slate-50 antialiased selection:bg-amber-200 selection:text-amber-900">
+        <MaintenanceView />
+      </div>
+    )
   }
 
   return (

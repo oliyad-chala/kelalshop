@@ -7,9 +7,12 @@ import {
   Mail, Phone, Building, Clock
 } from 'lucide-react'
 
+import { updatePlatformSettings } from '@/lib/actions/admin-settings'
+
 interface SettingsClientProps {
   profile: any
   email: string
+  initialMaintenanceMode?: boolean
 }
 
 type Tab = 'account' | 'security' | 'notifications' | 'platform'
@@ -62,7 +65,7 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
   )
 }
 
-export function SettingsClient({ profile, email }: SettingsClientProps) {
+export function SettingsClient({ profile, email, initialMaintenanceMode = false }: SettingsClientProps) {
   const [activeTab, setActiveTab] = useState<Tab>('account')
   const [pending, startTransition] = useTransition()
   const [saved, setSaved] = useState(false)
@@ -90,7 +93,7 @@ export function SettingsClient({ profile, email }: SettingsClientProps) {
   // Platform state
   const [platformName, setPlatformName] = useState('KelalShop')
   const [supportEmail, setSupportEmail] = useState('support@kelalshop.com')
-  const [maintenanceMode, setMaintenanceMode] = useState(false)
+  const [maintenanceMode, setMaintenanceMode] = useState(initialMaintenanceMode)
   const [autoVerify, setAutoVerify] = useState(false)
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
@@ -107,9 +110,17 @@ export function SettingsClient({ profile, email }: SettingsClientProps) {
       return
     }
     startTransition(async () => {
-      await new Promise(r => setTimeout(r, 600)) // Simulate API call
-      setSaved(true)
-      setTimeout(() => setSaved(false), 3000)
+      try {
+        if (activeTab === 'platform') {
+          await updatePlatformSettings(maintenanceMode)
+        } else {
+          await new Promise(r => setTimeout(r, 600)) // Simulate API call for others
+        }
+        setSaved(true)
+        setTimeout(() => setSaved(false), 3000)
+      } catch (err: any) {
+        setError(err.message || 'Failed to save settings')
+      }
     })
   }
 

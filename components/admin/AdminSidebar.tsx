@@ -38,7 +38,8 @@ const navItems = [
 
 const adminOnlyNavItems = [
   { href: '/admin/notifications',  label: 'Notifications',    icon: Bell },
-  { href: '/admin/staff',          label: 'Staff',            icon: Users },
+  { href: '/admin/users',          label: 'Users',            icon: Users },
+  { href: '/admin/staff',          label: 'Staff',            icon: ShieldCheck },
   { href: '/admin/settings',       label: 'Settings',         icon: Settings },
 ]
 

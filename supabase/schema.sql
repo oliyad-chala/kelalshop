@@ -756,3 +756,41 @@ begin
 end;
 $$;
 
+-- ============================================================
+-- MIGRATIONS (run these against an EXISTING database)
+-- Safe to run multiple times due to IF NOT EXISTS
+-- ============================================================
+
+-- Migration for Admin Features (Platform Settings & User Suspend)
+
+create table if not exists public.platform_settings (
+  id uuid default uuid_generate_v4() primary key,
+  maintenance_mode boolean default false,
+  updated_at timestamptz default now()
+);
+
+insert into public.platform_settings (id, maintenance_mode)
+select uuid_generate_v4(), false
+where not exists (select 1 from public.platform_settings);
+
+alter table public.platform_settings enable row level security;
+
+drop policy if exists "Platform settings are viewable by everyone" on public.platform_settings;
+create policy "Platform settings are viewable by everyone"
+  on public.platform_settings for select using (true);
+
+drop policy if exists "Admins can update platform settings" on public.platform_settings;
+create policy "Admins can update platform settings"
+  on public.platform_settings for update using (
+    exists (select 1 from profiles where id = auth.uid() and role = 'admin')
+  );
+
+drop trigger if exists platform_settings_updated_at on public.platform_settings;
+create trigger platform_settings_updated_at
+  before update on public.platform_settings
+  for each row execute function handle_updated_at();
+
+alter table profiles
+  add column if not exists is_suspended boolean default false;
+
+

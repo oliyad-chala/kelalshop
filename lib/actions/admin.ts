@@ -197,6 +197,7 @@ export async function getAdminStats() {
     { count: newShoppers },
     { count: pendingVerifications },
     { count: totalShoppers },
+    { count: totalBuyers },
     { count: pendingPayments },
     { count: pendingProducts },
   ] = await Promise.all([
@@ -208,6 +209,7 @@ export async function getAdminStats() {
       .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
     admin.from('shopper_profiles').select('*', { count: 'exact', head: true }).eq('verification_status', 'pending'),
     admin.from('shopper_profiles').select('*', { count: 'exact', head: true }),
+    admin.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'buyer'),
     admin.from('payment_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
     admin.from('products').select('*', { count: 'exact', head: true }).eq('approval_status' as any, 'pending'),
   ])
@@ -220,6 +222,7 @@ export async function getAdminStats() {
     newShoppers: newShoppers ?? 0,
     pendingVerifications: pendingVerifications ?? 0,
     totalShoppers: totalShoppers ?? 0,
+    totalBuyers: totalBuyers ?? 0,
     pendingPayments: pendingPayments ?? 0,
     pendingProducts: pendingProducts ?? 0,
   }

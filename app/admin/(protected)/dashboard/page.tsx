@@ -202,6 +202,13 @@ export default async function AdminDashboardPage() {
           color="#06b6d4"
           bg="#ecfeff"
         />
+        <KpiCard
+          label="Total Buyers"
+          value={stats.totalBuyers.toLocaleString()}
+          icon={Users}
+          color="#8b5cf6"
+          bg="#f3e8ff"
+        />
       </div>
 
       {/* ── Charts Row 1 ── */}
