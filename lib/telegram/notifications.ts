@@ -1,4 +1,4 @@
-import { bot } from "./bot";
+import { bot } from "./admin/bot";
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
