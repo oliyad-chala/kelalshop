@@ -14,11 +14,22 @@ export const authMiddleware = async (ctx: BotContext, next: NextFunction) => {
 
     const chatId = ctx.chat.id;
 
+    // Debug: log what we're looking up
+    console.log(`[Auth] Checking chat ID: ${chatId}`);
+    console.log(`[Auth] Supabase URL set: ${!!process.env.NEXT_PUBLIC_SUPABASE_URL}`);
+    console.log(`[Auth] Service key set: ${!!process.env.SUPABASE_SERVICE_ROLE_KEY}`);
+
     const { data: admin, error } = await supabase
         .from("telegram_admins")
         .select("is_approved, role")
         .eq("telegram_chat_id", chatId)
         .maybeSingle();
+
+    if (error) {
+        console.error(`[Auth] Supabase error: ${error.message}`);
+    }
+
+    console.log(`[Auth] Admin record found: ${JSON.stringify(admin)}`);
 
     ctx.isAdmin = !!(admin && admin.is_approved);
     if (ctx.isAdmin) {
