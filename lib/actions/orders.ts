@@ -6,6 +6,7 @@ import { resolveOrderPrice } from '@/lib/utils/campaign-pricing'
 import { computeShippingFee, getActiveShippingPromotion } from '@/lib/utils/shipping-promotion'
 import { DEFAULT_SHIPPING_FEE_ETB } from '@/lib/config/checkout'
 import { getUserLocation } from '@/lib/utils/geo'
+import { logUserAction } from '@/lib/actions/activity-log'
 
 /**
  * Shopper marks an order as Shipped.
@@ -199,10 +200,31 @@ export async function createOrder(
       .single()
 
     if (insertError) throw new Error(insertError.message)
+    
+    const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single()
+    await logUserAction({
+      userId: user.id,
+      userName: profile?.full_name ?? user.email ?? 'Buyer',
+      actionType: 'create_order',
+      entityType: 'order',
+      entityId: order.id,
+      description: `Placed order for product "${product.name ?? finalProductId}"`
+    })
+
     revalidatePath('/dashboard/orders')
     revalidatePath('/dashboard')
     return order.id
   }
+  
+  const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single()
+  await logUserAction({
+    userId: user.id,
+    userName: profile?.full_name ?? user.email ?? 'Buyer',
+    actionType: 'create_order',
+    entityType: 'order',
+    entityId: data,
+    description: `Placed order for product "${product.name ?? finalProductId}"`
+  })
 
   revalidatePath('/dashboard/orders')
   revalidatePath('/dashboard')

@@ -21,20 +21,17 @@ export async function applyKelalShopWatermark(
     const width = metadata.width ?? 800
     const height = metadata.height ?? 600
     const minDim = Math.min(width, height)
-    const tileFontSize = Math.max(14, Math.round(minDim * 0.04))
+    const centerFontSize = Math.max(32, Math.round(minDim * 0.1))
     const cornerFontSize = Math.max(18, Math.round(minDim * 0.055))
-    const tileW = Math.round(tileFontSize * 7)
-    const tileH = Math.round(tileFontSize * 3.5)
     const badgeW = cornerFontSize * 8 + 8
 
     const svg = Buffer.from(`
       <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
-        <defs>
-          <pattern id="kg" width="${tileW}" height="${tileH}" patternUnits="userSpaceOnUse" patternTransform="rotate(-25 0 0)">
-            <text x="0" y="${Math.round(tileFontSize * 1.2)}" font-family="Arial, Helvetica, sans-serif" font-size="${tileFontSize}" font-weight="700" fill="#ffffff" fill-opacity="0.22">${WATERMARK_LABEL}</text>
-          </pattern>
-        </defs>
-        <rect width="100%" height="100%" fill="url(#kg)"/>
+        <!-- Center Watermark -->
+        <g transform="translate(${width / 2}, ${height / 2}) rotate(-25)">
+          <text x="0" y="0" text-anchor="middle" dominant-baseline="middle" font-family="Arial, Helvetica, sans-serif" font-size="${centerFontSize}" font-weight="700" fill="#ffffff" fill-opacity="0.25">${WATERMARK_LABEL}</text>
+        </g>
+        <!-- Corner Watermark Badge -->
         <rect x="${width - badgeW - 16}" y="${height - cornerFontSize - 36}" width="${badgeW}" height="${cornerFontSize + 16}" rx="8" fill="#000000" fill-opacity="0.35"/>
         <text x="${width - 20}" y="${height - 24}" text-anchor="end" font-family="Arial, Helvetica, sans-serif" font-size="${cornerFontSize}" font-weight="700" fill="#ffffff" fill-opacity="0.92">${WATERMARK_LABEL}</text>
       </svg>

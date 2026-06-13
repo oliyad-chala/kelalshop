@@ -204,21 +204,11 @@ export function TopSellersChart({ data }: { data: TopSellerPoint[] }) {
 }
 
 // ── Visitor & Conversion Line Chart ──────────────────────────
-export function VisitorChart() {
-  const mockData = [
-    { name: 'Mon', visitors: 4200, conversion: 2.4 },
-    { name: 'Tue', visitors: 3800, conversion: 2.2 },
-    { name: 'Wed', visitors: 5100, conversion: 2.8 },
-    { name: 'Thu', visitors: 4700, conversion: 2.6 },
-    { name: 'Fri', visitors: 6300, conversion: 3.1 },
-    { name: 'Sat', visitors: 7200, conversion: 3.4 },
-    { name: 'Sun', visitors: 6600, conversion: 3.2 },
-  ]
-
+export function VisitorChart({ data }: { data: { name: string; visitors: number; conversion: number }[] }) {
   return (
     <ChartCard title="Traffic & Conversions" subtitle="This week's visitor analytics">
       <ResponsiveContainer width="100%" height={220}>
-        <LineChart data={mockData} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
+        <LineChart data={data} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={GRID} vertical={false} />
           <XAxis dataKey="name" tick={{ fontSize: 11, fill: TEXT_MUT }} axisLine={false} tickLine={false} />
           <YAxis yAxisId="left"  tick={{ fontSize: 11, fill: TEXT_MUT }} axisLine={false} tickLine={false} width={48} />

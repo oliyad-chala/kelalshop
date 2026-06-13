@@ -85,7 +85,7 @@ export function ActivityLogsClient({ initialLogs, initialCount, initialPage }: P
     if (!res.ok) return
     const data: ActivityLog[] = await res.json()
 
-    const header = 'ID,Admin,Action,Entity Type,Entity ID,Description,IP,Date\n'
+    const header = 'ID,User,Action,Entity Type,Entity ID,Description,IP,Date\n'
     const rows = data.map(l =>
       [l.id, l.admin_name, l.action_type, l.entity_type ?? '', l.entity_id ?? '',
         `"${l.description.replace(/"/g, '""')}"`, l.ip_address ?? '', l.created_at].join(',')
@@ -109,7 +109,7 @@ export function ActivityLogsClient({ initialLogs, initialCount, initialPage }: P
             <Search size={15} color="#94a3b8" style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)' }} />
             <input
               className="admin-input"
-              placeholder="Search admin / description…"
+              placeholder="Search user / description…"
               value={search}
               onChange={e => setSearch(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSearch()}
@@ -147,7 +147,7 @@ export function ActivityLogsClient({ initialLogs, initialCount, initialPage }: P
         <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '780px' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--color-admin-border)' }}>
-              {['Timestamp', 'Admin', 'Action', 'Entity', 'Description', ''].map(h => (
+              {['Timestamp', 'User', 'Action', 'Entity', 'Description', ''].map(h => (
                 <th key={h} style={{ padding: '0.875rem 1rem', textAlign: 'left', fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', whiteSpace: 'nowrap' }}>
                   {h}
                 </th>

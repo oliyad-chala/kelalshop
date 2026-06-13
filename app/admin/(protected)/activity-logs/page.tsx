@@ -40,7 +40,7 @@ export default async function AdminActivityLogsPage({
             Activity Logs
           </h1>
           <p className="section-subtitle">
-            A permanent, immutable record of every action performed by admin users.
+            A permanent, immutable record of every action performed by users.
           </p>
         </div>
         <div style={{

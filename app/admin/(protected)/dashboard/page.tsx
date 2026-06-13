@@ -15,9 +15,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { isAdminRole } from '@/lib/utils/admin-roles'
 import { OrderVolumeChart, CategoryChart, TopSellersChart, VisitorChart } from '@/components/admin/AdminCharts'
-import { getAdminStats, getOrderVolumeChart, getCategoryChart, getTopSellersChart } from '@/lib/actions/admin'
-import { getActivityLogStats } from '@/lib/data/activity-log-stats'
-import { DashboardActivityWidget } from '@/components/admin/DashboardActivityWidget'
+import { getAdminStats, getOrderVolumeChart, getCategoryChart, getTopSellersChart, getVisitorChart } from '@/lib/actions/admin'
 
 export const metadata = { title: 'Dashboard' }
 
@@ -88,12 +86,12 @@ export default async function AdminDashboardPage() {
 
   const isAdmin = isAdminRole(profile?.role)
 
-  const [stats, volumeData, categoryData, topSellersData, activityStats] = await Promise.all([
+  const [stats, volumeData, categoryData, topSellersData, visitorData] = await Promise.all([
     getAdminStats(),
     getOrderVolumeChart(),
     getCategoryChart(),
     getTopSellersChart(),
-    getActivityLogStats()
+    getVisitorChart()
   ])
 
   const today = new Date().toLocaleDateString('en-US', {
@@ -214,10 +212,6 @@ export default async function AdminDashboardPage() {
         />
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
-        <DashboardActivityWidget stats={activityStats} />
-      </div>
-
       {/* ── Charts Row 1 ── */}
       <div style={{
         display: 'grid',
@@ -237,7 +231,7 @@ export default async function AdminDashboardPage() {
         marginBottom: '1.75rem',
       }}>
         <TopSellersChart data={topSellersData} />
-        <VisitorChart />
+        <VisitorChart data={visitorData} />
       </div>
 
       {/* ── Quick Actions ── */}

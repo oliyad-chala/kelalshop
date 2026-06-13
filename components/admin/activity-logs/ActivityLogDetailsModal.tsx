@@ -97,7 +97,7 @@ export function ActivityLogDetailsModal({ log, onClose }: Props) {
           {/* Meta grid */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
             {[
-              { icon: User, label: 'Admin', value: log.admin_name },
+              { icon: User, label: 'User', value: log.admin_name },
               { icon: Tag, label: 'Entity', value: log.entity_type ? `${log.entity_type}${log.entity_id ? ` (${log.entity_id.slice(0,8)}…)` : ''}` : '—' },
               { icon: Calendar, label: 'Timestamp', value: new Date(log.created_at).toLocaleString() },
               { icon: Globe, label: 'IP Address', value: log.ip_address ?? '—' },

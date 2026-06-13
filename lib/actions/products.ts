@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { uploadWatermarkedProductImages } from '@/lib/utils/product-image-storage'
+import { logUserAction } from '@/lib/actions/activity-log'
 import type { ActionState } from '@/types/app.types'
 
 export async function createProduct(
@@ -107,6 +108,15 @@ export async function createProduct(
   // 2. Upload images (watermarked)
   await uploadWatermarkedProductImages(supabase, product.id, validImages)
 
+  await logUserAction({
+    userId: user.id,
+    userName: shopperProfile?.full_name ?? user.email ?? 'Seller',
+    actionType: 'create_product',
+    entityType: 'product',
+    entityId: product.id,
+    description: `Created new product listing: "${name}"`
+  })
+
   revalidatePath('/dashboard/listings')
   revalidatePath('/dashboard/billing')
   revalidatePath('/')
@@ -154,6 +164,17 @@ export async function toggleProductAvailability(productId: string, isAvailable: 
     .eq('shopper_id', user.id)
 
   if (error) throw new Error(error.message)
+  
+  const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single()
+  await logUserAction({
+    userId: user.id,
+    userName: profile?.full_name ?? user.email ?? 'Seller',
+    actionType: 'update_product',
+    entityType: 'product',
+    entityId: productId,
+    description: `Set product availability to ${!isAvailable ? 'available' : 'hidden'}`
+  })
+
   revalidatePath('/dashboard/listings')
   revalidatePath('/')
 }
@@ -209,6 +230,16 @@ export async function deleteProduct(productId: string) {
     .eq('shopper_id', user.id)
 
   if (error) throw new Error(error.message)
+  
+  const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single()
+  await logUserAction({
+    userId: user.id,
+    userName: profile?.full_name ?? user.email ?? 'Seller',
+    actionType: 'delete_product',
+    entityType: 'product',
+    entityId: productId,
+    description: `Deleted product`
+  })
 
   revalidatePath('/dashboard/listings')
   revalidatePath('/dashboard/billing')
@@ -298,6 +329,16 @@ export async function updateProduct(
 
     await uploadWatermarkedProductImages(supabase, productId, validImages)
   }
+  
+  const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single()
+  await logUserAction({
+    userId: user.id,
+    userName: profile?.full_name ?? user.email ?? 'Seller',
+    actionType: 'update_product',
+    entityType: 'product',
+    entityId: productId,
+    description: `Updated product details for "${name}"`
+  })
 
   revalidatePath('/dashboard/listings')
   revalidatePath('/')

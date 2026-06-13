@@ -16,9 +16,11 @@ export type ActionType =
   | 'suspend_user'
   | 'unsuspend_user'
   | 'update_order_status'
+  | 'create_order'
   | 'approve_payment'
   | 'reject_payment'
   | 'update_settings'
+  | 'update_profile'
   | 'toggle_product_boost'
   | 'update_subscription'
   | 'toggle_top_shopper'
@@ -31,10 +33,11 @@ export type EntityType =
   | 'payment'
   | 'settings'
   | 'subscription'
+  | 'profile'
 
-export interface LogAdminActionParams {
-  adminId: string
-  adminName: string
+export interface LogUserActionParams {
+  userId: string
+  userName: string
   actionType: ActionType
   entityType?: EntityType
   entityId?: string
@@ -43,7 +46,13 @@ export interface LogAdminActionParams {
   newData?: Record<string, unknown>
 }
 
-export async function logAdminAction(params: LogAdminActionParams) {
+// Keep the old interface name for backwards compatibility
+export type LogAdminActionParams = LogUserActionParams & {
+  adminId?: string
+  adminName?: string
+}
+
+export async function logUserAction(params: LogUserActionParams) {
   try {
     const admin = createAdminClient()
     const headersList = await headers()
@@ -54,8 +63,8 @@ export async function logAdminAction(params: LogAdminActionParams) {
       'unknown'
 
     await admin.from('activity_logs').insert({
-      admin_id: params.adminId,
-      admin_name: params.adminName,
+      admin_id: params.userId,
+      admin_name: params.userName,
       action_type: params.actionType,
       entity_type: params.entityType ?? null,
       entity_id: params.entityId ?? null,
@@ -65,7 +74,16 @@ export async function logAdminAction(params: LogAdminActionParams) {
       ip_address: ip,
     })
   } catch (err) {
-    // Logging should never crash the actual admin action
+    // Logging should never crash the actual user action
     console.error('[ActivityLog] Failed to log action:', err)
   }
+}
+
+// Alias to avoid breaking existing imports that use `logAdminAction`
+export async function logAdminAction(params: LogAdminActionParams) {
+  return logUserAction({
+    userId: params.adminId ?? params.userId,
+    userName: params.adminName ?? params.userName,
+    ...params
+  })
 }

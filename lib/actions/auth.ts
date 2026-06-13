@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { generateDeviceFingerprint, checkRateLimit } from '@/lib/utils/security'
+import { logUserAction } from '@/lib/actions/activity-log'
 import type { ActionState } from '@/types/app.types'
 
 // ── Google OAuth ─────────────────────────────────────────────────────────────
@@ -164,7 +165,7 @@ export async function signIn(
   // ── Role guard — admins must use the admin portal ─────────────────
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, full_name')
     .eq('id', data.user.id)
     .single()
 
@@ -182,6 +183,14 @@ export async function signIn(
     p_ip_address: ip,
     p_device_fingerprint: fingerprint,
     p_is_success: true,
+  })
+
+  // Add to activity logs for all users
+  await logUserAction({
+    userId: data.user.id,
+    userName: profile?.full_name ?? email,
+    actionType: 'login',
+    description: `User logged in via email (${profile?.role ?? 'buyer'})`
   })
 
   // Check if device is recognized
@@ -230,6 +239,16 @@ export async function signIn(
 
 export async function signOut() {
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user) {
+    const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single()
+    await logUserAction({
+      userId: user.id,
+      userName: profile?.full_name ?? user.email ?? 'Unknown',
+      actionType: 'logout',
+      description: 'User logged out manually'
+    })
+  }
   await supabase.auth.signOut()
   redirect('/')
 }
