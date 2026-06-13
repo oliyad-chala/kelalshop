@@ -18,6 +18,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 export default async function ShopperDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
 
   // Verify it's a shopper
   const { data: profile } = await supabase
@@ -89,9 +90,16 @@ export default async function ShopperDetailPage({ params }: { params: Promise<{ 
                    Request Product
                  </Button>
                </Link>
-               <Button size="lg" className="w-full md:w-auto bg-white/10 text-white border border-white/20 hover:bg-white/20">
-                  Message
-               </Button>
+               <Link
+                 href={user
+                   ? `/dashboard/chat/dm/${id}`
+                   : `/auth/login?redirectTo=${encodeURIComponent(`/shoppers/${id}`)}`}
+                 className="w-full md:w-auto"
+               >
+                 <Button size="lg" className="w-full md:w-auto bg-white/10 text-white border border-white/20 hover:bg-white/20">
+                    Message
+                 </Button>
+               </Link>
             </div>
          </div>
       </div>
