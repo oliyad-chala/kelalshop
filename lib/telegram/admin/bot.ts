@@ -1,17 +1,10 @@
-import { Bot, Context } from "grammy";
+import { Bot } from "grammy";
+import { BotContext } from "./types";
 
-export interface BotContext extends Context {
-    isAdmin: boolean;
-    adminRole?: 'admin' | 'staff';
-}
+export type { BotContext };
 
 if (!process.env.TELEGRAM_BOT_TOKEN) {
     throw new Error("TELEGRAM_BOT_TOKEN is not defined in environment variables");
 }
 
 export const bot = new Bot<BotContext>(process.env.TELEGRAM_BOT_TOKEN);
-
-// Apply auth middleware here so it's always first, regardless of import order
-import { authMiddleware } from "./middleware";
-bot.use(authMiddleware);
-

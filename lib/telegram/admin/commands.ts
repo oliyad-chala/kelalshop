@@ -1,5 +1,8 @@
 import { bot } from "./bot";
+import { authMiddleware } from "./middleware";
 import { handleGeminiQuery } from "../../gemini/assistant";
+
+bot.use(authMiddleware);
 
 import "./flows/dashboard";
 import "./flows/products";
