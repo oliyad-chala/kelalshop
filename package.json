@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "bot": "tsx --env-file=.env.local run-bot.ts",
-    "customer-bot": "tsx --env-file=.env.local run-customer-bot.ts"
+    "customer-bot": "tsx --env-file=.env.local run-customer-bot.ts",
+    "set-webhooks": "tsx --env-file=.env.local scripts/set-webhooks.ts"
   },
   "dependencies": {
     "@google/genai": "^2.8.0",
