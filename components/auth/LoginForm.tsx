@@ -48,6 +48,7 @@ export function LoginForm() {
 
   // Check for OAuth failure flag from the callback route
   const oauthFailed = searchParams.get('error') === 'oauth_failed'
+  const adminRestricted = searchParams.get('error') === 'admin_restricted'
 
   useEffect(() => {
     if (state?.success === 'true') {
@@ -75,7 +76,11 @@ export function LoginForm() {
     }
   }
 
-  const displayError = state?.error || googleError || (oauthFailed ? 'Google sign-in failed. Please try again.' : '')
+  const displayError =
+    state?.error ||
+    googleError ||
+    (oauthFailed ? 'Google sign-in failed. Please try again.' : '') ||
+    (adminRestricted ? 'Admin and staff accounts cannot sign in here. Please use the Admin Portal.' : '')
 
   return (
     <div className="space-y-5">

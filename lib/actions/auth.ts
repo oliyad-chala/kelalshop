@@ -161,6 +161,20 @@ export async function signIn(
     return { error: 'Invalid email or password.' }
   }
 
+  // ── Role guard — admins must use the admin portal ─────────────────
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', data.user.id)
+    .single()
+
+  if (profile?.role === 'admin' || profile?.role === 'staff') {
+    await supabase.auth.signOut()
+    return {
+      error: 'Admin and staff accounts cannot sign in here. Please use the Admin Portal.',
+    }
+  }
+
   // ── Login tracking & Device Fingerprinting ────────────────────────────
   // Log successful attempt
   await supabase.rpc('log_login_attempt', {
@@ -206,20 +220,6 @@ export async function signIn(
     // If device is not verified, redirect to verification screen
     if (!deviceRecord.is_verified) {
       redirect('/auth/verify-device')
-    }
-  }
-
-  // ── Role guard — admins must use the admin portal ─────────────────
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', data.user.id)
-    .single()
-
-  if (profile?.role === 'admin' || profile?.role === 'staff') {
-    await supabase.auth.signOut()
-    return {
-      error: 'Admin and staff accounts cannot sign in here. Please use the Admin Portal.',
     }
   }
 

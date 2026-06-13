@@ -19,6 +19,19 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
 
     if (!error) {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('role')
+          .eq('id', user.id)
+          .single()
+
+        if (profile?.role === 'admin' || profile?.role === 'staff') {
+          await supabase.auth.signOut()
+          return NextResponse.redirect(`${origin}/auth/login?error=admin_restricted`)
+        }
+      }
       return NextResponse.redirect(`${origin}${safePath}`)
     }
   }
