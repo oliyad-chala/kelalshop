@@ -14,26 +14,34 @@ export const authMiddleware = async (ctx: BotContext, next: NextFunction) => {
 
     const chatId = ctx.chat.id;
 
-    // Debug: log what we're looking up
-    console.log(`[Auth] Checking chat ID: ${chatId}`);
-    console.log(`[Auth] Supabase URL set: ${!!process.env.NEXT_PUBLIC_SUPABASE_URL}`);
-    console.log(`[Auth] Service key set: ${!!process.env.SUPABASE_SERVICE_ROLE_KEY}`);
-
-    const { data: admin, error } = await supabase
-        .from("telegram_admins")
-        .select("is_approved, role")
-        .eq("telegram_chat_id", chatId)
-        .maybeSingle();
-
-    if (error) {
-        console.error(`[Auth] Supabase error: ${error.message}`);
+    // First check: env var ADMIN_CHAT_ID (fast, no DB needed)
+    const envAdminId = process.env.ADMIN_CHAT_ID ? parseInt(process.env.ADMIN_CHAT_ID) : null;
+    if (envAdminId && chatId === envAdminId) {
+        ctx.isAdmin = true;
+        ctx.adminRole = 'admin';
+        await next();
+        return;
     }
 
-    console.log(`[Auth] Admin record found: ${JSON.stringify(admin)}`);
+    // Second check: Supabase database
+    try {
+        const { data: admin, error } = await supabase
+            .from("telegram_admins")
+            .select("is_approved, role")
+            .eq("telegram_chat_id", chatId)
+            .maybeSingle();
 
-    ctx.isAdmin = !!(admin && admin.is_approved);
-    if (ctx.isAdmin) {
-        ctx.adminRole = admin?.role as 'admin' | 'staff';
+        if (error) {
+            console.error(`[Auth] Supabase error: ${error.message}`);
+        }
+
+        ctx.isAdmin = !!(admin && admin.is_approved);
+        if (ctx.isAdmin) {
+            ctx.adminRole = admin?.role as 'admin' | 'staff';
+        }
+    } catch (err) {
+        console.error("[Auth] Exception querying DB:", err);
+        ctx.isAdmin = false;
     }
     
     await next();

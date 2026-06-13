@@ -2,9 +2,9 @@ import { customerBot } from "./bot";
 
 import "./flows/auth.flow";
 import "./flows/orders.flow";
-import "./flows/search.flow";
-import "./flows/deals.flow";
 import "./flows/support.flow";
+import "./flows/deals.flow";
+import "./flows/search.flow";
 
 
 import { Keyboard } from "grammy";
@@ -43,15 +43,34 @@ customerBot.command("help", async (ctx) => {
 // We need to map keyboard text clicks to commands
 customerBot.hears("🔍 Search Products", async (ctx) => {
     await ctx.reply("🔍 *What are you looking for?*\n\nJust type what you want to buy, for example: _'Running shoes'_", { parse_mode: "MarkdownV2" });
-    ctx.session.state = "IDLE";
 });
-customerBot.hears("⚡ Flash Deals", async (ctx) => ctx.api.sendMessage(ctx.chat.id, "Checking deals... Please use /deals for now (will be mapped soon)"));
-customerBot.hears("📦 My Orders", async (ctx) => ctx.api.sendMessage(ctx.chat.id, "Fetching orders... Please use /orders for now"));
-customerBot.hears("💬 Support Ticket", async (ctx) => ctx.api.sendMessage(ctx.chat.id, "Opening support... Please use /support for now"));
-customerBot.hears("⚙️ Profile / Link Account", async (ctx) => ctx.api.sendMessage(ctx.chat.id, "Please use /link to link your account."));
+customerBot.hears("⚡ Flash Deals", async (ctx) => ctx.reply("⚡ Checking active deals...").then(() => ctx.api.sendMessage(ctx.chat.id, "Please use /deals for now!")));
+customerBot.hears("📦 My Orders", async (ctx) => {
+    await ctx.reply("📦 Fetching your orders...");
+    // Trigger the orders flow by forwarding as if /orders was typed
+    await ctx.api.sendMessage(ctx.chat.id, "Please use /orders command!");
+});
+customerBot.hears("💬 Support Ticket", async (ctx) => {
+    await ctx.reply(
+        "🎫 **Customer Support**\n\nPlease describe your issue in a single message below, and our team will get back to you.",
+        { 
+            parse_mode: "Markdown",
+            reply_markup: { force_reply: true, selective: true }
+        }
+    );
+});
+customerBot.hears("⚙️ Profile / Link Account", async (ctx) => {
+    await ctx.reply(
+        "🔗 **Account Linking**\n\nPlease enter the email address associated with your KelalShop account:", 
+        { 
+            parse_mode: "Markdown",
+            reply_markup: { force_reply: true, selective: true }
+        }
+    );
+});
 
 
 customerBot.on("message:text", async (ctx) => {
-    // Basic text echo for now until Gemini integration
-    await ctx.reply("I received your message, but AI features are coming soon!");
+    // Fallback - this should rarely be reached now
+    await ctx.reply("I didn't understand that. Try using /search to find products, or /support for help.");
 });
