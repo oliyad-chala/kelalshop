@@ -2,18 +2,20 @@ import { customerBot } from "../bot";
 import { supabase } from "../../admin/middleware";
 
 customerBot.command("support", async (ctx) => {
-    ctx.session.state = "IDLE"; // reset state just in case
     await ctx.reply(
         "🎫 **Customer Support**\n\n" +
         "Please describe your issue in a single message below, and our team will get back to you.",
-        { parse_mode: "Markdown" }
+        { 
+            parse_mode: "Markdown",
+            reply_markup: { force_reply: true, selective: true }
+        }
     );
-    // Setting state to await support ticket content
-    ctx.session.state = "AWAITING_SUPPORT_TICKET" as any;
 });
 
 customerBot.on("message:text", async (ctx, next) => {
-    if ((ctx.session.state as any) === "AWAITING_SUPPORT_TICKET") {
+    const replyToText = ctx.message.reply_to_message?.text;
+
+    if (replyToText?.includes("describe your issue in a single message")) {
         const text = ctx.message.text.trim();
         
         if (text.startsWith("/")) return next();
@@ -44,7 +46,6 @@ customerBot.on("message:text", async (ctx, next) => {
             .single();
 
         if (sessionError || !session) {
-            ctx.session.state = "IDLE";
             return ctx.reply("❌ Error creating support ticket. Please try again later.");
         }
 
@@ -58,7 +59,6 @@ customerBot.on("message:text", async (ctx, next) => {
                 message: text
             });
 
-        ctx.session.state = "IDLE";
         return ctx.reply(`✅ **Ticket Created!**\n\nYour ticket ID is #${session.id.slice(0, 8)}.\nOur support team will review your message and reply soon.`, { parse_mode: "Markdown" });
     }
 
