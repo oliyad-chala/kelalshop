@@ -15,6 +15,8 @@ export async function POST(req: Request) {
 
     try {
         const update = await req.json();
+        // Initialize bot if not already initialized
+        await bot.init();
         // Pass the update to Grammy manually
         await bot.handleUpdate(update);
         return new Response("OK", { status: 200 });
