@@ -5,17 +5,13 @@ import { extractShoppingIntent, answerCustomerFAQ } from "../../../gemini/shoppi
 
 customerBot.command("search", async (ctx) => {
     await ctx.reply("🔍 What are you looking for? (e.g., 'gaming laptop under 80000 ETB')");
-    ctx.session.state = "IDLE"; // Reset state just in case
 });
 
 // Update the message text handler for search and FAQ
 customerBot.on("message:text", async (ctx, next) => {
     const text = ctx.message.text.trim();
     
-    // Let auth flow handle its states
-    if (ctx.session.state === "AWAITING_EMAIL" || ctx.session.state === "AWAITING_OTP") {
-        return next();
-    }
+    // Auth flow now handles states via ForceReply, so no session check is needed.
 
     // Ignore commands
     if (text.startsWith("/")) return next();
