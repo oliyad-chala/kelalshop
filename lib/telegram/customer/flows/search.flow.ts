@@ -1,71 +1,113 @@
-import { InlineKeyboard } from "grammy";
-import { customerBot } from "../bot";
+/**
+ * search.flow.ts
+ *
+ * Exports:
+ *  - registerSearchFlow(bot)  — registers the /search command and the
+ *                               catch-all product search message:text handler
+ *
+ * This flow must be registered LAST so it acts as a catch-all for free text
+ * after all other flows (auth, support, button hears) have had a chance to
+ * handle the message.
+ */
+import { InlineKeyboard, Bot } from "grammy";
+import { CustomerContext } from "../bot";
 import { supabase } from "../../admin/middleware";
 import { extractShoppingIntent, answerCustomerFAQ } from "../../../gemini/shopping-assistant";
 
-customerBot.command("search", async (ctx) => {
-    await ctx.reply("🔍 What are you looking for? (e.g., 'gaming laptop under 80000 ETB')");
-});
+// These must match the Keyboard labels in commands.ts exactly
+const BUTTON_TEXTS = new Set([
+    "🔍 Search Products",
+    "⚡ Flash Deals",
+    "📦 My Orders",
+    "💬 Support Ticket",
+    "⚙️ Profile / Link Account",
+]);
 
-// Update the message text handler for search and FAQ
-customerBot.on("message:text", async (ctx, next) => {
-    const text = ctx.message.text.trim();
-    
-    // Auth flow now handles states via ForceReply, so no session check is needed.
+export function registerSearchFlow(bot: Bot<CustomerContext>) {
+    bot.command("search", async (ctx) => {
+        await ctx.reply("🔍 What are you looking for? (e.g., 'gaming laptop under 80000 ETB')");
+    });
 
-    // Ignore commands
-    if (text.startsWith("/")) return next();
+    bot.on("message:text", async (ctx, next) => {
+        const text = ctx.message.text.trim();
 
-    await ctx.replyWithChatAction("typing");
+        // Pass commands through (handled by other command() registrations)
+        if (text.startsWith("/")) return next();
 
-    // If it looks like a question, use FAQ, otherwise use search
-    if (text.toLowerCase().includes("how") || text.toLowerCase().includes("where") || text.toLowerCase().includes("what is") || text.endsWith("?")) {
-        const answer = await answerCustomerFAQ(text);
-        return ctx.reply(answer, { parse_mode: "Markdown" });
-    }
+        // Pass button texts through (handled by hears() registered before this)
+        if (BUTTON_TEXTS.has(text)) return next();
 
-    // Treat as product search
-    const intent = await extractShoppingIntent(text);
-    
-    let query = supabase.from("products").select("id, name, price").eq("is_available", true);
-    
-    if (intent.keywords && intent.keywords.length > 0) {
-        // Use ilike for simple text search on name
-        const likeSearch = `%${intent.keywords.join('%')}%`;
-        query = query.ilike("name", likeSearch);
-    }
-    
-    if (intent.minPrice) query = query.gte("price", intent.minPrice);
-    if (intent.maxPrice) query = query.lte("price", intent.maxPrice);
-    
-    if (intent.sortBy === "price_asc") query = query.order("price", { ascending: true });
-    else if (intent.sortBy === "price_desc") query = query.order("price", { ascending: false });
-    else query = query.order("created_at", { ascending: false }); // newest default
-    
-    const { data: products, error } = await query.limit(3);
+        // Pass force-reply responses through to auth/support handlers
+        const replyToText = ctx.message.reply_to_message?.text;
+        if (
+            replyToText?.includes("enter the email address") ||
+            replyToText?.includes("enter the 6") ||
+            replyToText?.includes("6\\-digit code") ||
+            replyToText?.includes("describe your issue in a single message")
+        ) {
+            return next();
+        }
 
-    if (error) {
-        return ctx.reply("❌ Error searching for products.");
-    }
+        // ── AI search / FAQ ──────────────────────────────────────────────────
+        await ctx.replyWithChatAction("typing");
 
-    if (!products || products.length === 0) {
-        return ctx.reply("😕 Sorry, I couldn't find any products matching your search.");
-    }
+        if (
+            text.toLowerCase().includes("how") ||
+            text.toLowerCase().includes("where") ||
+            text.toLowerCase().includes("what is") ||
+            text.endsWith("?")
+        ) {
+            const answer = await answerCustomerFAQ(text);
+            return ctx.reply(answer, { parse_mode: "Markdown" });
+        }
 
-    await ctx.reply(`🔍 *Found ${products.length} products:*`, { parse_mode: "MarkdownV2" });
+        const intent = await extractShoppingIntent(text);
 
-    for (const product of products) {
-        // Escape special characters for MarkdownV2
-        const safeName = product.name.replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
-        const safePrice = product.price.toString().replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
+        let query = supabase
+            .from("products")
+            .select("id, name, price")
+            .eq("is_available", true);
 
-        const keyboard = new InlineKeyboard()
-            .url("🛒 Buy Now", `https://kelalshop.com/checkout?product=${product.id}`)
-            .url("🔍 View Details", `https://kelalshop.com/products/${product.id}`);
+        if (intent.keywords && intent.keywords.length > 0) {
+            const likeSearch = `%${intent.keywords.join("%")}%`;
+            query = query.ilike("name", likeSearch);
+        }
+        if (intent.minPrice) query = query.gte("price", intent.minPrice);
+        if (intent.maxPrice) query = query.lte("price", intent.maxPrice);
 
-        await ctx.reply(`📦 *${safeName}*\n💰 ${safePrice} ETB`, { 
+        if (intent.sortBy === "price_asc") query = query.order("price", { ascending: true });
+        else if (intent.sortBy === "price_desc") query = query.order("price", { ascending: false });
+        else query = query.order("created_at", { ascending: false });
+
+        const { data: products, error } = await query.limit(3);
+
+        if (error) {
+            return ctx.reply("❌ Error searching for products. Please try again.");
+        }
+
+        if (!products || products.length === 0) {
+            return ctx.reply(
+                "😕 Sorry, I couldn't find any products matching your search\\.\n\nTry different keywords or browse /deals for discounted items\\.",
+                { parse_mode: "MarkdownV2" }
+            );
+        }
+
+        await ctx.reply(`🔍 *Found ${products.length} product(s):*`, {
             parse_mode: "MarkdownV2",
-            reply_markup: keyboard
         });
-    }
-});
+
+        for (const product of products) {
+            const safeName = product.name.replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
+            const safePrice = product.price.toString().replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
+
+            const keyboard = new InlineKeyboard()
+                .url("🛒 Buy Now", `https://kelalshop.com/checkout?product=${product.id}`)
+                .url("🔍 View Details", `https://kelalshop.com/products/${product.id}`);
+
+            await ctx.reply(`📦 *${safeName}*\n💰 ${safePrice} ETB`, {
+                parse_mode: "MarkdownV2",
+                reply_markup: keyboard,
+            });
+        }
+    });
+}

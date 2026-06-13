@@ -1,32 +1,57 @@
+/**
+ * commands.ts — Customer Bot Entry Point
+ *
+ * This file is the SINGLE place where all handlers are registered on the bot.
+ * Registration order is critical for grammy's middleware chain:
+ *
+ *   1. /start, /help  (commands — always match first)
+ *   2. Auth flow      (/link + force-reply message:text interceptor)
+ *   3. Support flow   (/support + force-reply message:text interceptor)
+ *   4. Orders flow    (/orders, /track, cancel callbacks)
+ *   5. Deals flow     (/deals)
+ *   6. Button hears() — must come BEFORE the search catch-all
+ *   7. Search flow    (/search + catch-all message:text for product search)
+ *   8. Fallback       — unhandled text
+ *
+ * All flow files use the registerXxxFlow(bot) pattern so that handler
+ * registration happens here, in a deterministic order, without relying on
+ * ES module import hoisting side-effects.
+ */
+
 import { customerBot } from "./bot";
-
-import "./flows/auth.flow";
-import "./flows/orders.flow";
-import "./flows/support.flow";
-import "./flows/deals.flow";
-import "./flows/search.flow";
-
-
 import { Keyboard } from "grammy";
 
-const mainMenu = new Keyboard()
+// ─── Flow modules (no side-effects on import — they export register fns) ───
+import { handleLinkPrompt,    registerAuthFlow    } from "./flows/auth.flow";
+import { handleSupportPrompt, registerSupportFlow } from "./flows/support.flow";
+import { handleOrders,        registerOrdersFlow  } from "./flows/orders.flow";
+import { handleDeals,         registerDealsFlow   } from "./flows/deals.flow";
+import {                      registerSearchFlow  } from "./flows/search.flow";
+
+// ─── Main Menu Keyboard ──────────────────────────────────────────────────────
+export const mainMenu = new Keyboard()
     .text("🔍 Search Products").text("⚡ Flash Deals").row()
     .text("📦 My Orders").text("💬 Support Ticket").row()
     .text("⚙️ Profile / Link Account")
     .resized()
     .persistent();
 
+// ══════════════════════════════════════════════════════════════════════════════
+// 1. Basic commands
+// ══════════════════════════════════════════════════════════════════════════════
+
 customerBot.command("start", async (ctx) => {
-    const welcomeMsg = `👋 *Welcome to KelalShop Customer Bot\\!* 🛍️\n\n` +
-        `I am your personal AI shopping assistant\\. I can help you find products, track orders, and answer your questions\\.\n\n` +
-        `👇 *Use the menu below to get started, or just type what you are looking for\\!*`;
-        
-    await ctx.reply(welcomeMsg, { parse_mode: "MarkdownV2", reply_markup: mainMenu });
+    const msg =
+        `👋 *Welcome to KelalShop Customer Bot\\!* 🛍️\n\n` +
+        `I'm your personal shopping assistant\\. Find products, track orders, and get support\\.\n\n` +
+        `👇 *Use the menu below to get started\\!*`;
+    await ctx.reply(msg, { parse_mode: "MarkdownV2", reply_markup: mainMenu });
 });
 
 customerBot.command("help", async (ctx) => {
-    const helpText = `🛍️ *KelalShop Help Menu*\n\n` +
-        `You can use the bottom menu, or type commands directly:\n` +
+    const msg =
+        `🛍️ *KelalShop Help Menu*\n\n` +
+        `Use the bottom menu, or type commands directly:\n` +
         `• /orders \\- View your recent orders\n` +
         `• /track \\- Track an active order\n` +
         `• /deals \\- View active flash sales\n` +
@@ -34,43 +59,57 @@ customerBot.command("help", async (ctx) => {
         `• /support \\- Open a support ticket\n` +
         `• /link \\- Link your KelalShop account\n\n` +
         `🤖 *AI Assistant*\n` +
-        `You can also just talk to me naturally\\! For example:\n` +
-        `_"Do you have any gaming laptops under 80000 ETB?"_`;
-
-    await ctx.reply(helpText, { parse_mode: "MarkdownV2", reply_markup: mainMenu });
+        `You can also talk to me naturally\\! e\\.g\\.:\n` +
+        `_"Do you have gaming laptops under 80000 ETB?"_`;
+    await ctx.reply(msg, { parse_mode: "MarkdownV2", reply_markup: mainMenu });
 });
 
-// We need to map keyboard text clicks to commands
+// ══════════════════════════════════════════════════════════════════════════════
+// 2. Auth flow  (registers /link + force-reply message:text interceptor)
+// ══════════════════════════════════════════════════════════════════════════════
+registerAuthFlow(customerBot);
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 3. Support flow  (registers /support + force-reply message:text interceptor)
+// ══════════════════════════════════════════════════════════════════════════════
+registerSupportFlow(customerBot);
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 4. Orders flow  (registers /orders, /track, callbacks)
+// ══════════════════════════════════════════════════════════════════════════════
+registerOrdersFlow(customerBot);
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 5. Deals flow  (registers /deals)
+// ══════════════════════════════════════════════════════════════════════════════
+registerDealsFlow(customerBot);
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 6. Bottom-menu button handlers  (hears BEFORE the search catch-all)
+// ══════════════════════════════════════════════════════════════════════════════
 customerBot.hears("🔍 Search Products", async (ctx) => {
-    await ctx.reply("🔍 *What are you looking for?*\n\nJust type what you want to buy, for example: _'Running shoes'_", { parse_mode: "MarkdownV2" });
-});
-customerBot.hears("⚡ Flash Deals", async (ctx) => ctx.reply("⚡ Checking active deals...").then(() => ctx.api.sendMessage(ctx.chat.id, "Please use /deals for now!")));
-customerBot.hears("📦 My Orders", async (ctx) => {
-    await ctx.reply("📦 Fetching your orders...");
-    // Trigger the orders flow by forwarding as if /orders was typed
-    await ctx.api.sendMessage(ctx.chat.id, "Please use /orders command!");
-});
-customerBot.hears("💬 Support Ticket", async (ctx) => {
     await ctx.reply(
-        "🎫 **Customer Support**\n\nPlease describe your issue in a single message below, and our team will get back to you.",
-        { 
-            parse_mode: "Markdown",
-            reply_markup: { force_reply: true, selective: true }
-        }
-    );
-});
-customerBot.hears("⚙️ Profile / Link Account", async (ctx) => {
-    await ctx.reply(
-        "🔗 **Account Linking**\n\nPlease enter the email address associated with your KelalShop account:", 
-        { 
-            parse_mode: "Markdown",
-            reply_markup: { force_reply: true, selective: true }
-        }
+        "🔍 *What are you looking for?*\n\nType a product name or describe what you need\\.\n_Example: 'gaming laptop under 80000 ETB'_",
+        { parse_mode: "MarkdownV2" }
     );
 });
 
+customerBot.hears("⚡ Flash Deals",             handleDeals);
+customerBot.hears("📦 My Orders",               handleOrders);
+customerBot.hears("💬 Support Ticket",          handleSupportPrompt);
+customerBot.hears("⚙️ Profile / Link Account", handleLinkPrompt);
 
+// ══════════════════════════════════════════════════════════════════════════════
+// 7. Search flow  (catch-all product search — registered last among text handlers)
+// ══════════════════════════════════════════════════════════════════════════════
+registerSearchFlow(customerBot);
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 8. Final fallback for unhandled text
+// ══════════════════════════════════════════════════════════════════════════════
 customerBot.on("message:text", async (ctx) => {
-    // Fallback - this should rarely be reached now
-    await ctx.reply("I didn't understand that. Try using /search to find products, or /support for help.");
+    await ctx.reply(
+        "I didn't quite understand that\\. Try using /search to find products, or /support for help\\.",
+        { parse_mode: "MarkdownV2", reply_markup: mainMenu }
+    );
 });

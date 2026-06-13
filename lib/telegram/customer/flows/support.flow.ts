@@ -1,66 +1,73 @@
-import { customerBot } from "../bot";
+/**
+ * support.flow.ts
+ *
+ * Exports:
+ *  - handleSupportPrompt(ctx)  — sends the force-reply support prompt
+ *  - registerSupportFlow(bot)  — registers the message:text interceptor
+ */
+import { CustomerContext } from "../bot";
 import { supabase } from "../../admin/middleware";
+import { Bot } from "grammy";
 
-customerBot.command("support", async (ctx) => {
+export async function handleSupportPrompt(ctx: CustomerContext) {
     await ctx.reply(
-        "🎫 **Customer Support**\n\n" +
-        "Please describe your issue in a single message below, and our team will get back to you.",
-        { 
-            parse_mode: "Markdown",
-            reply_markup: { force_reply: true, selective: true }
+        "🎫 *Customer Support*\n\nPlease describe your issue in a single message below, and our team will get back to you\\.",
+        {
+            parse_mode: "MarkdownV2",
+            reply_markup: { force_reply: true, selective: true },
         }
     );
-});
+}
 
-customerBot.on("message:text", async (ctx, next) => {
-    const replyToText = ctx.message.reply_to_message?.text;
+export function registerSupportFlow(bot: Bot<CustomerContext>) {
+    bot.command("support", handleSupportPrompt);
 
-    if (replyToText?.includes("describe your issue in a single message")) {
-        const text = ctx.message.text.trim();
-        
-        if (text.startsWith("/")) return next();
+    bot.on("message:text", async (ctx, next) => {
+        const replyToText = ctx.message.reply_to_message?.text;
 
-        await ctx.replyWithChatAction("typing");
+        if (replyToText?.includes("describe your issue in a single message")) {
+            const text = ctx.message.text.trim();
+            if (text.startsWith("/")) return next();
 
-        // Attempt to identify user
-        let shopperId = null;
-        if (ctx.chat) {
-            const { data: user } = await supabase
-                .from("telegram_users")
-                .select("profile_id")
-                .eq("chat_id", ctx.chat.id)
-                .maybeSingle();
-                
-            if (user && user.profile_id) shopperId = user.profile_id;
-        }
+            await ctx.replyWithChatAction("typing");
 
-        // Create support session
-        const { data: session, error: sessionError } = await supabase
-            .from("support_sessions")
-            .insert({
-                shopper_id: shopperId, // null if guest
-                status: "open",
-                title: text.substring(0, 50) + "..."
-            })
-            .select()
-            .single();
+            let shopperId: string | null = null;
+            if (ctx.chat) {
+                const { data: user } = await supabase
+                    .from("telegram_users")
+                    .select("profile_id")
+                    .eq("chat_id", ctx.chat.id)
+                    .maybeSingle();
+                if (user?.profile_id) shopperId = user.profile_id;
+            }
 
-        if (sessionError || !session) {
-            return ctx.reply("❌ Error creating support ticket. Please try again later.");
-        }
+            const { data: session, error: sessionError } = await supabase
+                .from("support_sessions")
+                .insert({
+                    shopper_id: shopperId,
+                    status: "open",
+                    title: text.substring(0, 50) + (text.length > 50 ? "..." : ""),
+                })
+                .select()
+                .single();
 
-        // Add message to session
-        await supabase
-            .from("support_messages")
-            .insert({
+            if (sessionError || !session) {
+                return ctx.reply("❌ Error creating support ticket. Please try again later.");
+            }
+
+            await supabase.from("support_messages").insert({
                 session_id: session.id,
                 sender_type: "shopper",
                 sender_id: shopperId,
-                message: text
+                message: text,
             });
 
-        return ctx.reply(`✅ **Ticket Created!**\n\nYour ticket ID is #${session.id.slice(0, 8)}.\nOur support team will review your message and reply soon.`, { parse_mode: "Markdown" });
-    }
+            return ctx.reply(
+                `✅ *Ticket Created\\!*\n\nYour ticket ID is *\\#${session.id.slice(0, 8)}*\\.\nOur support team will review your message and reply soon\\.`,
+                { parse_mode: "MarkdownV2" }
+            );
+        }
 
-    await next();
-});
+        await next();
+    });
+}
