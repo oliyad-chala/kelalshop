@@ -10,3 +10,8 @@ if (!process.env.TELEGRAM_BOT_TOKEN) {
 }
 
 export const bot = new Bot<BotContext>(process.env.TELEGRAM_BOT_TOKEN);
+
+// Apply auth middleware here so it's always first, regardless of import order
+import { authMiddleware } from "./middleware";
+bot.use(authMiddleware);
+

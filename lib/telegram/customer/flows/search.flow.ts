@@ -56,14 +56,19 @@ customerBot.on("message:text", async (ctx, next) => {
         return ctx.reply("😕 Sorry, I couldn't find any products matching your search.");
     }
 
-    await ctx.reply(`🔍 **Found ${products.length} products:**`, { parse_mode: "Markdown" });
+    await ctx.reply(`🔍 *Found ${products.length} products:*`, { parse_mode: "MarkdownV2" });
 
     for (const product of products) {
-        const keyboard = new InlineKeyboard()
-            .url("View Details", `https://kelalshop.com/products/${product.id}`); // Adjust URL to real frontend
+        // Escape special characters for MarkdownV2
+        const safeName = product.name.replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
+        const safePrice = product.price.toString().replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
 
-        await ctx.reply(`📦 **${product.name}**\n💰 ${product.price} ETB`, { 
-            parse_mode: "Markdown",
+        const keyboard = new InlineKeyboard()
+            .url("🛒 Buy Now", `https://kelalshop.com/checkout?product=${product.id}`)
+            .url("🔍 View Details", `https://kelalshop.com/products/${product.id}`);
+
+        await ctx.reply(`📦 *${safeName}*\n💰 ${safePrice} ETB`, { 
+            parse_mode: "MarkdownV2",
             reply_markup: keyboard
         });
     }

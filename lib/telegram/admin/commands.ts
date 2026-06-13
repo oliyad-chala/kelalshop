@@ -1,18 +1,14 @@
 import { bot } from "./bot";
-import { authMiddleware, requireAdmin } from "./middleware";
 import { handleGeminiQuery } from "../../gemini/assistant";
 
-bot.use(authMiddleware);
-
-// Require flows after middleware is applied
-require("./flows/dashboard");
-require("./flows/products");
-require("./flows/sellers");
-require("./flows/orders");
-require("./flows/withdrawals");
-require("./flows/staff");
-require("./flows/security");
-require("./flows/broadcast");
+import "./flows/dashboard";
+import "./flows/products";
+import "./flows/sellers";
+import "./flows/orders";
+import "./flows/withdrawals";
+import "./flows/staff";
+import "./flows/security";
+import "./flows/broadcast";
 
 bot.command("start", async (ctx) => {
     if (ctx.isAdmin) {

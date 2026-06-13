@@ -38,16 +38,21 @@ customerBot.command("orders", ensureLinked, async (ctx) => {
         return ctx.reply("✅ You have no recent orders.");
     }
 
-    let message = "📦 **Your Recent Orders**\n\n";
+    let message = "📦 *Your Recent Orders*\n\n";
     orders.forEach(order => {
-        const date = new Date(order.created_at).toLocaleDateString();
+        const date = new Date(order.created_at).toLocaleDateString().replace(/\//g, "\\/");
         const emoji = order.status === "delivered" ? "✅" : (order.status === "cancelled" ? "❌" : "⏳");
-        message += `${emoji} **Order #${order.id.slice(0, 8)}**\n`;
-        message += `Date: ${date} | Amount: ${order.total_amount} ETB\n`;
-        message += `Status: ${order.status.toUpperCase()}\n\n`;
+        const orderId = order.id.slice(0, 8);
+        const amount = order.total_amount.toString().replace(/\./g, "\\.");
+        const statusStr = order.status.toUpperCase();
+        
+        message += `${emoji} *Order \\#${orderId}*\n`;
+        message += `📅 Date: _${date}_\n`;
+        message += `💰 Amount: *${amount} ETB*\n`;
+        message += `📊 Status: *${statusStr}*\n\n`;
     });
 
-    await ctx.reply(message, { parse_mode: "Markdown" });
+    await ctx.reply(message, { parse_mode: "MarkdownV2" });
 });
 
 customerBot.command("track", ensureLinked, async (ctx) => {
@@ -67,15 +72,16 @@ customerBot.command("track", ensureLinked, async (ctx) => {
 
     for (const order of orders) {
         const keyboard = new InlineKeyboard();
+        const orderId = order.id.slice(0, 8);
+        const statusStr = order.status.toUpperCase();
         
         if (order.status === "pending") {
             keyboard.text("❌ Cancel Order", `cancel_order_${order.id}`);
-        } else {
-            keyboard.text("🔍 View Details", `view_order_${order.id}`);
         }
+        keyboard.url("🌐 View on Website", `https://kelalshop.com/orders/${order.id}`);
 
-        await ctx.reply(`📦 **Order #${order.id.slice(0, 8)}**\nCurrent Status: **${order.status.toUpperCase()}**`, { 
-            parse_mode: "Markdown",
+        await ctx.reply(`🚚 *Track Order \\#${orderId}*\n\nCurrent Status: *${statusStr}*`, { 
+            parse_mode: "MarkdownV2",
             reply_markup: keyboard
         });
     }

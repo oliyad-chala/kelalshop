@@ -1,9 +1,8 @@
 import { bot } from "../bot";
 import { supabase } from "../middleware";
+import { InlineKeyboard } from "grammy";
 
-bot.command("dashboard", async (ctx) => {
-    if (!ctx.isAdmin) return ctx.reply("⛔ Access Denied.");
-
+async function generateDashboardText() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -26,16 +25,52 @@ bot.command("dashboard", async (ctx) => {
     ]);
 
     const revenueToday = revenueData?.reduce((sum, order) => sum + (Number(order.total_amount) || 0), 0) || 0;
+    
+    // Format safely for MarkdownV2
+    const safeRev = revenueToday.toLocaleString().replace(/\./g, "\\.");
 
-    const dashboardText = `📊 **KelalShop Dashboard — ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}**\n\n` +
-        `👥 Total Users:       ${totalUsers || 0}\n` +
-        `🏪 Active Sellers:     ${activeSellers || 0}\n` +
-        `📦 Total Products:    ${totalProducts || 0}\n\n` +
-        `🛒 Orders Today:         ${ordersToday || 0}\n` +
-        `💰 Revenue Today:  ${revenueToday.toLocaleString()} ETB\n` +
-        `⏳ Pending Approvals:     ${pendingApprovals || 0}\n\n` +
-        `⚠️ Open Tickets:          ${openTickets || 0}\n` +
-        `🔒 Security Alerts:        0`;
+    return `📊 *KelalShop Dashboard — ${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }).replace(/\//g, "\\/")}*\n\n` +
+        `👥 Total Users:       *${totalUsers || 0}*\n` +
+        `🏪 Active Sellers:    *${activeSellers || 0}*\n` +
+        `📦 Total Products:    *${totalProducts || 0}*\n\n` +
+        `🛒 Orders Today:      *${ordersToday || 0}*\n` +
+        `💰 Revenue Today:     *${safeRev} ETB*\n` +
+        `⏳ Pending Approvals: *${pendingApprovals || 0}*\n\n` +
+        `⚠️ Open Tickets:      *${openTickets || 0}*\n` +
+        `🔒 Security Alerts:   *0*`;
+}
 
-    await ctx.reply(dashboardText, { parse_mode: "Markdown" });
+function getDashboardKeyboard() {
+    return new InlineKeyboard()
+        .text("🔄 Refresh Stats", "refresh_dashboard")
+        .row()
+        .text("⏳ Pending Approvals", "cmd_pending")
+        .text("🎫 Open Tickets", "cmd_tickets");
+}
+
+bot.command("dashboard", async (ctx) => {
+    if (!ctx.isAdmin) return ctx.reply("⛔ Access Denied.");
+    
+    const dashboardText = await generateDashboardText();
+    await ctx.reply(dashboardText, { parse_mode: "MarkdownV2", reply_markup: getDashboardKeyboard() });
 });
+
+bot.callbackQuery("refresh_dashboard", async (ctx) => {
+    if (!ctx.isAdmin) return ctx.answerCallbackQuery("⛔ Access Denied.");
+    
+    const dashboardText = await generateDashboardText();
+    await ctx.editMessageText(dashboardText, { parse_mode: "MarkdownV2", reply_markup: getDashboardKeyboard() });
+    await ctx.answerCallbackQuery("Stats refreshed!");
+});
+
+// Map the inline buttons to actual commands
+bot.callbackQuery("cmd_pending", async (ctx) => {
+    // This assumes the `pending` command handler doesn't strictly depend on message context
+    // A quick hack is to just tell them to use the command for now
+    await ctx.answerCallbackQuery("Run /pending to view approvals!");
+});
+
+bot.callbackQuery("cmd_tickets", async (ctx) => {
+    await ctx.answerCallbackQuery("Run /tickets to view support tickets!");
+});
+
