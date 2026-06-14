@@ -42,10 +42,10 @@ function PaymentAction({ paymentId, status, canManage }: { paymentId: string; st
         setError(null)
         if (action === 'approve') {
           const res = await approvePayment(paymentId)
-          if (res?.error) throw new Error(res.error)
+          if ((res as any)?.error) throw new Error((res as any).error)
         } else {
           const res = await rejectPayment(paymentId)
-          if (res?.error) throw new Error(res.error)
+          if ((res as any)?.error) throw new Error((res as any).error)
         }
       } catch (e: any) {
         setError(e.message ?? 'Failed')
@@ -125,9 +125,11 @@ const buildColumns = (canManage: boolean): ColumnDef<PaymentRow, any>[] => [
     cell: ({ getValue }) => {
       const type = String(getValue())
       let label = type
-      if (type === 'pro_subscription') label = 'Pro Plan'
-      if (type === 'boost_7_days') label = '7-Day Boost'
-      if (type === 'boost_28_days') label = '28-Day Boost'
+      if (type === 'pro_subscription')         label = 'Pro Plan (Legacy)'
+      if (type === 'pro_subscription_monthly') label = 'Pro Monthly'
+      if (type === 'pro_subscription_yearly')  label = 'Pro Yearly'
+      if (type === 'boost_7_days')             label = '7-Day Boost'
+      if (type === 'boost_28_days')            label = '28-Day Boost'
       return <span style={{ background: '#fef3c7', color: '#b45309', padding: '2px 8px', borderRadius: '12px', fontSize: '0.75rem', fontWeight: 600 }}>{label}</span>
     }
   },

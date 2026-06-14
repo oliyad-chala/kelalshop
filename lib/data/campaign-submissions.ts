@@ -61,12 +61,12 @@ export async function fetchCampaignSubmissions(
     product_id: row.product_id,
     shopper_id: row.shopper_id,
     special_price: Number(row.special_price),
-    status: row.status as CampaignSubmission['status'],
+    status: row.status as unknown as CampaignSubmission['status'],
     created_at: row.created_at,
     updated_at: row.updated_at,
     products: productMap.get(row.product_id) ?? null,
     profiles: profileMap.get(row.shopper_id) ?? null,
-  }))
+  })) as unknown as CampaignSubmission[]
 
   return { submissions }
 }

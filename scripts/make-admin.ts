@@ -6,6 +6,12 @@ config({ path: ".env.local" });
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const chatId = process.env.ADMIN_CHAT_ID;
+const emailArg: string = process.argv[2];
+
+if (!emailArg) {
+    console.error('Please provide an email address as argument.');
+    process.exit(1);
+}
 
 if (!supabaseUrl || !supabaseKey || !chatId) {
     console.error("Missing environment variables in .env.local");

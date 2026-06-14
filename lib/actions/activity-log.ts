@@ -47,9 +47,11 @@ export interface LogUserActionParams {
 }
 
 // Keep the old interface name for backwards compatibility
-export type LogAdminActionParams = LogUserActionParams & {
+export type LogAdminActionParams = Omit<LogUserActionParams, 'userId' | 'userName'> & {
   adminId?: string
   adminName?: string
+  userId?: string
+  userName?: string
 }
 
 export async function logUserAction(params: LogUserActionParams) {
@@ -82,8 +84,8 @@ export async function logUserAction(params: LogUserActionParams) {
 // Alias to avoid breaking existing imports that use `logAdminAction`
 export async function logAdminAction(params: LogAdminActionParams) {
   return logUserAction({
-    userId: params.adminId ?? params.userId,
-    userName: params.adminName ?? params.userName,
-    ...params
+    ...params,
+    userId: params.adminId ?? params.userId ?? 'unknown',
+    userName: params.adminName ?? params.userName ?? 'Unknown',
   })
 }

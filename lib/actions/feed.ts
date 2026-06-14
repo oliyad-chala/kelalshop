@@ -48,5 +48,5 @@ export async function loadMoreProducts(
 
   const { data } = await query
 
-  return (data as ProductWithDetails[]) || []
+  return data as unknown as ProductWithDetails[] || []
 }

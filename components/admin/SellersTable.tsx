@@ -32,8 +32,10 @@ function SubscriptionAction({ sellerId, currentPlan }: { sellerId: string; curre
     startTransition(async () => {
       try {
         setError(null)
-        const res = await adminUpdateSubscription(sellerId, isPro ? 'free' : 'pro')
-        if (res?.error) throw new Error(res.error)
+        const result = await adminUpdateSubscription(sellerId, isPro ? 'free' : 'pro')
+        if ((result as any).error) {
+          setError((result as any).error)
+        }
       } catch (e: any) {
         setError(e.message ?? 'Failed')
       }

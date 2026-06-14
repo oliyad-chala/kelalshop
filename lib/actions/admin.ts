@@ -9,7 +9,7 @@ import { logAdminAction } from '@/lib/actions/activity-log'
 
 export async function approveVerification(shopperId: string) {
   const { adminClient: admin, user } = await requireStaffOrAdmin()
-  const { data: profile } = await admin.from('profiles').select('full_name').eq('id', user.id).single()
+  const { data: profile } = await (admin.from('profiles') as any).select('full_name').eq('id', user.id).single()
   const { error } = await admin
     .from('shopper_profiles')
     .update({ verification_status: 'verified', updated_at: new Date().toISOString() } as any)
@@ -23,7 +23,7 @@ export async function approveVerification(shopperId: string) {
 
 export async function rejectVerification(shopperId: string) {
   const { adminClient: admin, user } = await requireStaffOrAdmin()
-  const { data: profile } = await admin.from('profiles').select('full_name').eq('id', user.id).single()
+  const { data: profile } = await (admin.from('profiles') as any).select('full_name').eq('id', user.id).single()
   const { error } = await admin
     .from('shopper_profiles')
     .update({ verification_status: 'rejected', updated_at: new Date().toISOString() } as any)
@@ -38,7 +38,7 @@ export async function rejectVerification(shopperId: string) {
 // ── Payments & Subscriptions ───────────────────────────────────────────────────
 
 export async function approvePayment(paymentId: string) {
-  const { adminClient: admin } = await requireAdmin()
+  const { adminClient: admin, user } = await requireAdmin()
 
   // 1. Get payment details
   const { data: payment, error: getError } = await admin
@@ -51,14 +51,29 @@ export async function approvePayment(paymentId: string) {
   if (payment.status !== 'pending') throw new Error('Payment is not pending')
 
   // 2. Apply the effect
-  if (payment.payment_type === 'pro_subscription') {
+  if (payment.payment_type === 'pro_subscription' || payment.payment_type === 'pro_subscription_monthly') {
     const expires = new Date()
     expires.setDate(expires.getDate() + 30) // 30 days
 
     const { error } = await admin
       .from('shopper_profiles')
       .update({
-        subscription_plan: 'pro',
+        subscription_plan: 'monthly',
+        subscription_expires_at: expires.toISOString(),
+        updated_at: new Date().toISOString()
+      } as any)
+      .eq('id', payment.shopper_id)
+
+    if (error) throw new Error(error.message)
+  }
+  else if (payment.payment_type === 'pro_subscription_yearly') {
+    const expires = new Date()
+    expires.setFullYear(expires.getFullYear() + 1) // 365 days (1 year)
+
+    const { error } = await admin
+      .from('shopper_profiles')
+      .update({
+        subscription_plan: 'yearly',
         subscription_expires_at: expires.toISOString(),
         updated_at: new Date().toISOString()
       } as any)
@@ -91,7 +106,7 @@ export async function approvePayment(paymentId: string) {
     updated_at: new Date().toISOString()
   } as any).eq('id', paymentId)
 
-  const { data: adminProfile } = await admin.from('profiles').select('full_name').eq('id', user.id).single()
+  const { data: adminProfile } = await (admin.from('profiles') as any).select('full_name').eq('id', user.id).single()
   await logAdminAction({ adminId: user.id, adminName: adminProfile?.full_name ?? 'Admin', actionType: 'approve_payment', entityType: 'payment', entityId: paymentId, description: `Approved payment request (type: ${payment.payment_type})` })
   revalidatePath('/admin/payouts')
 }
@@ -107,27 +122,33 @@ export async function rejectPayment(paymentId: string) {
     .eq('id', paymentId)
 
   if (error) throw new Error(error.message)
-  const { data: adminProfile } = await admin.from('profiles').select('full_name').eq('id', user.id).single()
+  const { data: adminProfile } = await (admin.from('profiles') as any).select('full_name').eq('id', user.id).single()
   await logAdminAction({ adminId: user.id, adminName: adminProfile?.full_name ?? 'Admin', actionType: 'reject_payment', entityType: 'payment', entityId: paymentId, description: `Rejected payment request ${paymentId}` })
   revalidatePath('/admin/payouts')
 }
 
 // ── Manual Subscriptions ──────────────────────────────────────────────────────
 
-export async function adminUpdateSubscription(shopperId: string, plan: 'free' | 'pro') {
-  const { adminClient: admin } = await requireAdmin()
+export async function adminUpdateSubscription(shopperId: string, plan: 'free' | 'monthly' | 'yearly' | 'pro') {
+  const { adminClient: admin, user } = await requireAdmin()
 
   let expiresAt = null
-  if (plan === 'pro') {
+  if (plan === 'pro' || plan === 'monthly') {
     const expires = new Date()
     expires.setDate(expires.getDate() + 30)
     expiresAt = expires.toISOString()
+  } else if (plan === 'yearly') {
+    const expires = new Date()
+    expires.setFullYear(expires.getFullYear() + 1)
+    expiresAt = expires.toISOString()
   }
+
+  const normalizedPlan = plan === 'pro' ? 'monthly' : plan
 
   const { error } = await admin
     .from('shopper_profiles')
     .update({
-      subscription_plan: plan,
+      subscription_plan: normalizedPlan,
       subscription_expires_at: expiresAt,
       updated_at: new Date().toISOString()
     } as any)
@@ -141,7 +162,7 @@ export async function adminUpdateSubscription(shopperId: string, plan: 'free' | 
 // ── Top Shoppers ─────────────────────────────────────────────────────────────
 
 export async function toggleTopShopper(shopperId: string, isTop: boolean) {
-  const { adminClient: admin } = await requireAdmin()
+  const { adminClient: admin, user } = await requireAdmin()
 
   const { error } = await admin
     .from('shopper_profiles')
@@ -166,13 +187,13 @@ export async function toggleProductAvailability(productId: string, isAvailable: 
     .update({ is_available: isAvailable, updated_at: new Date().toISOString() } as any)
     .eq('id', productId)
   if (error) throw new Error(error.message)
-  const { data: adminProfile } = await admin.from('profiles').select('full_name').eq('id', user.id).single()
+  const { data: adminProfile } = await (admin.from('profiles') as any).select('full_name').eq('id', user.id).single()
   await logAdminAction({ adminId: user.id, adminName: adminProfile?.full_name ?? 'Admin', actionType: 'update_product', entityType: 'product', entityId: productId, description: `Set product availability to ${isAvailable ? 'available' : 'unavailable'}` })
   revalidatePath('/admin/products')
 }
 
 export async function adminToggleProductBoost(productId: string, boost: boolean) {
-  const { adminClient: admin } = await requireAdmin()
+  const { adminClient: admin, user } = await requireAdmin()
 
   let boostedUntil = null
   if (boost) {
@@ -211,17 +232,17 @@ export async function getAdminStats() {
     { count: pendingPayments },
     { count: pendingProducts },
   ] = await Promise.all([
-    admin.from('orders').select('amount'),
-    admin.from('requests').select('*', { count: 'exact', head: true }).eq('status', 'open'),
+    (admin.from('orders') as any).select('amount'),
+    (admin.from('requests') as any).select('*', { count: 'exact', head: true }).eq('status', 'open'),
     admin
       .from('shopper_profiles')
       .select('*', { count: 'exact', head: true })
       .gte('created_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()),
     admin.from('shopper_profiles').select('*', { count: 'exact', head: true }).eq('verification_status', 'pending'),
     admin.from('shopper_profiles').select('*', { count: 'exact', head: true }),
-    admin.from('profiles').select('*', { count: 'exact', head: true }).eq('role', 'buyer'),
-    admin.from('payment_requests').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-    admin.from('products').select('*', { count: 'exact', head: true }).eq('approval_status' as any, 'pending'),
+    (admin.from('profiles') as any).select('*', { count: 'exact', head: true }).eq('role', 'buyer'),
+    (admin.from('payment_requests') as any).select('*', { count: 'exact', head: true }).eq('status', 'pending'),
+    (admin.from('products') as any).select('*', { count: 'exact', head: true }).eq('approval_status' as any, 'pending'),
   ])
 
   const totalRevenue = orders?.reduce((sum, o) => sum + Number(o.amount), 0) ?? 0
@@ -279,7 +300,7 @@ export async function getVisitorChart() {
     { data: newUsers },
     { data: newOrders }
   ] = await Promise.all([
-    admin.from('profiles').select('created_at').gte('created_at', since),
+    (admin.from('profiles') as any).select('created_at').gte('created_at', since),
     admin.from('orders').select('created_at').gte('created_at', since)
   ])
 
@@ -378,7 +399,7 @@ export async function adminUpdateOrderStatus(orderId: string, status: string) {
     .eq('id', orderId)
 
   if (error) throw new Error(error.message)
-  const { data: adminProfile } = await admin.from('profiles').select('full_name').eq('id', user.id).single()
+  const { data: adminProfile } = await (admin.from('profiles') as any).select('full_name').eq('id', user.id).single()
   await logAdminAction({ adminId: user.id, adminName: adminProfile?.full_name ?? 'Admin', actionType: 'update_order_status', entityType: 'order', entityId: orderId, description: `Updated order status to "${status}"`, oldData: { status: oldOrder?.status }, newData: { status } })
   revalidatePath('/admin/orders')
 }
@@ -509,7 +530,7 @@ export async function adminApproveProduct(productId: string) {
   if (error) throw new Error(error.message)
 
   // create notification
-  const { data: product } = await admin.from('products').select('shopper_id, name').eq('id', productId).single()
+  const { data: product } = await (admin.from('products') as any).select('shopper_id, name').eq('id', productId).single()
   if (product) {
     await admin.from('notifications' as any).insert({
       user_id: product.shopper_id,
@@ -519,7 +540,7 @@ export async function adminApproveProduct(productId: string) {
       is_read: false
     })
   }
-  const { data: adminProfile } = await admin.from('profiles').select('full_name').eq('id', user.id).single()
+  const { data: adminProfile } = await (admin.from('profiles') as any).select('full_name').eq('id', user.id).single()
   await logAdminAction({ adminId: user.id, adminName: adminProfile?.full_name ?? 'Admin', actionType: 'approve_product', entityType: 'product', entityId: productId, description: `Approved product "${product?.name ?? productId}"` })
   revalidatePath('/admin/products')
   revalidatePath('/dashboard/listings')
@@ -540,7 +561,7 @@ export async function adminRejectProduct(productId: string, reason: string) {
   if (error) throw new Error(error.message)
 
   // create notification
-  const { data: product } = await admin.from('products').select('shopper_id, name').eq('id', productId).single()
+  const { data: product } = await (admin.from('products') as any).select('shopper_id, name').eq('id', productId).single()
   if (product) {
     await admin.from('notifications' as any).insert({
       user_id: product.shopper_id,
@@ -550,7 +571,7 @@ export async function adminRejectProduct(productId: string, reason: string) {
       is_read: false
     })
   }
-  const { data: adminProfile } = await admin.from('profiles').select('full_name').eq('id', user.id).single()
+  const { data: adminProfile } = await (admin.from('profiles') as any).select('full_name').eq('id', user.id).single()
   await logAdminAction({ adminId: user.id, adminName: adminProfile?.full_name ?? 'Admin', actionType: 'reject_product', entityType: 'product', entityId: productId, description: `Rejected product "${product?.name ?? productId}". Reason: ${reason}` })
   revalidatePath('/admin/products')
   revalidatePath('/dashboard/listings')

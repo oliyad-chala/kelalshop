@@ -90,7 +90,7 @@ export function ShopperCard({ shopper }: ShopperCardProps) {
                 </div>
                 <div className="line-clamp-1 flex-1 leading-snug">
                   <span className="text-slate-500 font-normal mr-1">Expert in:</span>
-                  {categories.map(c => c.categories.name).join(', ')}
+                  {categories.map((c: any) => c.categories.name).join(', ')}
                 </div>
               </div>
             )}

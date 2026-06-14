@@ -87,25 +87,22 @@ export function registerSearchFlow(bot: Bot<CustomerContext>) {
 
         if (!products || products.length === 0) {
             return ctx.reply(
-                "😕 Sorry, I couldn't find any products matching your search\\.\n\nTry different keywords or browse /deals for discounted items\\.",
-                { parse_mode: "MarkdownV2" }
+                "😕 Sorry, I couldn't find any products matching your search.\n\nTry different keywords or browse /deals for discounted items.",
+                { parse_mode: "HTML" }
             );
         }
 
-        await ctx.reply(`🔍 *Found ${products.length} product(s):*`, {
-            parse_mode: "MarkdownV2",
+        await ctx.reply(`🔍 <b>Found ${products.length} product(s):</b>`, {
+            parse_mode: "HTML",
         });
 
         for (const product of products) {
-            const safeName = product.name.replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
-            const safePrice = product.price.toString().replace(/[_*[\]()~`>#+\-=|{}.!]/g, "\\$&");
-
             const keyboard = new InlineKeyboard()
                 .url("🛒 Buy Now", `https://kelalshop.com/checkout?product=${product.id}`)
                 .url("🔍 View Details", `https://kelalshop.com/products/${product.id}`);
 
-            await ctx.reply(`📦 *${safeName}*\n💰 ${safePrice} ETB`, {
-                parse_mode: "MarkdownV2",
+            await ctx.reply(`📦 <b>${product.name}</b>\n💰 ${product.price} ETB`, {
+                parse_mode: "HTML",
                 reply_markup: keyboard,
             });
         }

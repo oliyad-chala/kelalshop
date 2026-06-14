@@ -29,10 +29,12 @@ function getStatusBadge(status: string) {
 
 function getPaymentTypeLabel(type: string) {
   switch (type) {
-    case 'pro_subscription': return 'Pro Subscription'
-    case 'boost_7_days': return 'Boost (7 Days)'
-    case 'boost_28_days': return 'Boost (28 Days)'
-    case 'banner_ad': return 'Banner Ad'
+    case 'pro_subscription':          return 'Pro Subscription (Legacy)'
+    case 'pro_subscription_monthly':  return 'Pro Monthly'
+    case 'pro_subscription_yearly':   return 'Pro Yearly'
+    case 'boost_7_days':              return 'Boost (7 Days)'
+    case 'boost_28_days':             return 'Boost (28 Days)'
+    case 'banner_ad':                 return 'Banner Ad'
     default: return type.replace(/_/g, ' ')
   }
 }
