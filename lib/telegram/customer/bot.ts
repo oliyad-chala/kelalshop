@@ -1,12 +1,15 @@
-import { Bot, Context } from "grammy";
-
-// Add specific properties to our context type
-export type CustomerContext = Context & {
-    user?: any; // The telegram_users record if linked
-};
+import { Bot } from 'grammy'
+import type { CustomerBotContext } from '../core/types'
+import { telegramErrorHandler } from '../core/error-handler'
+import { registerCustomerHandlers } from './register-handlers'
 
 if (!process.env.TELEGRAM_CUSTOMER_BOT_TOKEN) {
-    throw new Error("TELEGRAM_CUSTOMER_BOT_TOKEN is not defined in environment variables");
+  throw new Error('TELEGRAM_CUSTOMER_BOT_TOKEN is not defined in environment variables')
 }
 
-export const customerBot = new Bot<CustomerContext>(process.env.TELEGRAM_CUSTOMER_BOT_TOKEN);
+export const customerBot = new Bot<CustomerBotContext>(process.env.TELEGRAM_CUSTOMER_BOT_TOKEN)
+
+registerCustomerHandlers(customerBot)
+customerBot.catch(telegramErrorHandler)
+
+export type { CustomerBotContext as CustomerContext }

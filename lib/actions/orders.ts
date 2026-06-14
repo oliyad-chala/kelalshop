@@ -7,6 +7,7 @@ import { computeShippingFee, getActiveShippingPromotion } from '@/lib/utils/ship
 import { DEFAULT_SHIPPING_FEE_ETB } from '@/lib/config/checkout'
 import { getUserLocation } from '@/lib/utils/geo'
 import { logUserAction } from '@/lib/actions/activity-log'
+import { emitTelegramEvent } from '@/lib/telegram/notifications/templates'
 
 /**
  * Shopper marks an order as Shipped.
@@ -25,6 +26,14 @@ export async function markOrderShipped(orderId: string) {
     .in('status', ['pending', 'accepted'])
 
   if (error) throw new Error(error.message)
+
+  const { data: order } = await supabase.from('orders').select('buyer_id').eq('id', orderId).single()
+  if (order?.buyer_id) {
+    emitTelegramEvent('customer', 'ORDER_SHIPPED', { orderId }, {
+      targetProfileId: order.buyer_id,
+      idempotencyKey: `order-shipped-${orderId}`,
+    })
+  }
 
   revalidatePath('/dashboard/orders')
   revalidatePath('/dashboard')
@@ -59,7 +68,12 @@ export async function confirmDelivery(orderId: string) {
 
   if (updateError) throw new Error(updateError.message)
 
-  // 3. Escrow release: credit net amount to shopper wallet (5% commission)
+  emitTelegramEvent('customer', 'ORDER_DELIVERED', { orderId }, {
+    targetProfileId: user.id,
+    idempotencyKey: `order-delivered-${orderId}`,
+  })
+
+  // 3. Escrow release
   const commission = 0.05
   const payout = Number(order.amount) * (1 - commission)
 
@@ -90,6 +104,14 @@ export async function acceptOrder(orderId: string) {
 
   if (error) throw new Error(error.message)
 
+  const { data: order } = await supabase.from('orders').select('buyer_id').eq('id', orderId).single()
+  if (order?.buyer_id) {
+    emitTelegramEvent('customer', 'ORDER_ACCEPTED', { orderId }, {
+      targetProfileId: order.buyer_id,
+      idempotencyKey: `order-accepted-${orderId}`,
+    })
+  }
+
   revalidatePath('/dashboard/orders')
   revalidatePath('/dashboard')
 }
@@ -112,12 +134,17 @@ export async function cancelOrder(orderId: string) {
 
   if (error) throw new Error(error.message)
 
+  emitTelegramEvent('customer', 'ORDER_CANCELLED', { orderId }, {
+    targetProfileId: user.id,
+    idempotencyKey: `order-cancelled-${orderId}`,
+  })
+
   revalidatePath('/dashboard/orders')
   revalidatePath('/dashboard')
 }
 
 /**
- * Buyer places an order for a product.
+ * Buyer places an order
  * Pass shippingPromotionId only once per checkout (first cart line) to apply platform shipping deal.
  */
 export async function createOrder(
@@ -200,6 +227,12 @@ export async function createOrder(
       .single()
 
     if (insertError) throw new Error(insertError.message)
+
+    emitTelegramEvent('admin', 'NEW_ORDER', { orderId: order.id, amount }, { idempotencyKey: `order-${order.id}` })
+    emitTelegramEvent('customer', 'ORDER_PLACED', { orderId: order.id, amount }, {
+      targetProfileId: user.id,
+      idempotencyKey: `order-placed-${order.id}`,
+    })
     
     const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single()
     await logUserAction({
@@ -208,7 +241,7 @@ export async function createOrder(
       actionType: 'create_order',
       entityType: 'order',
       entityId: order.id,
-      description: `Placed order for product "${product.name ?? finalProductId}"`
+      description: `Placed order for product ${finalProductId}`
     })
 
     revalidatePath('/dashboard/orders')
@@ -216,13 +249,21 @@ export async function createOrder(
     return order.id
   }
   
+  const orderId = data as string
+
+  emitTelegramEvent('admin', 'NEW_ORDER', { orderId, amount }, { idempotencyKey: `order-${orderId}` })
+  emitTelegramEvent('customer', 'ORDER_PLACED', { orderId, amount }, {
+    targetProfileId: user.id,
+    idempotencyKey: `order-placed-${orderId}`,
+  })
+  
   const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single()
   await logUserAction({
     userId: user.id,
     userName: profile?.full_name ?? user.email ?? 'Buyer',
     actionType: 'create_order',
     entityType: 'order',
-    entityId: data,
+    entityId: orderId,
     description: `Placed order for product "${product.name ?? finalProductId}"`
   })
 

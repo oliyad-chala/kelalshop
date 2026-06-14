@@ -5,6 +5,7 @@ import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { uploadWatermarkedProductImages } from '@/lib/utils/product-image-storage'
 import { logUserAction } from '@/lib/actions/activity-log'
+import { emitTelegramEvent } from '@/lib/telegram/notifications/templates'
 import type { ActionState } from '@/types/app.types'
 
 export async function createProduct(
@@ -105,7 +106,11 @@ export async function createProduct(
 
   if (insertError) return { error: insertError.message }
 
-  // 2. Upload images (watermarked)
+  emitTelegramEvent('admin', 'PRODUCT_PENDING', { productName: name }, {
+    idempotencyKey: `product-pending-${product.id}`,
+  })
+
+  // 2. Upload images
   await uploadWatermarkedProductImages(supabase, product.id, validImages)
 
   await logUserAction({

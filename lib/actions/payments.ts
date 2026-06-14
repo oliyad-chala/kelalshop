@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { getPaymentAmount } from '@/lib/config/billing-pricing'
+import { emitTelegramEvent } from '@/lib/telegram/notifications/templates'
 import type { ActionState } from '@/types/app.types'
 
 const ALLOWED_RECEIPT_TYPES = ['image/jpeg', 'image/png', 'image/webp']
@@ -60,6 +61,17 @@ export async function submitPaymentRequest(
     console.error('Failed to submit payment request:', error)
     return { error: 'Failed to submit request. Please try again.' }
   }
+
+  const { data: profile } = await supabase
+    .from('shopper_profiles')
+    .select('business_name')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  emitTelegramEvent('admin', 'PAYMENT_REQUEST', {
+    sellerName: profile?.business_name ?? 'Seller',
+    amount,
+  }, { idempotencyKey: `payment-${user.id}-${Date.now()}` })
 
   revalidatePath('/dashboard/billing')
   return { success: 'Your payment request has been submitted for verification. We will review it shortly!' }

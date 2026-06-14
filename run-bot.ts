@@ -1,14 +1,19 @@
-import * as dotenv from "dotenv";
-dotenv.config({ path: ".env.local" });
+import * as dotenv from 'dotenv'
+dotenv.config({ path: '.env.local' })
 
-import { bot } from "./lib/telegram/admin/bot";
-import "./lib/telegram/admin/commands";
+/**
+ * DEV ONLY — Do not run alongside production webhooks.
+ * Use npm run set-webhooks for 24/7 production operation.
+ */
+import './lib/telegram/admin/bot'
 
-console.log("🤖 Starting KelalShop Bot in Long Polling mode...");
-console.log("✅ Bot is running! Press Ctrl+C to stop.");
+console.log('🤖 Starting Admin Bot (dev polling)...')
+console.log('⚠️  Stop this before using webhooks in production.')
+
+import { bot } from './lib/telegram/admin/bot'
 
 bot.start({
-    onStart: (botInfo) => {
-        console.log(`\n🚀 Bot @${botInfo.username} is now active!\nSend /start in Telegram to test it.\n`);
-    },
-});
+  onStart: (info) => {
+    console.log(`🚀 @${info.username} active. Send /start in Telegram.`)
+  },
+})

@@ -1,44 +1,53 @@
-import { config } from "dotenv";
-import { createClient } from "@supabase/supabase-js";
+import { config } from 'dotenv'
+import { createClient } from '@supabase/supabase-js'
 
-config({ path: ".env.local" });
+config({ path: '.env.local' })
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const chatId = process.env.ADMIN_CHAT_ID;
-const emailArg: string = process.argv[2];
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+const chatIdArg = process.argv[2]
+const usernameArg = process.argv[3] ?? 'Admin'
 
-if (!emailArg) {
-    console.error('Please provide an email address as argument.');
-    process.exit(1);
+const chatId = chatIdArg
+  ? parseInt(chatIdArg, 10)
+  : process.env.ADMIN_CHAT_ID
+    ? parseInt(process.env.ADMIN_CHAT_ID, 10)
+    : null
+
+if (!chatId || Number.isNaN(chatId)) {
+  console.error('Usage: npm run make-admin -- <telegram_chat_id> [username]')
+  console.error('Or set ADMIN_CHAT_ID in .env.local')
+  process.exit(1)
 }
 
-if (!supabaseUrl || !supabaseKey || !chatId) {
-    console.error("Missing environment variables in .env.local");
-    process.exit(1);
+if (!supabaseUrl || !supabaseKey) {
+  console.error('Missing Supabase env vars in .env.local')
+  process.exit(1)
 }
 
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabase = createClient(supabaseUrl, supabaseKey)
 
 async function main() {
-    console.log(`Setting chat ID ${chatId} as an approved admin...`);
+  console.log(`Registering chat ID ${chatId} as approved admin...`)
 
-    const { data, error } = await supabase
-        .from("telegram_admins")
-        .upsert({
-            telegram_chat_id: parseInt(chatId),
-            username: "Admin",
-            role: "admin",
-            is_approved: true
-        }, { onConflict: "telegram_chat_id" })
-        .select();
+  const { error } = await supabase
+    .from('telegram_admins')
+    .upsert(
+      {
+        telegram_chat_id: chatId,
+        username: usernameArg,
+        role: 'admin',
+        is_approved: true,
+      },
+      { onConflict: 'telegram_chat_id' }
+    )
 
-    if (error) {
-        console.error("❌ Failed to add admin to database:", error.message);
-    } else {
-        console.log("✅ Successfully added you as an admin!");
-        console.log("Try sending /dashboard to the Admin bot now.");
-    }
+  if (error) {
+    console.error('❌ Failed:', error.message)
+    process.exit(1)
+  }
+
+  console.log('✅ Success! Send /start to the Admin bot to verify access.')
 }
 
-main();
+main()

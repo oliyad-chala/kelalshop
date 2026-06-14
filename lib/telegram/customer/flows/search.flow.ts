@@ -1,110 +1,84 @@
-/**
- * search.flow.ts
- *
- * Exports:
- *  - registerSearchFlow(bot)  — registers the /search command and the
- *                               catch-all product search message:text handler
- *
- * This flow must be registered LAST so it acts as a catch-all for free text
- * after all other flows (auth, support, button hears) have had a chance to
- * handle the message.
- */
-import { InlineKeyboard, Bot } from "grammy";
-import { CustomerContext } from "../bot";
-import { supabase } from "../../admin/middleware";
-import { extractShoppingIntent, answerCustomerFAQ } from "../../../gemini/shopping-assistant";
+import { InlineKeyboard, Bot } from 'grammy'
+import type { CustomerBotContext } from '../../core/types'
+import { getTelegramSupabase } from '../../core/supabase-admin'
+import { formatEtb } from '../../core/telegram-format'
+import { extractShoppingIntent, answerCustomerFAQ } from '../../../gemini/shopping-assistant'
 
-// These must match the Keyboard labels in commands.ts exactly
 const BUTTON_TEXTS = new Set([
-    "🔍 Search Products",
-    "⚡ Flash Deals",
-    "📦 My Orders",
-    "💬 Support Ticket",
-    "⚙️ Profile / Link Account",
-]);
+  '🔍 Search Products',
+  '⚡ Flash Deals',
+  '📦 My Orders',
+  '💬 Support Ticket',
+  '⚙️ Profile / Link Account',
+])
 
-export function registerSearchFlow(bot: Bot<CustomerContext>) {
-    bot.command("search", async (ctx) => {
-        await ctx.reply("🔍 What are you looking for? (e.g., 'gaming laptop under 80000 ETB')");
-    });
+export function registerSearchFlow(bot: Bot<CustomerBotContext>) {
+  bot.command('search', async (ctx) => {
+    await ctx.reply(
+      '🔍 <b>Product Search</b>\n\nType what you are looking for, e.g. <i>gaming laptop under 80000 ETB</i>',
+      { parse_mode: 'HTML' }
+    )
+  })
 
-    bot.on("message:text", async (ctx, next) => {
-        const text = ctx.message.text.trim();
+  bot.on('message:text', async (ctx, next) => {
+    const text = ctx.message.text.trim()
+    if (text.startsWith('/')) return next()
+    if (BUTTON_TEXTS.has(text)) return next()
 
-        // Pass commands through (handled by other command() registrations)
-        if (text.startsWith("/")) return next();
+    const replyToText = ctx.message.reply_to_message?.text
+    if (
+      replyToText?.includes('Enter the email') ||
+      replyToText?.includes('Enter the code') ||
+      replyToText?.includes('Describe your issue')
+    ) {
+      return next()
+    }
 
-        // Pass button texts through (handled by hears() registered before this)
-        if (BUTTON_TEXTS.has(text)) return next();
+    await ctx.replyWithChatAction('typing')
 
-        // Pass force-reply responses through to auth/support handlers
-        const replyToText = ctx.message.reply_to_message?.text;
-        if (
-            replyToText?.includes("enter the email address") ||
-            replyToText?.includes("enter the 6") ||
-            replyToText?.includes("6\\-digit code") ||
-            replyToText?.includes("describe your issue in a single message")
-        ) {
-            return next();
-        }
+    const isFaq =
+      /^(how|where|what is|when|why)\b/i.test(text) &&
+      !/\d+\s*etb/i.test(text) &&
+      text.endsWith('?')
 
-        // ── AI search / FAQ ──────────────────────────────────────────────────
-        await ctx.replyWithChatAction("typing");
+    if (isFaq) {
+      const answer = await answerCustomerFAQ(text)
+      return ctx.reply(answer, { parse_mode: 'HTML' })
+    }
 
-        if (
-            text.toLowerCase().includes("how") ||
-            text.toLowerCase().includes("where") ||
-            text.toLowerCase().includes("what is") ||
-            text.endsWith("?")
-        ) {
-            const answer = await answerCustomerFAQ(text);
-            return ctx.reply(answer, { parse_mode: "Markdown" });
-        }
+    const intent = await extractShoppingIntent(text)
+    let query = getTelegramSupabase()
+      .from('products')
+      .select('id, name, price')
+      .eq('is_available', true)
+      .eq('approval_status', 'approved')
 
-        const intent = await extractShoppingIntent(text);
+    if (intent.keywords?.length) {
+      query = query.ilike('name', `%${intent.keywords.join('%')}%`)
+    }
+    if (intent.minPrice) query = query.gte('price', intent.minPrice)
+    if (intent.maxPrice) query = query.lte('price', intent.maxPrice)
 
-        let query = supabase
-            .from("products")
-            .select("id, name, price")
-            .eq("is_available", true);
+    if (intent.sortBy === 'price_asc') query = query.order('price', { ascending: true })
+    else if (intent.sortBy === 'price_desc') query = query.order('price', { ascending: false })
+    else query = query.order('created_at', { ascending: false })
 
-        if (intent.keywords && intent.keywords.length > 0) {
-            const likeSearch = `%${intent.keywords.join("%")}%`;
-            query = query.ilike("name", likeSearch);
-        }
-        if (intent.minPrice) query = query.gte("price", intent.minPrice);
-        if (intent.maxPrice) query = query.lte("price", intent.maxPrice);
+    const { data: products, error } = await query.limit(3)
+    if (error) return ctx.reply('❌ Search error. Try again.')
+    if (!products?.length) {
+      return ctx.reply('😕 No products found. Try /deals or different keywords.', { parse_mode: 'HTML' })
+    }
 
-        if (intent.sortBy === "price_asc") query = query.order("price", { ascending: true });
-        else if (intent.sortBy === "price_desc") query = query.order("price", { ascending: false });
-        else query = query.order("created_at", { ascending: false });
+    await ctx.reply(`🔍 <b>Found ${products.length} product(s)</b>`, { parse_mode: 'HTML' })
 
-        const { data: products, error } = await query.limit(3);
-
-        if (error) {
-            return ctx.reply("❌ Error searching for products. Please try again.");
-        }
-
-        if (!products || products.length === 0) {
-            return ctx.reply(
-                "😕 Sorry, I couldn't find any products matching your search.\n\nTry different keywords or browse /deals for discounted items.",
-                { parse_mode: "HTML" }
-            );
-        }
-
-        await ctx.reply(`🔍 <b>Found ${products.length} product(s):</b>`, {
-            parse_mode: "HTML",
-        });
-
-        for (const product of products) {
-            const keyboard = new InlineKeyboard()
-                .url("🛒 Buy Now", `https://kelalshop.com/checkout?product=${product.id}`)
-                .url("🔍 View Details", `https://kelalshop.com/products/${product.id}`);
-
-            await ctx.reply(`📦 <b>${product.name}</b>\n💰 ${product.price} ETB`, {
-                parse_mode: "HTML",
-                reply_markup: keyboard,
-            });
-        }
-    });
+    for (const product of products) {
+      const keyboard = new InlineKeyboard()
+        .url('🛒 View', `https://kelalshop.com/products/${product.id}`)
+        .url('🛍️ Shop', 'https://kelalshop.com/products')
+      await ctx.reply(`📦 <b>${product.name}</b>\n💰 ${formatEtb(Number(product.price))}`, {
+        parse_mode: 'HTML',
+        reply_markup: keyboard,
+      })
+    }
+  })
 }

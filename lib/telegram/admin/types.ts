@@ -1,6 +1,1 @@
-import { Context } from "grammy";
-
-export interface BotContext extends Context {
-    isAdmin: boolean;
-    adminRole?: 'admin' | 'staff';
-}
+export type { AdminBotContext as BotContext } from '../core/types'

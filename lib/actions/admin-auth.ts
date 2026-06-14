@@ -5,6 +5,7 @@ import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { isAdminPortalRole } from '@/lib/utils/admin-roles'
 import { logAdminAction } from './activity-log'
+import { emitTelegramEvent } from '@/lib/telegram/notifications/templates'
 
 type AdminAuthState = { error?: string } | null
 
@@ -71,6 +72,10 @@ export async function adminSignIn(state: AdminAuthState, formData: FormData) {
   const ip = await getClientIp()
 
   if (await isAdminLoginBlocked(supabase, email, ip)) {
+    emitTelegramEvent('admin', 'SUSPICIOUS_ACTIVITY', {
+      userId: email,
+      description: `Blocked admin login — too many failures from IP ${ip}`,
+    }, { idempotencyKey: `login-blocked-${email}-${ip}` })
     return {
       error: `Too many failed attempts. Please wait ${WINDOW_MINUTES} minutes before trying again.`,
     }

@@ -9,7 +9,10 @@
     "lint": "eslint",
     "bot": "tsx --env-file=.env.local run-bot.ts",
     "customer-bot": "tsx --env-file=.env.local run-customer-bot.ts",
-    "set-webhooks": "tsx --env-file=.env.local scripts/set-webhooks.ts"
+    "set-webhooks": "tsx --env-file=.env.local scripts/set-webhooks.ts",
+    "check-webhooks": "tsx --env-file=.env.local scripts/check-webhook.ts",
+    "sync-bot-commands": "tsx --env-file=.env.local scripts/sync-bot-commands.ts",
+    "make-admin": "tsx --env-file=.env.local scripts/make-admin.ts"
   },
   "dependencies": {
     "@google/genai": "^2.8.0",

@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { requireAdmin, requireStaffOrAdmin } from '@/lib/actions/admin-access'
 import { uploadWatermarkedProductImages } from '@/lib/utils/product-image-storage'
 import { logAdminAction } from '@/lib/actions/activity-log'
+import { emitTelegramEvent } from '@/lib/telegram/notifications/templates'
 
 // ── Verifications ────────────────────────────────────────────────────────────
 
@@ -542,6 +543,9 @@ export async function adminApproveProduct(productId: string) {
   }
   const { data: adminProfile } = await (admin.from('profiles') as any).select('full_name').eq('id', user.id).single()
   await logAdminAction({ adminId: user.id, adminName: adminProfile?.full_name ?? 'Admin', actionType: 'approve_product', entityType: 'product', entityId: productId, description: `Approved product "${product?.name ?? productId}"` })
+  emitTelegramEvent('admin', 'PRODUCT_APPROVED', { productName: product?.name ?? productId }, {
+    idempotencyKey: `product-approved-${productId}`,
+  })
   revalidatePath('/admin/products')
   revalidatePath('/dashboard/listings')
   revalidatePath('/')
@@ -573,6 +577,10 @@ export async function adminRejectProduct(productId: string, reason: string) {
   }
   const { data: adminProfile } = await (admin.from('profiles') as any).select('full_name').eq('id', user.id).single()
   await logAdminAction({ adminId: user.id, adminName: adminProfile?.full_name ?? 'Admin', actionType: 'reject_product', entityType: 'product', entityId: productId, description: `Rejected product "${product?.name ?? productId}". Reason: ${reason}` })
+  emitTelegramEvent('admin', 'PRODUCT_REJECTED', {
+    productName: product?.name ?? productId,
+    reason,
+  }, { idempotencyKey: `product-rejected-${productId}` })
   revalidatePath('/admin/products')
   revalidatePath('/dashboard/listings')
   revalidatePath('/')

@@ -1,27 +1,28 @@
-import { bot } from "@/lib/telegram/admin/bot";
-// Import commands to ensure they are registered
-import "@/lib/telegram/admin/commands";
+import { bot } from '@/lib/telegram/admin/bot'
 
-export const dynamic = "force-dynamic";
+export const dynamic = 'force-dynamic'
 
 export async function POST(req: Request) {
-    // Verify the secret token to ensure the request came from Telegram
-    const secretToken = req.headers.get("x-telegram-bot-api-secret-token");
+  const secretToken = req.headers.get('x-telegram-bot-api-secret-token')
 
-    if (secretToken !== process.env.TELEGRAM_WEBHOOK_SECRET) {
-        console.error("Unauthorized webhook access attempt");
-        return new Response("Unauthorized", { status: 401 });
-    }
+  if (secretToken !== process.env.TELEGRAM_WEBHOOK_SECRET) {
+    console.error('Unauthorized webhook access attempt')
+    return new Response('Unauthorized', { status: 401 })
+  }
 
-    try {
-        const update = await req.json();
-        // Initialize bot if not already initialized
-        await bot.init();
-        // Pass the update to Grammy manually
-        await bot.handleUpdate(update);
-        return new Response("OK", { status: 200 });
-    } catch (error) {
-        console.error("Error processing Telegram update:", error);
-        return new Response("Internal Server Error", { status: 500 });
-    }
+  try {
+    const update = await req.json()
+    await bot.init()
+    await bot.handleUpdate(update)
+
+    // Process queue opportunistically after each update
+    import('@/lib/telegram/notifications/queue-processor')
+      .then((m) => m.processNotificationQueue(5))
+      .catch(() => {})
+
+    return new Response('OK', { status: 200 })
+  } catch (error) {
+    console.error('Error processing Telegram update:', error)
+    return new Response('OK', { status: 200 })
+  }
 }

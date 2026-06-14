@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
+import { emitTelegramEvent } from '@/lib/telegram/notifications/templates'
 
 export async function submitVerification(
   formData: FormData
@@ -55,6 +56,16 @@ export async function submitVerification(
     .eq('id', user.id)
 
   if (updateError) throw new Error(updateError.message)
+
+  const { data: store } = await admin
+    .from('shopper_profiles')
+    .select('business_name')
+    .eq('id', user.id)
+    .maybeSingle()
+
+  emitTelegramEvent('admin', 'NEW_SELLER', {
+    storeName: store?.business_name ?? 'New Seller',
+  }, { idempotencyKey: `seller-pending-${user.id}` })
 
   revalidatePath('/dashboard/verification')
   revalidatePath('/dashboard')
