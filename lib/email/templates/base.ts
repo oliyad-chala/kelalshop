@@ -5,13 +5,14 @@ export interface BaseEmailOptions {
 }
 
 export function buildBaseEmail(content: string, options: BaseEmailOptions = {}) {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://kelalshop.vercel.app'
   const title = options.title ?? 'KelalShop'
   const preheader = options.preheader ? `<span style="display:none;font-size:0;max-height:0;line-height:0;mso-hide:all;">${options.preheader}</span>` : ''
   const unsubscribeSection = options.showUnsubscribe
     ? `<p style="margin: 0; font-size: 12px; color: #9ca3af; line-height: 1.5;">
         You received this email because you're registered at KelalShop.
         If you no longer wish to receive these emails, you can 
-        <a href="https://kelalshop.com/profile/settings" style="color: #16a34a; text-decoration: underline;">unsubscribe here</a>.
+        <a href="${siteUrl}/profile/settings" style="color: #16a34a; text-decoration: underline;">unsubscribe here</a>.
        </p>`
     : `<p style="margin: 0; font-size: 12px; color: #9ca3af; line-height: 1.5;">
         This is a transactional email regarding your account activity. Unsubscribe is not available for security/transactional notices.
@@ -98,8 +99,8 @@ export function buildBaseEmail(content: string, options: BaseEmailOptions = {}) 
           <!-- Header (Branded logo / name) -->
           <tr>
             <td align="center" style="padding-bottom: 24px;">
-              <a href="https://kelalshop.com" style="text-decoration: none; display: inline-block;">
-                <img src="https://kelalshop.com/logo.jpg" alt="KelalShop Logo" width="60" style="display: block; margin: 0 auto 12px; border-radius: 8px;" />
+              <a href="${siteUrl}" style="text-decoration: none; display: inline-block;">
+                <img src="${siteUrl}/logo.jpg" alt="KelalShop Logo" width="60" style="display: block; margin: 0 auto 12px; border-radius: 8px;" />
                 <span style="color: #111827; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">Kelal</span><span style="color: #f59e0b; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;" class="text-primary">Shop</span>
               </a>
             </td>
@@ -116,11 +117,11 @@ export function buildBaseEmail(content: string, options: BaseEmailOptions = {}) 
               <table border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 16px;">
                 <tr>
                   <td style="padding: 0 10px;">
-                    <a href="https://kelalshop.com/shop" style="font-size: 14px; color: #f59e0b; text-decoration: none; font-weight: 600;">Shop</a>
+                    <a href="${siteUrl}/shop" style="font-size: 14px; color: #f59e0b; text-decoration: none; font-weight: 600;">Shop</a>
                   </td>
                   <td style="padding: 0 10px; color: #d1d5db;">|</td>
                   <td style="padding: 0 10px;">
-                    <a href="https://kelalshop.com/support" style="font-size: 14px; color: #f59e0b; text-decoration: none; font-weight: 600;">Support</a>
+                    <a href="${siteUrl}/support" style="font-size: 14px; color: #f59e0b; text-decoration: none; font-weight: 600;">Support</a>
                   </td>
                 </tr>
               </table>
