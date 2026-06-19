@@ -99,7 +99,7 @@ export function buildBaseEmail(content: string, options: BaseEmailOptions = {}) 
           <tr>
             <td align="center" style="padding-bottom: 24px;">
               <a href="https://kelalshop.com" style="text-decoration: none; display: inline-block;">
-                <img src="https://kelalshop.com/logo.png" alt="KelalShop Logo" width="60" style="display: block; margin: 0 auto 12px; border-radius: 8px;" />
+                <img src="https://kelalshop.com/logo.jpg" alt="KelalShop Logo" width="60" style="display: block; margin: 0 auto 12px; border-radius: 8px;" />
                 <span style="color: #111827; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">Kelal</span><span style="color: #f59e0b; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;" class="text-primary">Shop</span>
               </a>
             </td>
