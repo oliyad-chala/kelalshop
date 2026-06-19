@@ -98,8 +98,9 @@ export function buildBaseEmail(content: string, options: BaseEmailOptions = {}) 
           <!-- Header (Branded logo / name) -->
           <tr>
             <td align="center" style="padding-bottom: 24px;">
-              <a href="https://kelalshop.com" style="text-decoration: none; color: #16a34a; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">
-                <span style="color: #16a34a;">Kelal</span><span style="color: #111827;" class="text-primary">Shop</span>
+              <a href="https://kelalshop.com" style="text-decoration: none; display: inline-block;">
+                <img src="https://kelalshop.com/logo.png" alt="KelalShop Logo" width="60" style="display: block; margin: 0 auto 12px; border-radius: 8px;" />
+                <span style="color: #111827; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;">Kelal</span><span style="color: #f59e0b; font-size: 28px; font-weight: 800; letter-spacing: -0.5px;" class="text-primary">Shop</span>
               </a>
             </td>
           </tr>
@@ -115,11 +116,11 @@ export function buildBaseEmail(content: string, options: BaseEmailOptions = {}) 
               <table border="0" cellspacing="0" cellpadding="0" style="margin-bottom: 16px;">
                 <tr>
                   <td style="padding: 0 10px;">
-                    <a href="https://kelalshop.com/shop" style="font-size: 14px; color: #16a34a; text-decoration: none; font-weight: 500;">Shop</a>
+                    <a href="https://kelalshop.com/shop" style="font-size: 14px; color: #f59e0b; text-decoration: none; font-weight: 600;">Shop</a>
                   </td>
                   <td style="padding: 0 10px; color: #d1d5db;">|</td>
                   <td style="padding: 0 10px;">
-                    <a href="https://kelalshop.com/support" style="font-size: 14px; color: #16a34a; text-decoration: none; font-weight: 500;">Support</a>
+                    <a href="https://kelalshop.com/support" style="font-size: 14px; color: #f59e0b; text-decoration: none; font-weight: 600;">Support</a>
                   </td>
                 </tr>
               </table>
