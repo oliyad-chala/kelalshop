@@ -1,7 +1,7 @@
 'use client'
 
-import { useActionState, useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useActionState, useState, useEffect } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { clsx } from 'clsx'
 import { signUp, signInWithGoogle } from '@/lib/actions/auth'
 import { getSafeRedirectPath, redirectQueryString } from '@/lib/utils/auth-redirect'
@@ -135,7 +135,8 @@ function ConfirmEmailScreen({ loginHref }: { loginHref: string }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function SignupForm() {
+export function SignupForm({ captchaQuestion, captchaHash }: { captchaQuestion: string; captchaHash: string }) {
+  const router = useRouter()
   const searchParams = useSearchParams()
   const loginHref = `/auth/login${redirectQueryString(searchParams)}`
   const [state, formAction, pending] = useActionState(signUp, initialState)
@@ -152,9 +153,27 @@ export function SignupForm() {
   const isWeakPassword = password.length > 0 && currentStrength < 2
   const confirmMismatch = confirm.length > 0 && password !== confirm
 
+  useEffect(() => {
+    if (state?.success === 'confirm-otp' && state?.email) {
+      router.push(`/auth/verify-email?email=${encodeURIComponent(state.email)}`)
+    }
+  }, [state, router])
+
   // Show success screen when email confirmation is needed
   if (state?.success === 'confirm-email') {
     return <ConfirmEmailScreen loginHref={loginHref} />
+  }
+
+  if (state?.success === 'confirm-otp') {
+    return (
+      <div className="text-center py-6 space-y-3">
+        <svg className="w-8 h-8 text-amber-500 animate-spin mx-auto" fill="none" viewBox="0 0 24 24">
+          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+        </svg>
+        <p className="text-navy-900 font-semibold">Redirecting to verification page...</p>
+      </div>
+    )
   }
 
   function handleNameChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -372,6 +391,21 @@ export function SignupForm() {
               <div className="text-xs opacity-75">List products &amp; fulfill requests</div>
             </button>
           </div>
+        </div>
+
+        {/* CAPTCHA Challenge */}
+        <div className="space-y-1">
+          <label htmlFor="captcha_answer" className="block text-sm font-medium text-navy-900 mb-1">
+            Security Check: {captchaQuestion}
+          </label>
+          <Input
+            id="captcha_answer"
+            name="captcha_answer"
+            type="text"
+            required
+            placeholder="Enter answer"
+          />
+          <input type="hidden" name="captcha_hash" value={captchaHash} />
         </div>
 
         <Button

@@ -49,6 +49,8 @@ export function LoginForm() {
   // Check for OAuth failure flag from the callback route
   const oauthFailed = searchParams.get('error') === 'oauth_failed'
   const adminRestricted = searchParams.get('error') === 'admin_restricted'
+  const verified = searchParams.get('verified') === 'true'
+  const emailParam = searchParams.get('email') || ''
 
   useEffect(() => {
     if (state?.success === 'true') {
@@ -84,6 +86,16 @@ export function LoginForm() {
 
   return (
     <div className="space-y-5">
+      {/* Success banner */}
+      {verified && (
+        <div className="p-4 bg-green-50 rounded-xl border border-green-100 flex items-start gap-3 fade-in">
+          <svg className="w-5 h-5 text-green-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div className="text-sm text-green-700">Email verified successfully! Please log in.</div>
+        </div>
+      )}
+
       {/* Error banner */}
       {displayError && (
         <div className="p-4 bg-red-50 rounded-xl border border-red-100 flex items-start gap-3 fade-in">
@@ -131,6 +143,7 @@ export function LoginForm() {
             autoComplete="email"
             required
             placeholder="you@example.com"
+            defaultValue={emailParam}
           />
 
           <div className="space-y-1">

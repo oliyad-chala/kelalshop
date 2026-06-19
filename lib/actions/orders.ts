@@ -9,6 +9,131 @@ import { getUserLocation } from '@/lib/utils/geo'
 import { logUserAction } from '@/lib/actions/activity-log'
 import { emitTelegramEvent } from '@/lib/telegram/notifications/templates'
 
+import { createAdminClient } from '@/lib/supabase/admin'
+import { queueEmail } from '@/lib/email/queue'
+import {
+  buildOrderConfirmationEmail,
+  buildOrderStatusEmail,
+  buildSellerNewOrderEmail,
+} from '@/lib/email/templates'
+
+// ── Email Helpers ─────────────────────────────────────────────────────────────
+
+async function sendOrderCreationEmails(
+  orderId: string,
+  productId: string,
+  buyerId: string,
+  shopperId: string,
+  amount: number,
+  productName: string,
+  productPrice: number,
+  shippingFee: number
+) {
+  try {
+    const supabase = createAdminClient()
+
+    const { data: { user: buyerUser } } = await supabase.auth.admin.getUser(buyerId)
+    const { data: { user: shopperUser } } = await supabase.auth.admin.getUser(shopperId)
+
+    if (buyerUser && buyerUser.email) {
+      // Get product image
+      const { data: img } = await supabase
+        .from('product_images')
+        .select('url')
+        .eq('product_id', productId)
+        .eq('is_primary', true)
+        .maybeSingle()
+
+      const imageUrl = img?.url || undefined
+      const buyerEmail = buyerUser.email
+      const buyerName = buyerUser.user_metadata?.full_name || buyerEmail.split('@')[0] || 'Customer'
+
+      const confirmEmailData = buildOrderConfirmationEmail({
+        orderNumber: orderId,
+        buyerName,
+        items: [{ name: productName, price: productPrice, imageUrl }],
+        subtotal: productPrice,
+        shippingFee,
+        total: amount,
+        estimatedDelivery: '10-14 days',
+      })
+
+      await queueEmail('order-confirmation', {
+        to: buyerEmail,
+        subject: confirmEmailData.subject,
+        html: confirmEmailData.html,
+        text: confirmEmailData.text,
+      }, `order-confirmation-${orderId}`)
+    }
+
+    if (shopperUser && shopperUser.email) {
+      const shopperEmail = shopperUser.email
+      const sellerEmailData = buildSellerNewOrderEmail({
+        orderNumber: orderId,
+        buyerName: buyerUser?.user_metadata?.full_name || buyerUser?.email?.split('@')[0] || 'Customer',
+        items: [{ name: productName, price: productPrice }],
+        total: amount,
+      })
+
+      await queueEmail('seller-new-order', {
+        to: shopperEmail,
+        subject: sellerEmailData.subject,
+        html: sellerEmailData.html,
+        text: sellerEmailData.text,
+      }, `seller-new-order-${orderId}`)
+    }
+  } catch (err) {
+    console.error('[Order Emails] Failed to send order creation emails:', err)
+  }
+}
+
+async function sendOrderStatusEmailNotification(
+  orderId: string,
+  status: 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded'
+) {
+  try {
+    const supabase = createAdminClient()
+    
+    const { data: order } = await supabase
+      .from('orders')
+      .select('buyer_id, amount, product_id')
+      .eq('id', orderId)
+      .single()
+
+    if (!order) return
+
+    const { data: product } = await supabase
+      .from('products')
+      .select('name')
+      .eq('id', order.product_id)
+      .single()
+
+    const productName = product?.name || 'Item'
+
+    const { data: { user: buyerUser } } = await supabase.auth.admin.getUser(order.buyer_id)
+    if (!buyerUser || !buyerUser.email) return
+
+    const buyerName = buyerUser.user_metadata?.full_name || buyerUser.email.split('@')[0] || 'Customer'
+
+    const statusEmailData = buildOrderStatusEmail(status, {
+      orderNumber: orderId,
+      buyerName,
+      itemsSummary: productName,
+      total: Number(order.amount),
+    })
+
+    await queueEmail(`order-status-${status}`, {
+      to: buyerUser.email,
+      subject: statusEmailData.subject,
+      html: statusEmailData.html,
+      text: statusEmailData.text,
+    }, `order-status-${status}-${orderId}`)
+  } catch (err) {
+    console.error(`[Order Status Email] Failed to send ${status} email for order ${orderId}:`, err)
+  }
+}
+
+
 /**
  * Shopper marks an order as Shipped.
  * Workflow: pending/accepted → shipped
@@ -34,6 +159,9 @@ export async function markOrderShipped(orderId: string) {
       idempotencyKey: `order-shipped-${orderId}`,
     })
   }
+
+  // Trigger email
+  sendOrderStatusEmailNotification(orderId, 'shipped')
 
   revalidatePath('/dashboard/orders')
   revalidatePath('/dashboard')
@@ -72,6 +200,9 @@ export async function confirmDelivery(orderId: string) {
     targetProfileId: user.id,
     idempotencyKey: `order-delivered-${orderId}`,
   })
+
+  // Trigger email
+  sendOrderStatusEmailNotification(orderId, 'delivered')
 
   // 3. Escrow release
   const commission = 0.05
@@ -112,6 +243,9 @@ export async function acceptOrder(orderId: string) {
     })
   }
 
+  // Trigger email
+  sendOrderStatusEmailNotification(orderId, 'processing')
+
   revalidatePath('/dashboard/orders')
   revalidatePath('/dashboard')
 }
@@ -138,6 +272,9 @@ export async function cancelOrder(orderId: string) {
     targetProfileId: user.id,
     idempotencyKey: `order-cancelled-${orderId}`,
   })
+
+  // Trigger email
+  sendOrderStatusEmailNotification(orderId, 'cancelled')
 
   revalidatePath('/dashboard/orders')
   revalidatePath('/dashboard')
@@ -169,7 +306,7 @@ export async function createOrder(
 
   const { data: product, error: productError } = await supabase
     .from('products')
-    .select('id, price, shopper_id, is_available, approval_status')
+    .select('id, name, price, shopper_id, is_available, approval_status')
     .eq('id', finalProductId)
     .single()
 
@@ -244,6 +381,18 @@ export async function createOrder(
       description: `Placed order for product ${finalProductId}`
     })
 
+    // Trigger emails
+    sendOrderCreationEmails(
+      order.id,
+      finalProductId,
+      user.id,
+      product.shopper_id,
+      amount + shippingFee,
+      product.name ?? finalProductId,
+      Number(product.price),
+      shippingFee
+    )
+
     revalidatePath('/dashboard/orders')
     revalidatePath('/dashboard')
     return order.id
@@ -266,6 +415,18 @@ export async function createOrder(
     entityId: orderId,
     description: `Placed order for product "${product.name ?? finalProductId}"`
   })
+
+  // Trigger emails
+  sendOrderCreationEmails(
+    orderId,
+    finalProductId,
+    user.id,
+    product.shopper_id,
+    amount + shippingFee,
+    product.name ?? finalProductId,
+    Number(product.price),
+    shippingFee
+  )
 
   revalidatePath('/dashboard/orders')
   revalidatePath('/dashboard')

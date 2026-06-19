@@ -26,25 +26,16 @@ async function findProfileByEmail(email: string): Promise<string | null> {
   return profile?.id ?? user.id
 }
 
+import { sendOtpEmail as sendSharedOtpEmail } from '../../../email/resend'
+
 async function sendOtpEmail(email: string, otp: string): Promise<boolean> {
   const resendKey = process.env.RESEND_API_KEY
   if (resendKey) {
     try {
-      const res = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${resendKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: process.env.RESEND_FROM_EMAIL || 'KelalShop <noreply@kelalshop.com>',
-          to: email,
-          subject: 'Your KelalShop Telegram Link Code',
-          html: `<p>Your verification code is: <strong>${otp}</strong></p><p>Expires in 10 minutes.</p>`,
-        }),
-      })
-      return res.ok
-    } catch {
+      await sendSharedOtpEmail(email, otp, 'link your Telegram account')
+      return true
+    } catch (err) {
+      console.error('[Telegram Auth Flow] Failed to send OTP email:', err)
       return false
     }
   }

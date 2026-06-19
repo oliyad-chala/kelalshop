@@ -1,6 +1,7 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { resetPassword } from '@/lib/actions/auth'
 import type { Metadata } from 'next'
@@ -9,6 +10,13 @@ const initialState = { error: '', success: '' }
 
 function ResetForm() {
   const [state, formAction, pending] = useActionState(resetPassword, initialState)
+  const router = useRouter()
+
+  useEffect(() => {
+    if (state?.success && state?.email) {
+      router.push(`/auth/reset/verify?email=${encodeURIComponent(state.email)}`)
+    }
+  }, [state, router])
 
   if (state?.success) {
     return (
@@ -19,13 +27,7 @@ function ResetForm() {
           </svg>
         </div>
         <p className="text-green-700 font-semibold text-lg">Email sent!</p>
-        <p className="text-slate-500 text-sm">{state.success}</p>
-        <Link
-          href="/auth/login"
-          className="inline-block mt-4 text-sm font-medium text-amber-500 hover:text-amber-600"
-        >
-          ← Back to Sign In
-        </Link>
+        <p className="text-slate-500 text-sm">Redirecting to verification...</p>
       </div>
     )
   }

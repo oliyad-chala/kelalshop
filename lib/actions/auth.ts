@@ -2,9 +2,16 @@
 
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { generateDeviceFingerprint, checkRateLimit } from '@/lib/utils/security'
+import { isDisposableEmail } from '@/lib/utils/email'
 import { logUserAction } from '@/lib/actions/activity-log'
 import type { ActionState } from '@/types/app.types'
+import crypto from 'crypto'
+
+import { queueEmail } from '@/lib/email/queue'
+import { buildWelcomeEmail, buildPasswordChangedEmail, buildOtpEmail, buildForgotPasswordEmail } from '@/lib/email/templates'
+
 
 // ── Google OAuth ─────────────────────────────────────────────────────────────
 
@@ -48,14 +55,26 @@ export async function signUp(
   _prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
-  const supabase = await createClient()
-
   const email    = (formData.get('email')            as string)?.trim()
   const password = (formData.get('password')         as string) ?? ''
   const confirmPassword = (formData.get('confirm_password') as string) ?? ''
   const fullName = (formData.get('full_name')        as string)?.trim()
   const phone    = (formData.get('phone')            as string)?.trim()
   const role     = (formData.get('role')             as string)?.trim()
+  
+  // CAPTCHA verification
+  const captchaAnswer = formData.get('captcha_answer') as string
+  const captchaHash = formData.get('captcha_hash') as string
+  const captchaSecret = process.env.CAPTCHA_SECRET || 'kelalshop-captcha-fallback-secret-key-123'
+  
+  if (!captchaAnswer || !captchaHash) {
+    return { error: 'CAPTCHA is required.' }
+  }
+  
+  const expectedHash = crypto.createHmac('sha256', captchaSecret).update(captchaAnswer.trim()).digest('hex')
+  if (captchaHash !== expectedHash) {
+    return { error: 'Incorrect CAPTCHA answer.' }
+  }
 
   // ── Field presence ──────────────────────────────────────────────────
   if (!email || !password || !fullName || !phone || !role) {
@@ -67,9 +86,15 @@ export async function signUp(
     return { error: 'Full name must not contain numbers.' }
   }
 
+  // ── Disposable Email Check ──────────────────────────────────────────
+  if (isDisposableEmail(email)) {
+    return { error: 'Disposable email addresses are not allowed.' }
+  }
+
   // ── Rate Limiting ────────────────────────────────────────────────────
   const { ip } = await generateDeviceFingerprint()
-  const isAllowed = await checkRateLimit(`signup:${ip}`, 5, 3600) // 5 signups per hour
+  const isLocalhost = ip === '127.0.0.1' || ip === '::1' || ip === 'localhost'
+  const isAllowed = isLocalhost ? true : await checkRateLimit(`signup:${ip}`, 5, 3600) // 5 signups per hour
   if (!isAllowed) {
     return { error: 'Too many registration attempts. Please try again later.' }
   }
@@ -98,25 +123,49 @@ export async function signUp(
     return { error: 'Invalid role selected.' }
   }
 
-  const { data, error } = await supabase.auth.signUp({
+  // Create user in unconfirmed state using the admin client (prevents auto-sending email links)
+  const adminClient = createAdminClient()
+  const { data, error } = await adminClient.auth.admin.createUser({
     email,
     password,
-    options: {
-      data: { full_name: fullName, phone, role },
-    },
+    email_confirm: false,
+    user_metadata: { full_name: fullName, phone, role }
   })
 
   if (error) {
     return { error: error.message }
   }
 
-  // If Supabase issued a session immediately (email confirm disabled),
-  // redirect to dashboard. Otherwise show the "check your inbox" screen.
-  if (data.session) {
-    redirect('/dashboard')
+  if (data.user && email) {
+    const otp = Math.floor(100000 + Math.random() * 900000).toString()
+    const otpHash = crypto.createHash('sha256').update(otp).digest('hex')
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString() // 10 mins
+
+    const { error: otpError } = await adminClient.from('email_verifications').upsert({
+      email,
+      otp_hash: otpHash,
+      attempts: 0,
+      expires_at: expiresAt,
+      created_at: new Date().toISOString()
+    }, { onConflict: 'email' })
+
+    if (otpError) {
+      console.error('[Signup] Failed to store OTP:', otpError)
+      return { error: 'Failed to initialize verification. Please try again.' }
+    }
+
+    const otpEmail = buildOtpEmail(otp, 'email-verification', 10)
+    await queueEmail('email-verification-otp', {
+      to: email,
+      subject: otpEmail.subject,
+      html: otpEmail.html,
+      text: otpEmail.text
+    }, `email-verification-${email}-${Date.now()}`).catch(err => {
+      console.error('[Signup verification email] Failed to queue email:', err)
+    })
   }
 
-  return { success: 'confirm-email' }
+  return { success: 'confirm-otp', email }
 }
 
 // ── Email sign-in ─────────────────────────────────────────────────────────────
@@ -202,34 +251,21 @@ export async function signIn(
     .single()
 
   if (!deviceRecord) {
-    // New device detected!
+    // New device detected! Log it without requiring OTP verification
     await supabase.from('user_devices').insert({
       user_id: data.user.id,
       device_fingerprint: fingerprint,
       ip_address: ip,
       user_agent: userAgent,
-      is_verified: false
+      is_verified: true,
+      last_login_at: new Date().toISOString()
     })
-
-    // Lock profile for verification
-    await supabase
-      .from('profiles')
-      .update({ requires_verification: true })
-      .eq('id', data.user.id)
-      
-    // Redirect to verification screen
-    redirect('/auth/verify-device')
   } else {
     // Update last login
     await supabase
       .from('user_devices')
       .update({ last_login_at: new Date().toISOString() })
       .eq('id', deviceRecord.id)
-      
-    // If device is not verified, redirect to verification screen
-    if (!deviceRecord.is_verified) {
-      redirect('/auth/verify-device')
-    }
   }
 
   return { success: 'true' }
@@ -260,6 +296,7 @@ export async function resetPassword(
   formData: FormData
 ): Promise<ActionState> {
   const supabase = await createClient()
+  const adminClient = createAdminClient()
   const email = (formData.get('email') as string)?.trim()
 
   if (!email) {
@@ -273,15 +310,196 @@ export async function resetPassword(
     return { error: 'Too many reset requests. Please try again later.' }
   }
 
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'
-
-  const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${siteUrl}/auth/update-password`,
-  })
-
-  if (error) {
-    return { error: error.message }
+  // Check if user exists
+  const { data: userData, error: userError } = await adminClient.auth.admin.listUsers()
+  const user = userData?.users?.find(u => u.email?.toLowerCase() === email.toLowerCase())
+  
+  if (!user || userError) {
+    // Return success anyway to prevent email enumeration
+    return { success: 'Check your inbox — we sent you a verification code.', email }
   }
 
-  return { success: 'Check your inbox — we sent you a reset link.' }
+  // Generate 6-digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString()
+  const otpHash = crypto.createHash('sha256').update(otp).digest('hex')
+  const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString() // 10 mins
+
+  // Store in email_verifications
+  const { error: otpError } = await adminClient.from('email_verifications').upsert({
+    email,
+    otp_hash: otpHash,
+    attempts: 0,
+    expires_at: expiresAt,
+    created_at: new Date().toISOString()
+  }, { onConflict: 'email' })
+
+  if (otpError) {
+    console.error('[Reset Password] Failed to store OTP:', otpError)
+    return { error: 'Failed to generate reset code. Please try again later.' }
+  }
+
+  // Send email
+  const emailData = buildForgotPasswordEmail(otp)
+  await queueEmail('password-reset', {
+    to: email,
+    subject: emailData.subject,
+    html: emailData.html,
+    text: emailData.text
+  }, `password-reset-${email}-${Date.now()}`).catch(console.error)
+
+  return { success: 'Check your inbox — we sent you a verification code.', email }
+}
+
+export async function verifyPasswordResetOtp(email: string, otpCode: string): Promise<ActionState> {
+  const adminClient = createAdminClient()
+  const { ip, userAgent } = await generateDeviceFingerprint()
+
+  if (!email || !otpCode || otpCode.trim().length !== 6) {
+    return { error: 'Invalid verification details.' }
+  }
+
+  // 1. Fetch OTP record
+  const { data: record, error: fetchError } = await adminClient
+    .from('email_verifications')
+    .select('*')
+    .eq('email', email)
+    .maybeSingle()
+
+  if (fetchError || !record) {
+    return { error: 'Verification code not found or expired. Please request a new one.' }
+  }
+
+  // 2. Check attempts
+  if (record.attempts >= 5) {
+    return { error: 'Maximum verification attempts exceeded. Please request a new code.' }
+  }
+
+  // 3. Check expiry
+  if (new Date() > new Date(record.expires_at)) {
+    return { error: 'Verification code has expired. Please request a new one.' }
+  }
+
+  // 4. Verify code (SHA-256 hashed comparison)
+  const inputHash = crypto.createHash('sha256').update(otpCode.trim()).digest('hex')
+  if (record.otp_hash !== inputHash) {
+    const newAttempts = record.attempts + 1
+    
+    await adminClient
+      .from('email_verifications')
+      .update({ attempts: newAttempts })
+      .eq('email', email)
+
+    if (newAttempts >= 5) {
+      return { error: 'Maximum attempts reached. Please request a new code.' }
+    }
+
+    return { error: `Incorrect code. ${5 - newAttempts} attempt(s) remaining.` }
+  }
+
+  // Success! Don't delete the record yet, we need it to verify the actual password change
+  return { success: 'true' }
+}
+
+export async function confirmPasswordWithOtp(
+  _prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  const adminClient = createAdminClient()
+  
+  const email = formData.get('email') as string
+  const otpCode = formData.get('otp') as string
+  const password = formData.get('password') as string
+  const confirmPassword = formData.get('confirm_password') as string
+
+  if (!email || !otpCode || !password || !confirmPassword) {
+    return { error: 'All fields are required.' }
+  }
+
+  if (password.length < 8) {
+    return { error: 'Password must be at least 8 characters.' }
+  }
+  if (password !== confirmPassword) {
+    return { error: 'Passwords do not match.' }
+  }
+
+  // Verify the OTP one last time
+  const { data: record, error: fetchError } = await adminClient
+    .from('email_verifications')
+    .select('*')
+    .eq('email', email)
+    .maybeSingle()
+
+  if (fetchError || !record) {
+    return { error: 'Verification session expired. Please request a new code.' }
+  }
+
+  if (new Date() > new Date(record.expires_at)) {
+    return { error: 'Verification code has expired. Please request a new one.' }
+  }
+
+  const inputHash = crypto.createHash('sha256').update(otpCode.trim()).digest('hex')
+  if (record.otp_hash !== inputHash) {
+    return { error: 'Invalid verification code.' }
+  }
+
+  // OTP is valid. Now find the user and update their password
+  const { data: userData, error: userError } = await adminClient.auth.admin.listUsers()
+  const user = userData?.users?.find(u => u.email?.toLowerCase() === email.toLowerCase())
+
+  if (!user || userError) {
+    return { error: 'User account not found.' }
+  }
+
+  const { error: updateError } = await adminClient.auth.admin.updateUserById(user.id, {
+    password
+  })
+
+  if (updateError) {
+    return { error: 'Failed to update password. Please try again.' }
+  }
+
+  // Delete the OTP record to prevent reuse
+  await adminClient.from('email_verifications').delete().eq('email', email)
+
+  // Notify user that password was changed
+  await notifyPasswordChangedForUser(user.id, user.email, user.user_metadata?.full_name)
+
+  return { success: 'Password successfully updated.' }
+}
+
+async function notifyPasswordChangedForUser(userId: string, email: string, fullName: string | undefined) {
+  const name = fullName || email.split('@')[0] || 'User'
+  const emailData = buildPasswordChangedEmail(name)
+
+  await queueEmail('security-password-changed', {
+    to: email,
+    subject: emailData.subject,
+    html: emailData.html,
+    text: emailData.text
+  }, `password-changed-${userId}-${Date.now()}`)
+}
+
+
+export async function notifyPasswordChanged() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user || !user.email) return { error: 'Not authenticated' }
+
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name')
+    .eq('id', user.id)
+    .single()
+
+  const fullName = profile?.full_name || user.email.split('@')[0] || 'User'
+  const emailData = buildPasswordChangedEmail(fullName)
+
+  await queueEmail('security-password-changed', {
+    to: user.email,
+    subject: emailData.subject,
+    html: emailData.html,
+    text: emailData.text
+  }, `password-changed-${user.id}-${Date.now()}`)
+
+  return { success: true }
 }

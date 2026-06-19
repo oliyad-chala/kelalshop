@@ -6,6 +6,32 @@ import { uploadWatermarkedProductImages } from '@/lib/utils/product-image-storag
 import { logAdminAction } from '@/lib/actions/activity-log'
 import { emitTelegramEvent } from '@/lib/telegram/notifications/templates'
 
+import { queueEmail } from '@/lib/email/queue'
+import { buildSellerVerificationEmail } from '@/lib/email/templates'
+
+async function sendSellerVerificationEmail(shopperId: string, status: 'approved' | 'rejected', reason?: string) {
+  try {
+    const { adminClient: admin } = await requireStaffOrAdmin()
+    const { data: { user: shopperUser } } = await admin.auth.admin.getUser(shopperId)
+    if (!shopperUser || !shopperUser.email) return
+
+    const emailData = buildSellerVerificationEmail(status, reason)
+    await queueEmail(
+      status === 'approved' ? 'seller-verification-approved' : 'seller-verification-rejected',
+      {
+        to: shopperUser.email,
+        subject: emailData.subject,
+        html: emailData.html,
+        text: emailData.text,
+      },
+      `seller-verification-${shopperId}-${status}`
+    )
+  } catch (err) {
+    console.error('[Admin Email] Failed to send verification status email:', err)
+  }
+}
+
+
 // ── Verifications ────────────────────────────────────────────────────────────
 
 export async function approveVerification(shopperId: string) {
@@ -17,12 +43,16 @@ export async function approveVerification(shopperId: string) {
     .eq('id', shopperId)
   if (error) throw new Error(error.message)
   await logAdminAction({ adminId: user.id, adminName: profile?.full_name ?? 'Admin', actionType: 'approve_seller', entityType: 'seller', entityId: shopperId, description: `Approved seller verification for ID ${shopperId}` })
+  
+  // Trigger email notification
+  sendSellerVerificationEmail(shopperId, 'approved')
+
   revalidatePath('/admin/verifications')
   revalidatePath('/dashboard')
   revalidatePath('/dashboard/verification')
 }
 
-export async function rejectVerification(shopperId: string) {
+export async function rejectVerification(shopperId: string, reason?: string) {
   const { adminClient: admin, user } = await requireStaffOrAdmin()
   const { data: profile } = await (admin.from('profiles') as any).select('full_name').eq('id', user.id).single()
   const { error } = await admin
@@ -31,6 +61,10 @@ export async function rejectVerification(shopperId: string) {
     .eq('id', shopperId)
   if (error) throw new Error(error.message)
   await logAdminAction({ adminId: user.id, adminName: profile?.full_name ?? 'Admin', actionType: 'reject_seller', entityType: 'seller', entityId: shopperId, description: `Rejected seller verification for ID ${shopperId}` })
+  
+  // Trigger email notification
+  sendSellerVerificationEmail(shopperId, 'rejected', reason)
+
   revalidatePath('/admin/verifications')
   revalidatePath('/dashboard')
   revalidatePath('/dashboard/verification')
