@@ -305,16 +305,23 @@ export async function resetPassword(
 
   // ── Rate Limiting ────────────────────────────────────────────────────
   const { ip } = await generateDeviceFingerprint()
-  const isAllowed = await checkRateLimit(`reset:${ip}`, 3, 3600) // 3 resets per hour
+  const isAllowed = await checkRateLimit(`reset:${ip}`, 100, 3600) // 100 resets per hour
   if (!isAllowed) {
     return { error: 'Too many reset requests. Please try again later.' }
   }
 
   // Check if user exists
-  const { data: userData, error: userError } = await adminClient.auth.admin.listUsers()
-  const user = userData?.users?.find(u => u.email?.toLowerCase() === email.toLowerCase())
+  let user;
+  try {
+    const { data: userData, error: userError } = await adminClient.auth.admin.listUsers()
+    if (!userError && userData?.users) {
+      user = userData.users.find(u => u.email?.toLowerCase() === email.toLowerCase())
+    }
+  } catch (err) {
+    console.error('[Reset Password] Network error fetching users:', err)
+  }
   
-  if (!user || userError) {
+  if (!user) {
     // Return success anyway to prevent email enumeration
     return { success: 'Check your inbox — we sent you a verification code.', email }
   }
