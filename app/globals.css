@@ -291,3 +291,12 @@ body {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0.5; }
 }
+
+/* ─── Dashboard Full Viewport Lock ───────────────────────────────────────── */
+body:has(.dashboard-locked) {
+  overflow: hidden;
+  height: 100dvh;
+}
+body:has(.dashboard-locked) > div {
+  height: 100dvh;
+}

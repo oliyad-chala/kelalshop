@@ -31,7 +31,7 @@ export default async function DashboardLayout({
   const totalInbox = totalInboxCount(inbox)
 
   return (
-    <div className="flex flex-1 min-h-[calc(100vh-4rem)]">
+    <div className="dashboard-locked flex flex-1 overflow-hidden">
       {/* Desktop sidebar — hidden on mobile */}
       <Sidebar
         user={profile as Profile}
@@ -40,7 +40,7 @@ export default async function DashboardLayout({
       />
 
       {/* Main content — extra bottom padding on mobile for the nav bar */}
-      <div className="flex-1 w-full p-4 sm:p-8 lg:p-10 max-w-7xl mx-auto overflow-x-hidden pb-24 md:pb-10">
+      <div className="flex-1 w-full p-4 sm:p-8 lg:p-10 max-w-7xl mx-auto overflow-y-auto overflow-x-hidden pb-24 md:pb-10">
         {children}
       </div>
 

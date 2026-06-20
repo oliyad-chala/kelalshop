@@ -44,7 +44,7 @@ export function Sidebar({ user, unreadMessages = 0, totalInboxCount = 0 }: Sideb
   const links = isShopper ? shopperLinks : buyerLinks
 
   return (
-    <div className="w-64 bg-white border-r border-slate-200 flex flex-col h-[calc(100vh-4rem)] sticky top-16 hidden md:flex shrink-0">
+    <div className="w-64 bg-white border-r border-slate-200 flex flex-col overflow-y-auto hidden md:flex shrink-0">
       <div className="p-6">
         <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
           Menu
