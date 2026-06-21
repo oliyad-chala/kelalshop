@@ -115,8 +115,8 @@ export function ProductsFilter({ categories, params }: ProductsFilterProps) {
       <input type="checkbox" id="mobile-filter-toggle" className="peer hidden" />
 
       {/* Desktop Sidebar Filter (Hidden on small screens) */}
-      <div className="hidden lg:block w-[260px] shrink-0 space-y-6">
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 sticky top-24">
+      <div className="hidden lg:block w-[260px] shrink-0 sticky top-24 self-start">
+        <div className="bg-white rounded-2xl p-6 shadow-sm border border-slate-100 max-h-[calc(100vh-7rem)] overflow-y-auto">
           <FilterContent />
         </div>
       </div>

@@ -135,7 +135,7 @@ function ConfirmEmailScreen({ loginHref }: { loginHref: string }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export function SignupForm({ captchaQuestion, captchaHash }: { captchaQuestion: string; captchaHash: string }) {
+export function SignupForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const loginHref = `/auth/login${redirectQueryString(searchParams)}`
@@ -391,21 +391,6 @@ export function SignupForm({ captchaQuestion, captchaHash }: { captchaQuestion: 
               <div className="text-xs opacity-75">List products &amp; fulfill requests</div>
             </button>
           </div>
-        </div>
-
-        {/* CAPTCHA Challenge */}
-        <div className="space-y-1">
-          <label htmlFor="captcha_answer" className="block text-sm font-medium text-navy-900 mb-1">
-            Security Check: {captchaQuestion}
-          </label>
-          <Input
-            id="captcha_answer"
-            name="captcha_answer"
-            type="text"
-            required
-            placeholder="Enter answer"
-          />
-          <input type="hidden" name="captcha_hash" value={captchaHash} />
         </div>
 
         <Button

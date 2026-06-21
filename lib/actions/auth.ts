@@ -61,20 +61,6 @@ export async function signUp(
   const fullName = (formData.get('full_name')        as string)?.trim()
   const phone    = (formData.get('phone')            as string)?.trim()
   const role     = (formData.get('role')             as string)?.trim()
-  
-  // CAPTCHA verification
-  const captchaAnswer = formData.get('captcha_answer') as string
-  const captchaHash = formData.get('captcha_hash') as string
-  const captchaSecret = process.env.CAPTCHA_SECRET || 'kelalshop-captcha-fallback-secret-key-123'
-  
-  if (!captchaAnswer || !captchaHash) {
-    return { error: 'CAPTCHA is required.' }
-  }
-  
-  const expectedHash = crypto.createHmac('sha256', captchaSecret).update(captchaAnswer.trim()).digest('hex')
-  if (captchaHash !== expectedHash) {
-    return { error: 'Incorrect CAPTCHA answer.' }
-  }
 
   // ── Field presence ──────────────────────────────────────────────────
   if (!email || !password || !fullName || !phone || !role) {

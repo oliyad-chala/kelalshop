@@ -4,7 +4,6 @@ import { SignupForm } from '@/components/auth/SignupForm'
 import { AuthBackButton } from '@/components/auth/AuthBackButton'
 import { AuthSwitchLink } from '@/components/auth/AuthSwitchLink'
 import type { Metadata } from 'next'
-import crypto from 'crypto'
 
 export const metadata: Metadata = {
   title: 'Create Account',
@@ -12,12 +11,6 @@ export const metadata: Metadata = {
 }
 
 export default function SignupPage() {
-  const num1 = Math.floor(Math.random() * 9) + 2
-  const num2 = Math.floor(Math.random() * 9) + 2
-  const answer = num1 + num2
-  const captchaQuestion = `What is ${num1} + ${num2}?`
-  const captchaSecret = process.env.CAPTCHA_SECRET || 'kelalshop-captcha-fallback-secret-key-123'
-  const captchaHash = crypto.createHmac('sha256', captchaSecret).update(String(answer)).digest('hex')
 
   return (
     <main className="flex-1 flex flex-col justify-center items-center py-12 px-4 bg-slate-50 relative overflow-hidden min-h-screen">
@@ -47,7 +40,7 @@ export default function SignupPage() {
         </div>
 
         <Suspense fallback={<div className="h-64 animate-pulse bg-slate-100 rounded-xl" />}>
-          <SignupForm captchaQuestion={captchaQuestion} captchaHash={captchaHash} />
+          <SignupForm />
         </Suspense>
 
         <p className="text-center text-sm text-slate-500 mt-8">
