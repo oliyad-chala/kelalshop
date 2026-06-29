@@ -25,8 +25,12 @@ export const metadata: Metadata = {
   publisher: SITE_NAME,
   applicationName: SITE_NAME,
   icons: {
-    icon: [{ url: '/icon', type: 'image/png', sizes: '32x32' }],
-    apple: [{ url: '/apple-icon', type: 'image/png', sizes: '180x180' }],
+    icon: [
+      { url: '/icon.png', type: 'image/png', sizes: '512x512' },
+      { url: '/favicon.ico', type: 'image/x-icon' },
+    ],
+    apple: [{ url: '/apple-icon.png', type: 'image/png', sizes: '512x512' }],
+    shortcut: '/favicon.ico',
   },
   openGraph: {
     type: 'website',
