@@ -14,9 +14,9 @@ import { OrganizationJsonLd } from '@/components/seo/OrganizationJsonLd'
 import { SITE_URL } from '@/lib/seo/site'
 
 export const metadata = {
-  title: 'KelalShop — Ethiopian Marketplace',
+  title: 'KelalShop — Best Online Shopping & E-Commerce in Ethiopia',
   description:
-    'Shop global products and pay locally in ETB. Connect with verified Ethiopian importers on KelalShop.',
+    'KelalShop is the best online shopping marketplace and e-commerce platform in Ethiopia. Shop AliExpress, Shein, and Amazon products and pay locally in ETB.',
   alternates: {
     canonical: SITE_URL,
   },

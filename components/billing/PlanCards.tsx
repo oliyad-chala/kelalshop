@@ -20,7 +20,7 @@ export function PlanCards({ activePlan, onSelectPlan, selectedPlanKey }: PlanCar
         return (
           <div
             key={plan.key}
-            className={`relative rounded-2xl border-2 p-5 flex flex-col transition-all duration-200 ${
+            className={`relative rounded-2xl border-2 p-4 flex flex-col transition-all duration-200 ${
               isHighlighted
                 ? 'border-amber-400 bg-gradient-to-b from-amber-50 to-white shadow-lg shadow-amber-100'
                 : isSelected
@@ -53,11 +53,11 @@ export function PlanCards({ activePlan, onSelectPlan, selectedPlanKey }: PlanCar
 
               <div className="flex items-end gap-1">
                 {plan.price === 0 ? (
-                  <span className="text-3xl font-black text-navy-900">Free</span>
+                  <span className="text-2xl font-black text-navy-900">Free</span>
                 ) : (
                   <>
-                    <span className="text-3xl font-black text-navy-900">{formatEtb(plan.price)}</span>
-                    <span className="text-sm text-slate-400 mb-1">/{plan.period}</span>
+                    <span className="text-2xl font-black text-navy-900">{formatEtb(plan.price)}</span>
+                    <span className="text-xs text-slate-400 mb-1">/{plan.period}</span>
                   </>
                 )}
               </div>
@@ -73,7 +73,7 @@ export function PlanCards({ activePlan, onSelectPlan, selectedPlanKey }: PlanCar
             </div>
 
             {/* Features list */}
-            <ul className="space-y-2 flex-1 mb-5">
+            <ul className="space-y-1.5 flex-1 mb-4">
               {plan.features.map((feature) => (
                 <li key={feature.text} className="flex items-start gap-2 text-xs">
                   {feature.included ? (

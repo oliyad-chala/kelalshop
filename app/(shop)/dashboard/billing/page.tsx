@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/Badge'
 import { formatDate } from '@/lib/utils/formatters'
 import { PaymentForm } from '@/components/billing/PaymentForm'
 import { PaymentHistory } from '@/components/billing/PaymentHistory'
-import { CheckCircle2, Zap, ShieldCheck } from 'lucide-react'
+import { CheckCircle2, Zap, ShieldCheck, RefreshCw } from 'lucide-react'
 import {
   SUBSCRIPTION_PLANS,
   formatEtb,
@@ -86,37 +86,148 @@ export default async function BillingPage({
 
   const planInfo = SUBSCRIPTION_PLANS.find((p) => p.key === activePlanKey) ?? SUBSCRIPTION_PLANS[0]
 
-  // --- GUIDED FLOW FOR EXPIRED SUBSCRIPTION ---
+  // ─────────────────────────────────────────────────────────────────────────────
+  // EXPIRED SUBSCRIPTION — clean, focused, two-action layout
+  // ─────────────────────────────────────────────────────────────────────────────
   if (isExpired) {
+    const hasProducts = products && products.length > 0
+
     return (
-      <div className="max-w-5xl mx-auto py-12 px-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-        <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-red-50 text-red-500 mb-6 shadow-sm ring-8 ring-red-50/50">
-            <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+      <div className="max-w-3xl mx-auto py-10 px-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+
+        {/* ─── Header ─── */}
+        <div className="flex flex-col items-center text-center mb-8 max-w-md mx-auto">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-red-50 to-orange-50 border border-red-100 flex items-center justify-center mb-5 shadow-sm">
+            <svg className="w-7 h-7 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold text-navy-900 mb-4 tracking-tight">Your Subscription Has Ended</h1>
-          <p className="text-lg text-slate-500 max-w-xl mx-auto leading-relaxed">
-            Your products are currently paused. Choose a plan below to reactivate your listings and keep selling with <strong className="text-amber-600">0% commission</strong>.
+          <h1 className="text-2xl font-extrabold text-navy-900 mb-2 tracking-tight">
+            Your Subscription Has Ended
+          </h1>
+          <p className="text-slate-500 text-sm leading-relaxed">
+            Your listings are paused. Renew your plan to reactivate them — or boost a product to stay visible right now.
           </p>
         </div>
 
-        <PaymentForm
-          userId={user.id}
-          products={[]}
-          mode="subscription"
-          activePlan="free"
-        />
+        {/* ─── Action Choice Cards ─── */}
+        <div className={`grid ${hasProducts ? 'grid-cols-2' : 'grid-cols-1'} gap-3 mb-8 max-w-sm mx-auto`}>
+          {/* Option 1: Renew */}
+          <Link
+            href="/dashboard/billing?tab=subscription"
+            className={`flex flex-col items-center gap-2.5 p-5 rounded-2xl border-2 text-center transition-all duration-200 ${
+              activeTab === 'subscription'
+                ? 'border-blue-500 bg-blue-50 shadow-md shadow-blue-100/60'
+                : 'border-slate-200 bg-white hover:border-blue-200 hover:bg-blue-50/30'
+            }`}
+          >
+            <div className={`w-11 h-11 rounded-xl flex items-center justify-center transition-colors ${activeTab === 'subscription' ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
+              <RefreshCw size={18} />
+            </div>
+            <div>
+              <p className={`text-sm font-bold tracking-tight ${activeTab === 'subscription' ? 'text-blue-700' : 'text-navy-900'}`}>
+                Renew Plan
+              </p>
+              <p className="text-xs text-slate-400 mt-0.5">Reactivate all listings</p>
+            </div>
+            {activeTab === 'subscription' && (
+              <div className="w-2 h-2 rounded-full bg-blue-500 mt-0.5" />
+            )}
+          </Link>
+
+          {/* Option 2: Boost (only if user has products) */}
+          {hasProducts && (
+            <Link
+              href="/dashboard/billing?tab=boosts"
+              className={`flex flex-col items-center gap-2.5 p-5 rounded-2xl border-2 text-center transition-all duration-200 ${
+                activeTab === 'boosts'
+                  ? 'border-amber-400 bg-amber-50 shadow-md shadow-amber-100/60'
+                  : 'border-slate-200 bg-white hover:border-amber-200 hover:bg-amber-50/30'
+              }`}
+            >
+              <div className={`w-11 h-11 rounded-xl flex items-center justify-center transition-colors ${activeTab === 'boosts' ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-500'}`}>
+                <Zap size={18} />
+              </div>
+              <div>
+                <p className={`text-sm font-bold tracking-tight ${activeTab === 'boosts' ? 'text-amber-700' : 'text-navy-900'}`}>
+                  Boost a Product
+                </p>
+                <p className="text-xs text-slate-400 mt-0.5">No subscription needed</p>
+              </div>
+              {activeTab === 'boosts' && (
+                <div className="w-2 h-2 rounded-full bg-amber-400 mt-0.5" />
+              )}
+            </Link>
+          )}
+        </div>
+
+        {/* ─── Tab Content ─── */}
+        {activeTab === 'subscription' ? (
+          <div className="animate-in fade-in duration-300">
+            <PaymentForm
+              userId={user.id}
+              products={[]}
+              mode="subscription"
+              activePlan="free"
+            />
+          </div>
+        ) : (
+          <div className="max-w-lg mx-auto animate-in fade-in duration-300">
+            {/* Compact pricing reference */}
+            <div className="flex gap-3 mb-5">
+              <div className="flex-1 flex items-center justify-between bg-white border border-slate-200 rounded-xl px-4 py-3 shadow-sm">
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-0.5">7 Days</p>
+                  <p className="text-base font-extrabold text-navy-900">{formatEtb(BOOST_7_DAYS_ETB)}</p>
+                </div>
+                <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center">
+                  <Zap size={15} className="text-amber-500 fill-amber-400" />
+                </div>
+              </div>
+              <div className="flex-1 flex items-center justify-between bg-gradient-to-br from-amber-50 to-orange-50 border border-amber-200 rounded-xl px-4 py-3 shadow-sm relative overflow-hidden">
+                <div className="absolute -top-1 -right-1">
+                  <span className="text-[9px] bg-amber-500 text-white px-2 py-0.5 rounded-bl-lg font-bold uppercase tracking-wide">Best</span>
+                </div>
+                <div>
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-amber-600 mb-0.5">28 Days</p>
+                  <p className="text-base font-extrabold text-amber-900">{formatEtb(BOOST_28_DAYS_ETB)}</p>
+                </div>
+                <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center">
+                  <Zap size={15} className="text-amber-600 fill-amber-500" />
+                </div>
+              </div>
+            </div>
+
+            <PaymentForm
+              userId={user.id}
+              products={products ?? []}
+              mode="boosts"
+              initialBoostProductId={boostProductId}
+              activePlan="free"
+            />
+          </div>
+        )}
+
+        {/* ─── Payment History ─── */}
+        {payments && payments.length > 0 && (
+          <div className="mt-10 pt-8 border-t border-slate-100">
+            <p className="text-xs font-bold uppercase tracking-widest text-slate-400 mb-4">
+              Payment History
+            </p>
+            <PaymentHistory payments={payments} />
+          </div>
+        )}
       </div>
     )
   }
 
-  // --- STANDARD BILLING PAGE (TABBED) ---
+  // ─────────────────────────────────────────────────────────────────────────────
+  // STANDARD BILLING PAGE (active subscription — tabbed)
+  // ─────────────────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-8 fade-in max-w-5xl mx-auto pb-12">
       <div>
-        <h1 className="text-2xl font-bold text-navy-900 tracking-tight">Billing & Subscriptions</h1>
+        <h1 className="text-2xl font-bold text-navy-900 tracking-tight">Billing &amp; Subscriptions</h1>
         <p className="text-slate-500 mt-1">
           Manage your seller subscription, advertising boosts, and view payment history.
         </p>

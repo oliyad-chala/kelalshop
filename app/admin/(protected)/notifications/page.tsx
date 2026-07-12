@@ -3,8 +3,13 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { isAdminRole } from '@/lib/utils/admin-roles'
 import { getAdminAlertCounts, getRecentPendingProducts, totalAlertCount } from '@/lib/data/admin-alerts'
-import { Bell, MessageSquare, AlertTriangle, CheckCircle, Clock, Package, ShoppingCart, Megaphone, ShieldCheck, Wallet } from 'lucide-react'
+import { 
+  Bell, AlertTriangle, CheckCircle, Clock, Package, 
+  ShoppingCart, Megaphone, ShieldCheck, Wallet, ArrowRight, MessageSquare
+} from 'lucide-react'
 import Link from 'next/link'
+import { getSupportInbox } from './actions'
+import SupportInboxClient from './SupportInboxClient'
 
 export const metadata = { title: 'Notifications & Support' }
 
@@ -22,20 +27,13 @@ export default async function NotificationsPage() {
   if (!isAdminRole(profile?.role)) redirect('/admin/dashboard')
 
   const admin = createAdminClient()
-  const [alerts, pendingProducts, { data: messages }] = await Promise.all([
+  const [alerts, pendingProducts, inboxRes] = await Promise.all([
     getAdminAlertCounts(admin, user.id),
     getRecentPendingProducts(admin, 10),
-    admin
-      .from('messages')
-      .select(`
-      id, content, created_at, is_read,
-      sender:profiles!messages_sender_id_fkey(full_name, role)
-    `)
-      .eq('recipient_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(20),
+    getSupportInbox()
   ])
 
+  const initialConversations = 'conversations' in inboxRes ? inboxRes.conversations : []
   const allClear = totalAlertCount(alerts) === 0
 
   const alertCards = [
@@ -93,121 +91,126 @@ export default async function NotificationsPage() {
       bg: 'rgba(239, 68, 68, 0.1)',
       message: `${alerts.openDisputes} order(s) have been disputed and require mediation.`,
     },
-    {
-      show: alerts.unreadSupportMessages > 0,
-      href: '/admin/notifications',
-      icon: <MessageSquare size={18} color="#10b981" />,
-      title: 'Unread Support Messages',
-      titleColor: '#047857',
-      bg: 'rgba(16, 185, 129, 0.1)',
-      message: `${alerts.unreadSupportMessages} unread message(s) in your support inbox below.`,
-    },
   ]
 
+  const activeAlerts = alertCards.filter(card => card.show)
+
   return (
-    <div className="fade-in">
-      <div className="page-header">
+    <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+      
+      {/* HEADER */}
+      <div className="page-header" style={{ marginBottom: 0 }}>
         <div>
           <h1 className="section-title">Notifications & Support</h1>
-          <p className="section-subtitle">System alerts, new product listings, and buyer support messages</p>
+          <p className="section-subtitle">Manage system alerts, buyer support tickets, and pending items.</p>
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
-        <div className="admin-card">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', paddingBottom: '0.75rem', borderBottom: '1px solid var(--color-border)' }}>
-            <Bell size={18} color="var(--color-primary)" />
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 600, margin: 0 }}>System Alerts</h3>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-            {alertCards.map(
-              (card) =>
-                card.show && (
-                  <Link
-                    key={card.title}
-                    href={card.href}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: '0.75rem',
-                      padding: '1rem',
-                      background: card.bg,
-                      borderRadius: '8px',
-                      textDecoration: 'none',
-                      color: 'inherit',
-                    }}
-                  >
-                    <span style={{ marginTop: '0.1rem' }}>{card.icon}</span>
-                    <div>
-                      <div style={{ fontWeight: 600, color: card.titleColor, marginBottom: '0.2rem' }}>{card.title}</div>
-                      <div style={{ fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>{card.message}</div>
-                    </div>
-                  </Link>
-                )
-            )}
-
-            {allClear && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1.5rem', background: 'var(--color-bg-alt)', borderRadius: '8px', justifyContent: 'center' }}>
-                <CheckCircle size={20} color="var(--color-success)" />
-                <span style={{ fontSize: '0.9rem', color: 'var(--color-text-muted)' }}>All caught up! No active system alerts.</span>
-              </div>
-            )}
-          </div>
+      {/* SYSTEM ALERTS ROW */}
+      <div className="admin-card">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', paddingBottom: '0.75rem', borderBottom: '1px solid var(--color-admin-border)' }}>
+          <Bell size={18} color="var(--color-primary)" />
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 600, margin: 0 }}>System Alerts</h3>
         </div>
 
-        <div className="admin-card" style={{ display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', paddingBottom: '0.75rem', borderBottom: '1px solid var(--color-border)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <MessageSquare size={18} color="var(--color-primary)" />
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 600, margin: 0 }}>Support Inbox</h3>
-            </div>
-            {alerts.unreadSupportMessages > 0 && (
-              <span className="admin-badge badge-warning">{alerts.unreadSupportMessages} unread</span>
-            )}
+        {allClear ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1.5rem', background: 'var(--color-success-bg)', borderRadius: '10px', justifyContent: 'center' }}>
+            <CheckCircle size={20} color="var(--color-success)" />
+            <span style={{ fontSize: '0.9rem', color: 'var(--color-text-primary)', fontWeight: 500 }}>All caught up! No active system alerts require action.</span>
           </div>
-
-          <div style={{ flex: 1, overflowY: 'auto', maxHeight: '400px', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            {!messages || messages.length === 0 ? (
-              <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--color-text-muted)', fontSize: '0.85rem' }}>
-                No messages in the support inbox.
-              </div>
-            ) : (
-              messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  style={{
-                    padding: '1rem',
-                    background: msg.is_read ? 'var(--color-bg-alt)' : 'rgba(99,102,241,0.05)',
-                    borderRadius: '8px',
-                    borderLeft: msg.is_read ? 'none' : '3px solid var(--color-primary)',
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem' }}>
-                    <strong style={{ fontSize: '0.85rem' }}>{msg.sender?.full_name ?? 'Unknown User'}</strong>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>
-                      {new Date(msg.created_at).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
+        ) : (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+            gap: '1rem'
+          }}>
+            {activeAlerts.map((card) => (
+              <Link
+                key={card.title}
+                href={card.href}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between',
+                  padding: '1.25rem',
+                  background: 'var(--color-admin-surface)',
+                  border: '1px solid var(--color-admin-border)',
+                  borderRadius: '10px',
+                  textDecoration: 'none',
+                  color: 'inherit',
+                  boxShadow: 'var(--shadow-sm)',
+                  transition: 'all 0.2s ease'
+                }}
+                className="hover-card"
+              >
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                    <div style={{
+                      width: '34px',
+                      height: '34px',
+                      borderRadius: '8px',
+                      background: card.bg,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      {card.icon}
+                    </div>
+                    <span style={{
+                      fontSize: '0.68rem',
+                      padding: '0.15rem 0.45rem',
+                      borderRadius: '4px',
+                      fontWeight: 700,
+                      background: card.bg,
+                      color: card.titleColor,
+                      textTransform: 'uppercase'
+                    }}>
+                      Required
                     </span>
                   </div>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem', textTransform: 'uppercase' }}>
-                    {msg.sender?.role ?? 'User'}
-                  </div>
-                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>{msg.content}</p>
+                  
+                  <h4 style={{ fontWeight: 600, color: 'var(--color-text-primary)', fontSize: '0.88rem', margin: '0 0 0.35rem 0' }}>
+                    {card.title}
+                  </h4>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', margin: 0, lineHeight: '1.45' }}>
+                    {card.message}
+                  </p>
                 </div>
-              ))
-            )}
+
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.25rem',
+                  marginTop: '1.25rem',
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  color: card.titleColor
+                }}>
+                  <span>Resolve issue</span>
+                  <ArrowRight size={12} />
+                </div>
+              </Link>
+            ))}
           </div>
-        </div>
+        )}
       </div>
 
+      {/* SUPPORT CENTER SECTION (FULL WIDTH) */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', paddingLeft: '0.25rem' }}>
+          <MessageSquare size={18} color="var(--color-primary)" />
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 600, margin: 0 }}>Support Desk Center</h3>
+        </div>
+        <SupportInboxClient 
+          initialConversations={initialConversations as any}
+          adminUserId={user.id}
+        />
+      </div>
+
+      {/* RECENT LISTINGS PENDING APPROVAL */}
       {pendingProducts.length > 0 && (
         <div className="admin-card">
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem', paddingBottom: '0.75rem', borderBottom: '1px solid var(--color-border)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', paddingBottom: '0.75rem', borderBottom: '1px solid var(--color-admin-border)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Clock size={18} color="var(--color-primary)" />
               <h3 style={{ fontSize: '1.1rem', fontWeight: 600, margin: 0 }}>Recent Listings Pending Approval</h3>
@@ -216,7 +219,12 @@ export default async function NotificationsPage() {
               Review all →
             </Link>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+            gap: '0.75rem'
+          }}>
             {pendingProducts.map((p) => (
               <Link
                 key={p.id}
@@ -225,19 +233,29 @@ export default async function NotificationsPage() {
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
-                  padding: '0.85rem 1rem',
-                  background: 'var(--color-bg-alt)',
+                  padding: '1rem',
+                  background: 'var(--color-admin-bg)',
+                  border: '1px solid var(--color-admin-border)',
                   borderRadius: '8px',
                   textDecoration: 'none',
                   color: 'inherit',
+                  transition: 'border-color 0.2s'
                 }}
+                className="hover-card-border"
               >
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{p.name}</div>
-                  <div style={{ fontSize: '0.78rem', color: 'var(--color-text-muted)' }}>by {p.shopperName}</div>
+                  <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--color-text-primary)' }}>{p.name}</div>
+                  <div style={{ fontSize: '0.76rem', color: 'var(--color-text-muted)', marginTop: '0.15rem' }}>
+                    by {p.shopperName || 'Unknown Shopper'}
+                  </div>
                 </div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-                  {new Date(p.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)' }}>
+                  {new Date(p.created_at).toLocaleDateString('en-US', { 
+                    month: 'short', 
+                    day: 'numeric', 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                  })}
                 </span>
               </Link>
             ))}
@@ -247,3 +265,4 @@ export default async function NotificationsPage() {
     </div>
   )
 }
+

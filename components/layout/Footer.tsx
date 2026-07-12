@@ -117,6 +117,9 @@ export function Footer() {
           <div>
             <h4 className="text-sm font-bold text-white mb-5 uppercase tracking-wider">Help Center</h4>
             <ul className="space-y-3 text-sm">
+              <li><Link href="/faq" className="hover:text-amber-500 hover:translate-x-1 inline-block transition-all">FAQ</Link></li>
+              <li><Link href="/blog" className="hover:text-amber-500 hover:translate-x-1 inline-block transition-all">Blog</Link></li>
+              <li><Link href="/contact" className="hover:text-amber-500 hover:translate-x-1 inline-block transition-all">Contact Us</Link></li>
               <li>
                 <a
                   href={SUPPORT_TELEGRAM}
@@ -124,7 +127,7 @@ export function Footer() {
                   rel="noopener noreferrer"
                   className="hover:text-amber-500 hover:translate-x-1 inline-block transition-all"
                 >
-                  Contact Us (Telegram)
+                  Support (Telegram)
                 </a>
               </li>
               <li><Link href="/privacy" className="hover:text-amber-500 hover:translate-x-1 inline-block transition-all">Privacy Policy</Link></li>
