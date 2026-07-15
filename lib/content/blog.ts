@@ -1,6 +1,6 @@
 export interface BlogSection {
   heading: string
-  content: string | string[]
+  content?: string | string[]
   isStepList?: boolean
   list?: string[]
   tip?: string
@@ -50,7 +50,7 @@ export const BLOG_POSTS: BlogPost[] = [
       {
         heading: 'How KelalShop Solves the Problem',
         content:
-          'KelalShop acts as a bridge. We host a community of verified importers who regularly ship cargo from China, Dubai, and the US to Ethiopia. When you want to buy an item, these importers purchase it using their foreign currency channels, ship it via their established cargo routes, clear it at customs, and deliver it to you. Most importantly, your payment is held securely in escrow by KelalShop and only released to the importer after you hold the item in your hands.'
+          'KelalShop acts as a bridge. We host a community of verified importers who regularly ship cargo from China, Dubai, and the US to Ethiopia. When you want to buy an item, these importers purchase it using their foreign currency channels, ship it via their established cargo routes, clear it at customs, and deliver it to you. In a future update, KelalShop plans to introduce a secure escrow payment system where funds are held by the platform until you receive your items. Currently, you pay the verified importer directly based on the payment terms you both agree on, supported by our verified importer profiles.'
       },
       {
         heading: 'Step-by-Step Guide to Ordering via KelalShop',
@@ -60,8 +60,8 @@ export const BLOG_POSTS: BlogPost[] = [
           'Open KelalShop, navigate to the "Request Product" page, and paste the URL. Provide a clear description and your preferred shipping method (Air Cargo for speed, Sea Cargo for heavy items).',
           'Wait for verified importers to send you bids. They will calculate the total cost, including the item price, international shipping, customs clearance, and their service fee, and quote you a single price in ETB.',
           'Compare the bids based on price, delivery time, and the importer\'s rating. Accept the bid that fits your budget.',
-          'Deposit the payment in ETB using Telebirr or CBE Birr. The funds will be held in the KelalShop escrow system.',
-          'The importer will buy, ship, and clear the item. Once it arrives in Addis Ababa, you can collect it from their physical office, or request local delivery. After confirming the product is correct and intact, authorize the release of the escrow payment.'
+          'Arrange payment in ETB using Telebirr or CBE Birr with your chosen verified importer (typically a deposit upfront, with the remainder paid upon delivery, as agreed between you).',
+          'The importer will buy, ship, and clear the item. Once it arrives in Addis Ababa, you can collect it from their physical office, or request local delivery. After confirming the product is correct and intact, pay the remaining balance to the importer.'
         ]
       },
       {
@@ -77,7 +77,7 @@ export const BLOG_POSTS: BlogPost[] = [
       'No international credit card or foreign currency account required.',
       'Pay securely in ETB using local mobile money like Telebirr or CBE Birr.',
       'All customs clearance and international logistics are managed by the importer.',
-      'Escrow protection ensures you only pay when you successfully receive the item.'
+      'Secure payment terms agreed with verified importers, with official platform escrow coming in a future update.'
     ]
   },
   {
@@ -98,7 +98,7 @@ export const BLOG_POSTS: BlogPost[] = [
         heading: '1. KelalShop: The Peer-to-Peer Import Marketplace',
         content: [
           'KelalShop is a unique platform that specializes in helping buyers import goods from international stores (Amazon, Shein, AliExpress, etc.) without needing international cards or dealing with customs.',
-          'Pros: High security through an escrow payment system, access to global inventories, verified importer profiles, and local currency payments.',
+          'Pros: Verified importer profiles with ratings and review history, access to global inventories, and local currency payments (with official escrow payments planned for the future).',
           'Cons: Not suited for instant local purchases, as international shipping typically takes between 10 to 15 days.'
         ]
       },
@@ -107,7 +107,7 @@ export const BLOG_POSTS: BlogPost[] = [
         content: [
           'Jiji is the largest classified ads platform in the country, succeeding OLX. It is ideal for buying and selling local second-hand items, cars, real estate, and electronics that are already physically in Ethiopia.',
           'Pros: Massive variety of local items, direct negotiations with sellers, and immediate transaction availability.',
-          'Cons: High risk of scams. Jiji does not offer escrow or buyer protection. Fraudsters often list fake items and demand deposits via bank transfer.',
+          'Cons: High risk of scams. Jiji does not verify sellers\' identities or offer buyer protection. Fraudsters often list fake items and demand deposits via bank transfer.',
           'Safety Tip: Always meet sellers in public, crowded places (like malls or cafes) and inspect the item thoroughly before handing over any money.'
         ]
       },
@@ -127,9 +127,9 @@ export const BLOG_POSTS: BlogPost[] = [
       }
     ],
     conclusion:
-      "E-commerce in Ethiopia has something for everyone. If you're looking for high-quality items from abroad with absolute payment safety, KelalShop is your best bet. If you need something immediately and locally, Jiji is excellent as long as you prioritize physical inspection and safety. Shop smart, utilize escrow options, and enjoy the convenience of digital commerce in 2025!",
+      "E-commerce in Ethiopia has something for everyone. If you're looking for high-quality items from abroad with verified importer tracking, KelalShop is your best bet. If you need something immediately and locally, Jiji is excellent as long as you prioritize physical inspection and safety. Shop smart, work with verified partners, and enjoy the convenience of digital commerce in 2025!",
     keyTakeaways: [
-      'KelalShop provides escrow security for importing international goods.',
+      'KelalShop connects you with identity-verified importers for international goods, with platform-level escrow planned for a future update.',
       'Jiji is great for local, immediate purchases but requires high vigilance against scammers.',
       'Telegram is convenient for fashion but lacks transaction structure and refund mechanisms.',
       'Never send upfront money to unverified sellers on classifieds or chat apps.'
@@ -171,8 +171,8 @@ export const BLOG_POSTS: BlogPost[] = [
           'Copy the product links or take screenshots of your cart with the exact size and color details.',
           'Post a request on KelalShop with the title "Import Shein Fashion". Paste your links and details in the description.',
           'Review bids from verified importers. Bids will state the total price in ETB (including shipping and custom clearance) and delivery time (typically 10-14 days).',
-          'Choose a bid, deposit the ETB amount into KelalShop\'s escrow account, and wait for your delivery.',
-          'Meet your importer to inspect and collect your clothes. Once you confirm they fit and are correct, release the payment from escrow.'
+          'Choose a bid, arrange the agreed payment terms (such as an upfront deposit) directly with the importer, and wait for your delivery.',
+          'Meet your importer to inspect and collect your clothes. Once you confirm they fit and are correct, complete the final payment directly to the importer.'
         ]
       },
       {
@@ -186,7 +186,7 @@ export const BLOG_POSTS: BlogPost[] = [
       "Don't let shipping logistics stand between you and your style. By using KelalShop, you can access Shein's massive catalog, pay in ETB, and receive your clothes in Addis Ababa in less than two weeks. Create a request today and upgrade your wardrobe!",
     keyTakeaways: [
       'Consolidated shipping by personal shoppers significantly reduces cargo costs.',
-      'Escrow system protects your funds until the clothes arrive and are checked.',
+      'Working with vetted, identity-verified importers protects you from digital fraud, with a full escrow payment system planned for the future.',
       'Typical Shein delivery times via KelalShop range from 10 to 14 days.',
       'Always refer to the detailed size measurements and user reviews on Shein.'
     ]
@@ -211,10 +211,10 @@ export const BLOG_POSTS: BlogPost[] = [
           'Many online buyers on social media or Telegram send money directly to a seller\'s mobile number or bank account before receiving their items. This is extremely risky. Once you transfer the money, an dishonest seller can block your number, delete their page, and disappear. Banks and mobile operators cannot easily reverse these transactions without police reports and lengthy legal processes.'
       },
       {
-        heading: 'How KelalShop\'s Escrow Protects Your Mobile Money',
+        heading: 'Payment Best Practices on KelalShop (and Future Escrow Plans)',
         content: [
-          'KelalShop solves this security issue by introducing an escrow system. Escrow means we act as a trusted third party. When you agree to buy an item or hire an importer, you transfer the funds via Telebirr or CBE Birr to KelalShop\'s official business account, not to the seller.',
-          'We hold this payment in a locked system. The importer is notified that the payment is secured, giving them the green light to purchase and ship your items. The money is only transferred to the importer\'s account after you receive the product, inspect it, and click "Release Payment" on the KelalShop platform.'
+          'To protect buyers, KelalShop requires all importers to pass full identity verification. You coordinate payment terms (like a partial upfront deposit) directly with your importer. This ensures you do not send full payment before holding the item.',
+          'In a future platform update, KelalShop plans to introduce a native escrow system. Under that future system, payments will be held securely by the platform as a neutral third party and only released to the importer after you confirm delivery.'
         ]
       },
       {
@@ -225,22 +225,25 @@ export const BLOG_POSTS: BlogPost[] = [
           'Proceed to checkout and select your preferred payment method (Telebirr or CBE Birr).',
           'Follow the payment instructions displayed on the screen. Send the exact amount to KelalShop\'s official merchant/utility number or bank account.',
           'Copy the Transaction ID or Reference Number from your SMS notification and paste it into the transaction verification box on KelalShop.',
-          'Our system verifies the payment automatically (or manually within a few minutes). Your order status changes to "Paid - Held in Escrow" and the seller is notified.'
+          'Confirm the payment details directly with your verified shopper. They will update your order status to reflect the payment and begin processing your shipment.'
         ]
       },
       {
         heading: 'Payment Safety Best Practices',
         content:
           'To ensure your funds are always protected, keep these essential safety practices in mind when shopping online:',
-        tip: 'Never send payments to an importer\'s personal phone number or bank account. If an importer asks you to pay them directly outside of the KelalShop platform, report them to support immediately. Off-platform transactions are not covered by our escrow guarantee.'
+        tip: 'Always communicate and arrange payments using the details agreed on the platform. Make sure to keep payment receipts from Telebirr or CBE Birr in case of disputes. While full platform escrow is coming in a future update, paying verified shoppers through documented digital channels is key to transaction safety.'
+      },
+      {
+        heading: 'Conclusion',
+        content: 'Telebirr and CBE Birr are powerful tools that make shopping convenient and fast. By combining their speed with KelalShop\'s network of identity-verified shoppers, you get a much safer, more reliable online shopping experience in Ethiopia. Happy shopping!'
       }
     ],
     conclusion:
-      "Telebirr and CBE Birr are powerful tools that make shopping convenient and fast. By combining their speed with KelalShop's escrow platform, you get a completely safe, scam-free online shopping experience in Ethiopia. Happy and secure shopping!",
+      "Telebirr and CBE Birr are powerful tools that make shopping convenient and fast. By combining their speed with KelalShop's network of identity-verified shoppers, you get a much safer, more reliable online shopping experience in Ethiopia. Happy shopping!",
     keyTakeaways: [
       'Never transfer money directly to a seller\'s personal account beforehand.',
-      'Always pay through KelalShop\'s official merchant account to benefit from escrow.',
-      'Your payment is held securely and only released when you confirm delivery.',
+      'Agree on clear payment terms with your importer before purchasing. Keep all digital receipts from Telebirr or CBE Birr for safety.',
       'Report any seller who attempts to bypass the platform payment system.'
     ]
   },
@@ -273,7 +276,7 @@ export const BLOG_POSTS: BlogPost[] = [
       {
         heading: 'Why KelalShop Verifies Every Importer',
         content:
-          'To ensure absolute safety, KelalShop employs a rigorous verification process. We verify the identity of every importer using their national ID, passport, or trade license. We also monitor their performance, rating, and customer reviews. If an importer fails to deliver an item or violates our guidelines, they are penalized or banned, and the customer\'s money is fully refunded from our escrow.',
+          'To ensure absolute safety, KelalShop employs a rigorous verification process. We verify the identity of every importer using their national ID, passport, or trade license. We also monitor their performance, rating, and customer reviews. If an importer fails to deliver an item or violates our guidelines, they are penalized or banned. KelalShop will assist in resolving disputes and, in the future, refunds will be managed automatically via our planned escrow system.',
         tip: 'Always look for the green "Verified" badge on importer profiles. This badge indicates that the importer has gone through our vetting process and has a track record of reliable deliveries.'
       }
     ],
@@ -283,7 +286,7 @@ export const BLOG_POSTS: BlogPost[] = [
       'Personal shoppers buy exact items on-demand using customer-provided links.',
       'Consolidation of packages reduces shipping costs and customs duties.',
       'KelalShop verifies importers\' credentials to maintain platform safety.',
-      'Funds are held securely by the platform until the buyer approves delivery.'
+      'Verified shopper identity checks and ratings protect your transaction, with platform escrow coming soon.'
     ]
   },
   {
@@ -321,8 +324,8 @@ export const BLOG_POSTS: BlogPost[] = [
           'Copy the product page URL from your browser address bar.',
           'Open KelalShop, click "Request Product", and paste the Amazon link. Specify any details like size, color, or quantity.',
           'Importers will review your link and send bids quoting the final cost in ETB. This price covers everything: the Amazon item cost, shipping, tax, and customs.',
-          'Select the best bid, pay via Telebirr or CBE Birr into the KelalShop escrow, and sit back.',
-          'Track your package on KelalShop. Once it arrives in Addis Ababa (usually in 10-14 days), inspect it and release the payment to the importer.'
+          'Select the best bid, pay the agreed deposit via Telebirr or CBE Birr directly to the importer, and sit back.',
+          'Track your package on KelalShop. Once it arrives in Addis Ababa (usually in 10-14 days), inspect it and pay the remaining balance to the importer.'
         ]
       },
       {

@@ -75,6 +75,10 @@ const FAQ_CATEGORIES = [
         q: 'Is my payment secure on KelalShop?',
         a: 'All transactions are arranged directly with your verified shopper, who has been identity-verified by our team. We recommend using CBE Birr or Telebirr for digital records of your payment.',
       },
+      {
+        q: 'Does KelalShop support escrow payments?',
+        a: 'Not at the moment. Currently, buyers arrange payments directly with verified shoppers. However, we plan to launch a secure escrow payment protection system in a future update to make transactions even safer.',
+      },
     ],
   },
   {

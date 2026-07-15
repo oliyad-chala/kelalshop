@@ -440,7 +440,7 @@ export async function adminUpdateOrderStatus(orderId: string, status: string) {
 }
 
 export async function adminDeleteProduct(productId: string) {
-  const { adminClient: admin } = await requireStaffOrAdmin()
+  const { adminClient: admin, user } = await requireStaffOrAdmin()
 
   // Professional delete: clean up related data first
   // 1. Delete product images from storage
@@ -465,7 +465,9 @@ export async function adminDeleteProduct(productId: string) {
     admin.from('cart_items').delete().eq('product_id', productId),
     admin.from('wishlist_items').delete().eq('product_id', productId),
     admin.from('flash_deal_items').delete().eq('product_id', productId),
-    admin.from('orders').delete().eq('product_id', productId),
+    admin.from('promotion_products').delete().eq('product_id', productId),
+    // Orders: nullify the product_id reference instead of deleting entire order
+    admin.from('orders').update({ product_id: null } as any).eq('product_id', productId),
   ])
 
   // 3. Delete the product itself
@@ -475,6 +477,17 @@ export async function adminDeleteProduct(productId: string) {
     .eq('id', productId)
 
   if (error) throw new Error(error.message)
+
+  // Log admin action
+  const { data: adminProfile } = await (admin.from('profiles') as any).select('full_name').eq('id', user.id).single()
+  await logAdminAction({
+    adminId: user.id,
+    adminName: adminProfile?.full_name ?? 'Admin',
+    actionType: 'delete_product',
+    entityType: 'product',
+    entityId: productId,
+    description: `Deleted product ID ${productId}`
+  })
 
   revalidatePath('/admin/products')
   revalidatePath('/dashboard/listings')

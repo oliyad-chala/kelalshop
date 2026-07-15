@@ -201,34 +201,40 @@ export async function deleteProduct(productId: string) {
     throw new Error('Product not found or unauthorized.')
   }
 
-  // Professional delete: clean up related data first
+  // Use admin client (service role) to clean up related rows — bypasses RLS
+  // which would otherwise block deletion of cart/order records the user doesn't own
+  const { createAdminClient } = await import('@/lib/supabase/admin')
+  const admin = createAdminClient()
+
   // 1. Delete product images from storage
-  const { data: images } = await supabase
+  const { data: images } = await admin
     .from('product_images')
     .select('url')
     .eq('product_id', productId)
 
   if (images && images.length > 0) {
-    const fileNames = images.map(img => {
+    const fileNames = images.map((img: { url: string }) => {
       const urlParts = img.url.split('/')
       const fileName = urlParts.pop()
-      const folderName = urlParts.pop() // this should be productId
+      const folderName = urlParts.pop()
       return `${folderName}/${fileName}`
     })
-    await supabase.storage.from('products').remove(fileNames)
+    await admin.storage.from('products').remove(fileNames)
   }
 
-  // 2. Delete related records in other tables
+  // 2. Delete related records using admin client to bypass RLS
   await Promise.all([
-    supabase.from('product_images').delete().eq('product_id', productId),
-    supabase.from('cart_items').delete().eq('product_id', productId),
-    supabase.from('wishlist_items').delete().eq('product_id', productId),
-    supabase.from('flash_deal_items').delete().eq('product_id', productId),
-    supabase.from('orders').delete().eq('product_id', productId),
+    admin.from('product_images').delete().eq('product_id', productId),
+    admin.from('cart_items').delete().eq('product_id', productId),
+    admin.from('wishlist_items').delete().eq('product_id', productId),
+    admin.from('flash_deal_items').delete().eq('product_id', productId),
+    admin.from('promotion_products').delete().eq('product_id', productId),
+    // Orders: nullify the product_id reference instead of deleting entire order
+    admin.from('orders').update({ product_id: null } as any).eq('product_id', productId),
   ])
 
-  // 3. Delete the product itself
-  const { error } = await supabase
+  // 3. Delete the product itself (verified ownership above, use admin to avoid RLS edge cases)
+  const { error } = await admin
     .from('products')
     .delete()
     .eq('id', productId)
