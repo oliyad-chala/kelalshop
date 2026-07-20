@@ -10,7 +10,7 @@ export const viewport: Viewport = {
   themeColor: '#FF6A00',
 }
 
-const defaultTitle = `${SITE_NAME} — Best Online Shopping & E-Commerce in Ethiopia`
+const defaultTitle = `${SITE_NAME} (ቀላል ሾፕ) — Best Online Shopping & E-Commerce in Ethiopia`
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

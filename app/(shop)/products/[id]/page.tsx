@@ -14,19 +14,45 @@ import { HomeProductCard } from '@/components/products/HomeProductCard'
 import { trackProductView } from '@/lib/actions/tracking'
 import type { ProductWithDetails } from '@/types/app.types'
 import { getActiveCampaignOffer, resolveDisplayPrice } from '@/lib/utils/campaign-pricing'
+import { ProductJsonLd } from '@/components/seo/ProductJsonLd'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
   if (id.startsWith('mock')) {
     const mockProd = MOCK_PRODUCTS.find((p) => p.id === id)
-    return { title: mockProd ? `${mockProd.name} | KelalShop` : 'Product Not Found' }
+    if (!mockProd) return { title: 'Product Not Found | KelalShop' }
+    return {
+      title: `${mockProd.name} | KelalShop`,
+      description: mockProd.description || `Buy ${mockProd.name} on KelalShop (ቀላል ሾፕ) in Ethiopian Birr (ETB).`,
+    }
   }
 
   const supabase = await createClient()
-  const { data } = await supabase.from('products').select('name').eq('id', id).single()
-  const metadata = data as any
-  return { title: metadata?.name ? `${metadata.name} | KelalShop` : 'Product Not Found' }
+  const { data } = await supabase
+    .from('products')
+    .select('name, description, product_images(url)')
+    .eq('id', id)
+    .single()
+
+  const product = data as any
+  if (!product) return { title: 'Product Not Found | KelalShop' }
+
+  const desc = product.description
+    ? (product.description.length > 155 ? product.description.substring(0, 152) + '...' : product.description)
+    : `Buy ${product.name} on KelalShop (ቀላል ሾፕ) with local CBE/Telebirr payment.`
+
+  const primaryImage = product.product_images?.find((img: any) => img.is_primary)?.url || product.product_images?.[0]?.url
+
+  return {
+    title: `${product.name} | KelalShop`,
+    description: desc,
+    openGraph: {
+      title: `${product.name} | KelalShop`,
+      description: desc,
+      images: primaryImage ? [{ url: primaryImage }] : [],
+    }
+  }
 }
 
 export default async function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -145,6 +171,15 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
 
   return (
     <main className="flex-1 bg-slate-50 py-8 md:py-12">
+      <ProductJsonLd
+        product={{
+          id: product.id,
+          name: product.name,
+          description: product.description,
+          price: resolvedPrice.price,
+          image_url: primaryImage,
+        }}
+      />
       {/* Reduced max-width from 7xl to 5xl for a more compact UI */}
       <div className="max-w-5xl mx-auto px-4 sm:px-6">
         

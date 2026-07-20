@@ -7,12 +7,38 @@ import { Button } from '@/components/ui/Button'
 import { ProductCard } from '@/components/products/ProductCard'
 import { ShopperBadge } from '@/components/shoppers/ShopperBadge'
 import { getRatingStars, formatRating } from '@/lib/utils/formatters'
+import { ProfileJsonLd } from '@/components/seo/ProfileJsonLd'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const supabase = await createClient()
-  const { data } = await supabase.from('profiles').select('full_name').eq('id', id).single()
-  return { title: data?.full_name ? `${data.full_name} | Shopper Profile` : 'Shopper Not Found' }
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name, avatar_url, shopper_profiles(bio)')
+    .eq('id', id)
+    .single()
+
+  if (!profile) {
+    return { title: 'Shopper Not Found | KelalShop' }
+  }
+
+  const shopperData = Array.isArray(profile.shopper_profiles)
+    ? profile.shopper_profiles[0]
+    : profile.shopper_profiles
+
+  const bio = shopperData?.bio 
+    ? (shopperData.bio.length > 155 ? shopperData.bio.substring(0, 152) + '...' : shopperData.bio)
+    : `Connect with verified shopper ${profile.full_name} on KelalShop (ቀላል ሾፕ) to import from AliExpress, Shein, or Amazon.`
+
+  return {
+    title: `${profile.full_name} — Verified Importer | KelalShop`,
+    description: bio,
+    openGraph: {
+      title: `${profile.full_name} — Verified Importer | KelalShop`,
+      description: bio,
+      images: profile.avatar_url ? [{ url: profile.avatar_url }] : [],
+    }
+  }
 }
 
 export default async function ShopperDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -46,6 +72,14 @@ export default async function ShopperDetailPage({ params }: { params: Promise<{ 
 
   return (
     <main className="flex-1 bg-slate-50 min-h-screen pb-20">
+      <ProfileJsonLd
+        profile={{
+          id: profile.id,
+          full_name: profile.full_name,
+          avatar_url: profile.avatar_url || undefined,
+          description: shopperData?.bio || undefined,
+        }}
+      />
       {/* Header Profile Section */}
       <div className="bg-navy-950 text-white pt-20 pb-24 px-4 relative overflow-hidden">
          <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/10 rounded-full blur-[100px]" />
