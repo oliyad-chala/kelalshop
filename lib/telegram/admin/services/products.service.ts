@@ -16,7 +16,9 @@ export async function getPendingProducts(limit = 5) {
       id,
       name,
       price,
-      shopper_profiles ( business_name )
+      profiles:shopper_id (
+        shopper_profiles ( business_name )
+      )
     `)
     .eq('approval_status', 'pending')
     .order('created_at', { ascending: false })
@@ -43,8 +45,9 @@ export async function rejectProduct(productId: string) {
     .eq('id', productId)
 }
 
-export function getStoreName(shopperProfiles: unknown): string {
-  if (!shopperProfiles || typeof shopperProfiles !== 'object') return 'Unknown Store'
-  const p = shopperProfiles as { business_name?: string }
-  return p.business_name || 'Unknown Store'
+export function getStoreName(profiles: any): string {
+  if (!profiles || typeof profiles !== 'object') return 'Unknown Store'
+  const shopperProfile = profiles.shopper_profiles
+  if (!shopperProfile || typeof shopperProfile !== 'object') return 'Unknown Store'
+  return shopperProfile.business_name || 'Unknown Store'
 }

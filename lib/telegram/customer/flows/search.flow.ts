@@ -15,8 +15,8 @@ const BUTTON_TEXTS = new Set([
 export function registerSearchFlow(bot: Bot<CustomerBotContext>) {
   bot.command('search', async (ctx) => {
     await ctx.reply(
-      '🔍 <b>Product Search</b>\n\nType what you are looking for, e.g. <i>gaming laptop under 80000 ETB</i>',
-      { parse_mode: 'HTML' }
+      '🔍 <b>Product Search</b>\n\nType what you are looking for below (e.g. <i>gaming laptop under 80000 ETB</i>):',
+      { parse_mode: 'HTML', reply_markup: { force_reply: true, selective: true } }
     )
   })
 
@@ -26,20 +26,21 @@ export function registerSearchFlow(bot: Bot<CustomerBotContext>) {
     if (BUTTON_TEXTS.has(text)) return next()
 
     const replyToText = ctx.message.reply_to_message?.text
-    if (
-      replyToText?.includes('Enter the email') ||
-      replyToText?.includes('Enter the code') ||
-      replyToText?.includes('Describe your issue')
-    ) {
-      return next()
-    }
+    
+    // Check if this is an explicit search reply
+    const isSearchReply = replyToText?.includes('Product Search') || replyToText?.includes('What are you looking for')
 
-    await ctx.replyWithChatAction('typing')
-
+    // Check if this is an FAQ question
     const isFaq =
       /^(how|where|what is|when|why)\b/i.test(text) &&
       !/\d+\s*etb/i.test(text) &&
       text.endsWith('?')
+
+    if (!isSearchReply && !isFaq) {
+      return next()
+    }
+
+    await ctx.replyWithChatAction('typing')
 
     if (isFaq) {
       const answer = await answerCustomerFAQ(text)

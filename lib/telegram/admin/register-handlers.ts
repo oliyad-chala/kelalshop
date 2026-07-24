@@ -151,7 +151,7 @@ export function registerAdminHandlers(bot: Bot<AdminBotContext>) {
     if (!data?.length) return ctx.reply('✅ No pending products.', { parse_mode: 'HTML' })
 
     for (const product of data) {
-      const store = getStoreName(product.shopper_profiles)
+      const store = getStoreName(product.profiles)
       const keyboard = new InlineKeyboard()
         .text('✅ Approve', `approve_product_${product.id}`)
         .text('❌ Reject', `reject_product_${product.id}`)
@@ -212,6 +212,33 @@ export function registerAdminHandlers(bot: Bot<AdminBotContext>) {
     )
   })
 
+async function getChatIdForSession(sessionId: string): Promise<number | null> {
+  const supabase = getTelegramSupabase()
+  const { data: session } = await supabase
+    .from('support_sessions')
+    .select('user_id, guest_id')
+    .eq('id', sessionId)
+    .maybeSingle()
+
+  if (!session) return null
+
+  if (session.guest_id) {
+    const num = Number(session.guest_id)
+    if (!isNaN(num)) return num
+  }
+
+  if (session.user_id) {
+    const { data: tgUser } = await supabase
+      .from('telegram_users')
+      .select('chat_id')
+      .eq('profile_id', session.user_id)
+      .maybeSingle()
+    if (tgUser?.chat_id) return tgUser.chat_id
+  }
+
+  return null
+}
+
   bot.command('tickets', async (ctx) => {
     if (!requireStaff(ctx, 'tickets')) return
     const supabase = getTelegramSupabase()
@@ -227,9 +254,131 @@ export function registerAdminHandlers(bot: Bot<AdminBotContext>) {
 
     let text = `🎫 <b>Open Tickets (${data.length})</b>\n\n`
     for (const t of data) {
-      text += `• #${truncateId(t.id)} — <i>${t.status}</i>\n`
+      text += `• <code>${t.id.slice(0, 8)}</code> — <i>${t.status}</i>\n`
     }
+    text += `\n💡 <b>Commands:</b>\n`
+    text += `• View chat: <code>/ticket [id]</code>\n`
+    text += `• Reply: <code>/reply [id] [message]</code>\n`
+    text += `• Close: <code>/close [id]</code>`
     await ctx.reply(text, { parse_mode: 'HTML' })
+  })
+
+  bot.command('ticket', async (ctx) => {
+    if (!requireStaff(ctx, 'tickets')) return
+    const ticketIdPart = ctx.message?.text?.split(/\s+/)[1]?.trim()
+    if (!ticketIdPart) {
+      return ctx.reply('🎫 Usage: <code>/ticket [id]</code> (e.g. /ticket 78dad116)', { parse_mode: 'HTML' })
+    }
+
+    const supabase = getTelegramSupabase()
+    const { data: session, error: sessionErr } = await supabase
+      .from('support_sessions')
+      .select('id, status, created_at, user_id, guest_id')
+      .ilike('id', `${ticketIdPart}%`)
+      .maybeSingle()
+
+    if (sessionErr || !session) {
+      return ctx.reply('❌ Ticket not found.', { parse_mode: 'HTML' })
+    }
+
+    const { data: messages, error: msgsErr } = await supabase
+      .from('support_messages')
+      .select('sender_type, content, created_at')
+      .eq('session_id', session.id)
+      .order('created_at', { ascending: true })
+
+    if (msgsErr) {
+      return ctx.reply('❌ Error fetching ticket messages.', { parse_mode: 'HTML' })
+    }
+
+    let text = `🎫 <b>Ticket #${session.id.slice(0, 8)}</b>\n`
+    text += `Status: <b>${session.status}</b>\n`
+    text += `User: <code>${session.user_id || `Guest (${session.guest_id})`}</code>\n\n`
+
+    for (const msg of messages ?? []) {
+      const sender = msg.sender_type === 'user' ? '👤 Customer' : msg.sender_type === 'admin' ? '👑 Admin' : '🤖 Bot'
+      const time = new Date(msg.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+      text += `<b>${sender}</b> (${time}):\n${escapeHtml(msg.content)}\n\n`
+    }
+
+    text += `💡 Reply with: <code>/reply ${session.id.slice(0, 8)} [message]</code>`
+    await ctx.reply(text, { parse_mode: 'HTML' })
+  })
+
+  bot.command('reply', async (ctx) => {
+    if (!requireStaff(ctx, 'tickets')) return
+    const parts = ctx.message?.text?.split(/\s+/) ?? []
+    const ticketIdPart = parts[1]?.trim()
+    const replyText = parts.slice(2).join(' ').trim()
+
+    if (!ticketIdPart || !replyText) {
+      return ctx.reply('🎫 Usage: <code>/reply [id] [message]</code> (e.g. /reply 78dad116 Hello!)', { parse_mode: 'HTML' })
+    }
+
+    const supabase = getTelegramSupabase()
+    const { data: session, error: sessionErr } = await supabase
+      .from('support_sessions')
+      .select('id, status')
+      .ilike('id', `${ticketIdPart}%`)
+      .maybeSingle()
+
+    if (sessionErr || !session) {
+      return ctx.reply('❌ Ticket not found.', { parse_mode: 'HTML' })
+    }
+
+    const { error: msgErr } = await supabase
+      .from('support_messages')
+      .insert({
+        session_id: session.id,
+        sender_type: 'admin',
+        content: replyText,
+      })
+
+    if (msgErr) {
+      return ctx.reply('❌ Error saving message.', { parse_mode: 'HTML' })
+    }
+
+    const chat_id = await getChatIdForSession(session.id)
+    if (chat_id) {
+      const { emitTelegramEvent } = await import('../notifications/templates')
+      emitTelegramEvent('customer', 'TICKET_REPLY', {
+        ticketId: session.id,
+        message: replyText,
+        targetChatId: chat_id,
+      })
+    }
+
+    await ctx.reply(`✅ Message sent to ticket <code>${session.id.slice(0, 8)}</code>.`, { parse_mode: 'HTML' })
+  })
+
+  bot.command('close', async (ctx) => {
+    if (!requireStaff(ctx, 'tickets')) return
+    const ticketIdPart = ctx.message?.text?.split(/\s+/)[1]?.trim()
+    if (!ticketIdPart) {
+      return ctx.reply('🎫 Usage: <code>/close [id]</code> (e.g. /close 78dad116)', { parse_mode: 'HTML' })
+    }
+
+    const supabase = getTelegramSupabase()
+    const { data: session, error: sessionErr } = await supabase
+      .from('support_sessions')
+      .select('id')
+      .ilike('id', `${ticketIdPart}%`)
+      .maybeSingle()
+
+    if (sessionErr || !session) {
+      return ctx.reply('❌ Ticket not found.', { parse_mode: 'HTML' })
+    }
+
+    const { error: updateErr } = await supabase
+      .from('support_sessions')
+      .update({ status: 'closed', updated_at: new Date().toISOString() })
+      .eq('id', session.id)
+
+    if (updateErr) {
+      return ctx.reply('❌ Error closing ticket.', { parse_mode: 'HTML' })
+    }
+
+    await ctx.reply(`✅ Ticket <code>${session.id.slice(0, 8)}</code> has been closed.`, { parse_mode: 'HTML' })
   })
 
   bot.command('search', async (ctx) => {
@@ -293,7 +442,15 @@ export function registerAdminHandlers(bot: Bot<AdminBotContext>) {
     const supabase = getTelegramSupabase()
     const { data, error } = await supabase
       .from('payment_requests')
-      .select(`id, amount, status, payment_type, shopper_profiles ( business_name )`)
+      .select(`
+        id,
+        amount,
+        status,
+        payment_type,
+        profiles:shopper_id (
+          shopper_profiles ( business_name )
+        )
+      `)
       .eq('status', 'pending')
       .limit(5)
 
@@ -301,7 +458,7 @@ export function registerAdminHandlers(bot: Bot<AdminBotContext>) {
     if (!data?.length) return ctx.reply('✅ No pending payment requests.', { parse_mode: 'HTML' })
 
     for (const req of data) {
-      const store = getStoreName(req.shopper_profiles)
+      const store = getStoreName(req.profiles)
       const keyboard = new InlineKeyboard()
         .text('✅ Approve', `approve_payment_${req.id}`)
         .text('❌ Reject', `reject_payment_${req.id}`)

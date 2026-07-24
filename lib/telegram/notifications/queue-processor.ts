@@ -136,9 +136,13 @@ export async function processNotificationQueue(limit = 25): Promise<{ processed:
           item.payload as Record<string, unknown>
         )
         const payload = item.payload as Record<string, unknown>
+        const targetChatId = payload.targetChatId as number | undefined
         const targetProfileId = payload.targetProfileId as string | undefined
 
-        if (targetProfileId) {
+        if (targetChatId) {
+          await sendCustomerMessage(targetChatId, text)
+          await recordTelegramSuccess()
+        } else if (targetProfileId) {
           const { data: user } = await supabase
             .from('telegram_users')
             .select('chat_id')
@@ -154,7 +158,6 @@ export async function processNotificationQueue(limit = 25): Promise<{ processed:
           const { data: users } = await supabase
             .from('telegram_users')
             .select('chat_id')
-            .eq('is_verified', true)
 
           for (const user of users ?? []) {
             try {

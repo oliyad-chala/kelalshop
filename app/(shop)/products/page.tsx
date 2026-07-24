@@ -30,7 +30,32 @@ export default async function ProductsFeedPage({
    }
 
    if (params.category) {
-      query = query.eq('category_id', params.category)
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(params.category)
+      if (isUuid) {
+         query = query.eq('category_id', params.category)
+      } else {
+         let categorySlug = params.category.toLowerCase().replace(/ & /g, '-').replace(/\s+/g, '-')
+         
+         // Map homepage category hrefs to database slugs
+         if (categorySlug === 'home-living') categorySlug = 'home'
+         if (categorySlug === 'baby-kids') categorySlug = 'other'
+         if (categorySlug === 'office-tech') categorySlug = 'electronics'
+         if (categorySlug === 'fashion-beauty' || categorySlug === 'fashion') categorySlug = 'clothing'
+         if (categorySlug === 'vehicles') categorySlug = 'automotive'
+         if (categorySlug === 'food-grocery' || categorySlug === 'food') categorySlug = 'food'
+         
+         const { data: catRecord } = await supabase
+            .from('categories')
+            .select('id')
+            .or(`slug.eq.${categorySlug},name.ilike.%${params.category}%`)
+            .maybeSingle()
+
+         if (catRecord) {
+            query = query.eq('category_id', catRecord.id)
+         } else {
+            query = query.eq('category_id', '00000000-0000-0000-0000-000000000000')
+         }
+      }
    }
 
    if (params.min_price) {

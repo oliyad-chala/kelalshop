@@ -237,15 +237,63 @@ export async function signIn(
     .single()
 
   if (!deviceRecord) {
-    // New device detected! Log it without requiring OTP verification
-    await supabase.from('user_devices').insert({
-      user_id: data.user.id,
-      device_fingerprint: fingerprint,
-      ip_address: ip,
-      user_agent: userAgent,
-      is_verified: true,
-      last_login_at: new Date().toISOString()
-    })
+    // Check if user has any existing verified devices
+    const { count: verifiedCount } = await supabase
+      .from('user_devices')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', data.user.id)
+      .eq('is_verified', true)
+
+    const isFirstDevice = (verifiedCount ?? 0) === 0
+
+    if (isFirstDevice) {
+      // First device is auto-verified
+      await supabase.from('user_devices').insert({
+        user_id: data.user.id,
+        device_fingerprint: fingerprint,
+        ip_address: ip,
+        user_agent: userAgent,
+        is_verified: true,
+        last_login_at: new Date().toISOString()
+      })
+    } else {
+      // New device detected for existing user — require verification
+      const otp = Math.floor(100000 + Math.random() * 900000).toString()
+      const otpExpiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString() // 10 minutes
+
+      const { error: insertError } = await supabase.from('user_devices').insert({
+        user_id: data.user.id,
+        device_fingerprint: fingerprint,
+        ip_address: ip,
+        user_agent: userAgent,
+        is_verified: false,
+        otp_code: otp,
+        otp_expires_at: otpExpiresAt,
+        otp_attempts: 0,
+        otp_sent_at: new Date().toISOString(),
+        last_login_at: new Date().toISOString()
+      })
+
+      if (!insertError) {
+        await supabase
+          .from('profiles')
+          .update({ requires_verification: true })
+          .eq('id', data.user.id)
+
+        // Queue the OTP email
+        const otpEmail = buildOtpEmail(otp, 'device-verification', 10)
+        await queueEmail(
+          'otp-device-verification',
+          {
+            to: email,
+            subject: otpEmail.subject,
+            html: otpEmail.html,
+            text: otpEmail.text,
+          },
+          `otp-device-${data.user.id}-${Date.now()}`
+        ).catch(console.error)
+      }
+    }
   } else {
     // Update last login
     await supabase

@@ -6,6 +6,7 @@ import { handleSupportPrompt, registerSupportFlow } from './flows/support.flow'
 import { handleOrders, registerOrdersFlow } from './flows/orders.flow'
 import { handleDeals, registerDealsFlow } from './flows/deals.flow'
 import { registerSearchFlow } from './flows/search.flow'
+import { getTelegramSupabase } from '../core/supabase-admin'
 
 export const mainMenu = new Keyboard()
   .text('🔍 Search Products')
@@ -20,6 +21,22 @@ export const mainMenu = new Keyboard()
 
 export function registerCustomerHandlers(bot: Bot<CustomerBotContext>) {
   bot.command('start', async (ctx) => {
+    try {
+      if (ctx.chat) {
+        const supabase = getTelegramSupabase()
+        await supabase.from('telegram_users').upsert(
+          {
+            chat_id: ctx.chat.id,
+            username: ctx.from?.username ?? null,
+            first_name: ctx.from?.first_name ?? null,
+          },
+          { onConflict: 'chat_id' }
+        )
+      }
+    } catch (err) {
+      console.error('[Telegram Start] Upsert failed:', err)
+    }
+
     await ctx.reply(
       '👋 <b>Welcome to KelalShop!</b> 🛍️\n\n' +
         'Your shopping assistant — search products, track orders, get support.\n\n' +
@@ -48,7 +65,10 @@ export function registerCustomerHandlers(bot: Bot<CustomerBotContext>) {
   registerDealsFlow(bot)
 
   bot.hears('🔍 Search Products', async (ctx) => {
-    await ctx.reply('🔍 What are you looking for? Type a product name or description.', { parse_mode: 'HTML' })
+    await ctx.reply(
+      '🔍 <b>Product Search</b>\n\nType what you are looking for below (e.g. <i>gaming laptop under 80000 ETB</i>):',
+      { parse_mode: 'HTML', reply_markup: { force_reply: true, selective: true } }
+    )
   })
   bot.hears('⚡ Flash Deals', handleDeals)
   bot.hears('📦 My Orders', handleOrders)

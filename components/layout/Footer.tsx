@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { SUPPORT_TELEGRAM } from '@/lib/content/legal'
+import { NewsletterForm } from './NewsletterForm'
 
 const SOCIAL_LINKS = [
   {
@@ -42,20 +43,7 @@ export function Footer() {
               <h3 className="text-2xl font-bold text-white mb-2">Subscribe to our Newsletter</h3>
               <p className="text-navy-300 text-sm">Get the latest updates on new products, verified shoppers, and exclusive marketplace deals delivered to your inbox.</p>
             </div>
-            <form className="w-full lg:w-auto flex flex-col sm:flex-row gap-3">
-              <input
-                type="email"
-                placeholder="Enter your email address"
-                className="w-full sm:w-80 px-4 py-3 rounded-xl bg-navy-800/50 border border-white/10 text-white placeholder:text-navy-400 focus:outline-none focus:ring-2 focus:ring-amber-500/50"
-                required
-              />
-              <button
-                type="submit"
-                className="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-400 text-navy-950 font-bold transition-colors whitespace-nowrap shadow-sm"
-              >
-                Subscribe
-              </button>
-            </form>
+            <NewsletterForm />
           </div>
         </div>
       </div>

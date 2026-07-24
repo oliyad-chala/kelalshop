@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { isAdminRole } from '@/lib/utils/admin-roles'
 import { syncCampaignStatuses } from '@/lib/utils/campaign-status'
 import { PromotionsTable, type PromotionRow } from '@/components/admin/promotions/PromotionsTable'
+import { NewsletterCampaignForm } from '@/components/admin/promotions/NewsletterCampaignForm'
 
 export const metadata = { title: 'Marketing Center | KelalShop Admin' }
 
@@ -101,6 +102,16 @@ export default async function AdminPromotionsPage() {
           <PromotionsTable rows={rows} canManage={canManage} />
         )}
       </div>
+
+      {canManage && (
+        <div className="admin-card" style={{ marginTop: '1.5rem' }}>
+          <h2 style={{ fontSize: '1.1rem', marginBottom: '0.35rem', fontWeight: 600 }}>Email Marketing & Newsletters</h2>
+          <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginBottom: '1.25rem' }}>
+            Compose and broadcast email messages to all newsletter subscribers or all registered marketplace users.
+          </p>
+          <NewsletterCampaignForm />
+        </div>
+      )}
     </div>
   )
 }

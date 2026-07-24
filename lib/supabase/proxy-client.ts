@@ -45,6 +45,22 @@ export async function updateSession(request: NextRequest) {
 
   const pathname = request.nextUrl.pathname
 
+  // ── Device verification block ───────────────────────────────────────────────
+  const isPageRequest = request.method === 'GET' && !pathname.startsWith('/_next') && !pathname.startsWith('/api')
+  if (user && isPageRequest && pathname !== '/auth/verify-device') {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('requires_verification')
+      .eq('id', user.id)
+      .single()
+
+    if (profile?.requires_verification && (pathname.startsWith('/dashboard') || pathname.startsWith('/requests'))) {
+      const url = request.nextUrl.clone()
+      url.pathname = '/auth/verify-device'
+      return NextResponse.redirect(url)
+    }
+  }
+
   // ── Admin RBAC ──────────────────────────────────────────────────────────────
   // All /admin/* routes except /admin/login require admin or staff role
   if (pathname.startsWith('/admin') && pathname !== '/admin/login') {

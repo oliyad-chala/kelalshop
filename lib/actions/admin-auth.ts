@@ -3,6 +3,7 @@
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { isAdminPortalRole } from '@/lib/utils/admin-roles'
 import { logAdminAction } from './activity-log'
 import { emitTelegramEvent } from '@/lib/telegram/notifications/templates'
@@ -22,12 +23,12 @@ async function getClientIp(): Promise<string> {
 }
 
 async function writeAuditLog(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  adminClient: ReturnType<typeof createAdminClient>,
   action: 'login_failed' | 'login_denied_not_admin' | 'login_success',
   email: string,
   ip: string
 ) {
-  await supabase.rpc('log_admin_audit', {
+  await adminClient.rpc('log_admin_audit', {
     p_action: action,
     p_email: email,
     p_ip: ip,
@@ -35,7 +36,7 @@ async function writeAuditLog(
 }
 
 async function isAdminLoginBlocked(
-  supabase: Awaited<ReturnType<typeof createClient>>,
+  adminClient: ReturnType<typeof createAdminClient>,
   email: string,
   ip: string
 ): Promise<boolean> {
@@ -47,11 +48,11 @@ async function isAdminLoginBlocked(
   const normalizedEmail = email.toLowerCase()
 
   const [{ data: ipFailures }, { data: emailFailures }] = await Promise.all([
-    supabase.rpc('count_admin_login_failures', {
+    adminClient.rpc('count_admin_login_failures', {
       p_ip: ip,
       p_window_minutes: WINDOW_MINUTES,
     }),
-    supabase.rpc('count_admin_login_failures_by_email', {
+    adminClient.rpc('count_admin_login_failures_by_email', {
       p_email: normalizedEmail,
       p_window_minutes: WINDOW_MINUTES,
     }),
@@ -69,9 +70,10 @@ export async function adminSignIn(state: AdminAuthState, formData: FormData) {
   }
 
   const supabase = await createClient()
+  const adminClient = createAdminClient()
   const ip = await getClientIp()
 
-  if (await isAdminLoginBlocked(supabase, email, ip)) {
+  if (await isAdminLoginBlocked(adminClient, email, ip)) {
     emitTelegramEvent('admin', 'SUSPICIOUS_ACTIVITY', {
       userId: email,
       description: `Blocked admin login — too many failures from IP ${ip}`,
@@ -84,7 +86,7 @@ export async function adminSignIn(state: AdminAuthState, formData: FormData) {
   const { data, error } = await supabase.auth.signInWithPassword({ email, password })
 
   if (error) {
-    await writeAuditLog(supabase, 'login_failed', email, ip)
+    await writeAuditLog(adminClient, 'login_failed', email, ip)
     return { error: 'Invalid email or password.' }
   }
 
@@ -96,11 +98,11 @@ export async function adminSignIn(state: AdminAuthState, formData: FormData) {
 
   if (!isAdminPortalRole(profile?.role)) {
     await supabase.auth.signOut()
-    await writeAuditLog(supabase, 'login_denied_not_admin', email, ip)
+    await writeAuditLog(adminClient, 'login_denied_not_admin', email, ip)
     return { error: 'Access denied. This portal is restricted to admin and staff users only.' }
   }
 
-  await writeAuditLog(supabase, 'login_success', email, ip)
+  await writeAuditLog(adminClient, 'login_success', email, ip)
   
   await logAdminAction({
     adminId: data.user.id,
