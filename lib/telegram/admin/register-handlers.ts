@@ -346,6 +346,11 @@ async function getChatIdForSession(sessionId: string): Promise<number | null> {
         message: replyText,
         targetChatId: chat_id,
       })
+
+      // Trigger queue processor immediately in background for instant reply delivery!
+      import('../notifications/queue-processor')
+        .then((m) => m.processNotificationQueue(25))
+        .catch((err) => console.error('[Support Reply Queue Trigger] Error:', err))
     }
 
     await ctx.reply(`✅ Message sent to ticket <code>${session.id.slice(0, 8)}</code>.`, { parse_mode: 'HTML' })
@@ -566,6 +571,12 @@ async function getChatIdForSession(sessionId: string): Promise<number | null> {
         const { emitTelegramEvent } = await import('../notifications/templates')
         emitTelegramEvent('customer', 'BROADCAST', { message: text })
         await ctx.reply('✅ Broadcast queued for delivery to all linked customers.', { parse_mode: 'HTML' })
+        
+        // Trigger queue processor immediately in background
+        import('../notifications/queue-processor')
+          .then((m) => m.processNotificationQueue(50))
+          .catch((err) => console.error('[Broadcast Queue Trigger] Error:', err))
+
         return
       }
     }

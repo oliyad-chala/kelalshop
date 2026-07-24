@@ -190,6 +190,23 @@ export default async function DashboardPage() {
         )}
       </div>
 
+      {/* Missing Phone Number Alert */}
+      {isShopper && !profile?.phone && (
+        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div>
+            <h3 className="text-lg font-semibold text-rose-900">Missing Phone Number</h3>
+            <p className="text-rose-800/80 mt-1 text-sm">
+              Sellers must have a phone number so buyers can coordinate CBE / Telebirr payments and delivery directly.
+            </p>
+          </div>
+          <Link href="/dashboard/profile" className="shrink-0">
+            <Button variant="outline" className="border-rose-300 text-rose-700 hover:bg-rose-100">
+              Add Phone Number
+            </Button>
+          </Link>
+        </div>
+      )}
+
       {/* Verification Alerts */}
       {isShopper && verificationStatus === 'unverified' && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 flex flex-col sm:flex-row items-center justify-between gap-4">

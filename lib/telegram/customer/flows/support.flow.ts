@@ -35,7 +35,11 @@ export function registerSupportFlow(bot: Bot<CustomerBotContext>) {
 
     const { data: session, error: sessionError } = await getTelegramSupabase()
       .from('support_sessions')
-      .insert({ user_id: userId, status: 'human' })
+      .insert({ 
+        user_id: userId, 
+        guest_id: ctx.chat ? ctx.chat.id.toString() : null,
+        status: 'human' 
+      })
       .select()
       .single()
 

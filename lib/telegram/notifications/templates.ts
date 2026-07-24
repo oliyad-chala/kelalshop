@@ -44,6 +44,7 @@ export type CustomerNotificationEvent =
   | 'ORDER_DELIVERED'
   | 'ORDER_CANCELLED'
   | 'ORDER_PLACED'
+  | 'ORDER_RECEIVED'
   | 'FLASH_SALE'
   | 'TICKET_REPLY'
   | 'BROADCAST'
@@ -77,6 +78,8 @@ export function buildCustomerMessage(event: CustomerNotificationEvent, payload: 
   switch (event) {
     case 'ORDER_PLACED':
       return `✅ <b>Order placed!</b>\nOrder #${orderId}\nAmount: <b>${formatEtb(Number(payload.amount || 0))}</b>`
+    case 'ORDER_RECEIVED':
+      return `🎉 <b>New Order Received!</b>\nOrder #${orderId}\nAmount: <b>${formatEtb(Number(payload.amount || 0))}</b>\nPlease coordinate payment and delivery directly with the buyer!`
     case 'ORDER_ACCEPTED':
       return `✅ <b>Order #${orderId} accepted!</b>\nThe seller is preparing your order.`
     case 'ORDER_SHIPPED':
@@ -89,6 +92,8 @@ export function buildCustomerMessage(event: CustomerNotificationEvent, payload: 
       return `⚡ <b>Flash sale is live!</b>\nUse /deals to browse.`
     case 'TICKET_REPLY':
       return `🎫 <b>Support reply on ticket #${truncateId(String(payload.ticketId))}:</b>\n\n${escapeHtml(String(payload.message || ''))}`
+    case 'BROADCAST':
+      return `📢 <b>Announcement</b>\n\n${escapeHtml(String(payload.message || ''))}`
     default:
       return `📢 <b>Update</b>\n${escapeHtml(String(payload.message || 'You have a new notification.'))}`
   }

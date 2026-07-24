@@ -27,7 +27,7 @@ export default async function DashboardOrdersPage() {
 
   let query = supabase
     .from('orders')
-    .select('*, products(name, price), buyer:buyer_id(full_name), shopper:shopper_id(full_name)')
+    .select('*, products(name, price), buyer:buyer_id(full_name, phone, telegram_users(username)), shopper:shopper_id(full_name, phone, location, telegram_users(username))')
 
   if (isShopper) {
     query = query.eq('shopper_id', user.id)
@@ -105,6 +105,87 @@ export default async function DashboardOrdersPage() {
                   <Badge variant={getOrderStatusColor(order.status) as any} size="md" className="capitalize">
                     {statusLabel[order.status] ?? order.status}
                   </Badge>
+                </div>
+              </div>
+
+              {/* Direct Payment & Coordination info (Jiji style) */}
+              <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/10 space-y-3">
+                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                  📞 Direct Coordination (Cash on Delivery / Mobile Money)
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-navy-950">
+                  {isShopper ? (
+                    <>
+                      <div>
+                        <span className="text-slate-500 font-medium block text-xs">Buyer Name</span>
+                        <span className="font-semibold">{order.buyer?.full_name || 'Buyer'}</span>
+                      </div>
+                      {order.buyer?.phone && (
+                        <div>
+                          <span className="text-slate-500 font-medium block text-xs">Phone Number</span>
+                          <a href={`tel:${order.buyer.phone}`} className="font-semibold text-amber-600 hover:underline">
+                            {order.buyer.phone}
+                          </a>
+                        </div>
+                      )}
+                      {((order.buyer as any)?.telegram_users?.[0] || (order.buyer as any)?.telegram_users) && (
+                        <div>
+                          <span className="text-slate-500 font-medium block text-xs">Telegram Username</span>
+                          <a 
+                            href={`https://t.me/${(order.buyer as any).telegram_users?.[0]?.username || (order.buyer as any).telegram_users?.username}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="font-semibold text-sky-600 hover:underline"
+                          >
+                            @{(order.buyer as any).telegram_users?.[0]?.username || (order.buyer as any).telegram_users?.username}
+                          </a>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <span className="text-slate-500 font-medium block text-xs">Shopper Name</span>
+                        <span className="font-semibold">{order.shopper?.full_name || 'Verified Shopper'}</span>
+                      </div>
+                      {order.shopper?.phone && (
+                        <div>
+                          <span className="text-slate-500 font-medium block text-xs">Phone Number</span>
+                          <a href={`tel:${order.shopper.phone}`} className="font-semibold text-amber-600 hover:underline">
+                            {order.shopper.phone}
+                          </a>
+                        </div>
+                      )}
+                      {order.shopper?.location && (
+                        <div>
+                          <span className="text-slate-500 font-medium block text-xs">Shopper Location</span>
+                          <span className="font-semibold">{order.shopper.location}</span>
+                        </div>
+                      )}
+                      {((order.shopper as any)?.telegram_users?.[0] || (order.shopper as any)?.telegram_users) && (
+                        <div>
+                          <span className="text-slate-500 font-medium block text-xs">Telegram Username</span>
+                          <a 
+                            href={`https://t.me/${(order.shopper as any).telegram_users?.[0]?.username || (order.shopper as any).telegram_users?.username}`} 
+                            target="_blank" 
+                            rel="noopener noreferrer" 
+                            className="font-semibold text-sky-600 hover:underline"
+                          >
+                            @{(order.shopper as any).telegram_users?.[0]?.username || (order.shopper as any).telegram_users?.username}
+                          </a>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+                
+                <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 flex items-start gap-2">
+                  <span className="text-base leading-none">💡</span>
+                  <p className="text-[11px] text-amber-800 leading-relaxed">
+                    {isShopper 
+                      ? 'Reach out to the buyer directly to coordinate delivery and receive your cash/transfer. Confirm delivery once settled.' 
+                      : 'Coordinate payment directly with the shopper using Telebirr, CBE, or Hand-to-Cash. Always request proof of shipment.'}
+                  </p>
                 </div>
               </div>
 

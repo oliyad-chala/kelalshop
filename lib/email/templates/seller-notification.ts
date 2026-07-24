@@ -13,7 +13,7 @@ export function buildSellerNewOrderEmail(data: {
     .map(
       (item) => `
     <li style="margin-bottom: 6px;">
-      <span style="font-weight: 600; color: #111827;">${item.name}</span> - $${item.price.toFixed(2)}
+      <span style="font-weight: 600; color: #111827;">${item.name}</span> - ${item.price.toLocaleString()} ETB
     </li>`
     )
     .join('')
@@ -32,7 +32,7 @@ export function buildSellerNewOrderEmail(data: {
     <div style="background-color: #f9fafb; border-radius: 8px; padding: 16px; margin: 24px 0;">
       <h4 style="margin: 0 0 12px; font-size: 14px; font-weight: 600; color: #111827;">Order Details</h4>
       <p style="margin: 0 0 8px; font-size: 13px; color: #4b5563;">Order Number: <strong>#${data.orderNumber}</strong></p>
-      <p style="margin: 0 0 12px; font-size: 13px; color: #4b5563;">Payout Amount: <strong>$${data.total.toFixed(2)}</strong></p>
+      <p style="margin: 0 0 12px; font-size: 13px; color: #4b5563;">Payout Amount: <strong>${data.total.toLocaleString()} ETB</strong></p>
       
       <div style="border-top: 1px solid #e5e7eb; padding-top: 12px;">
         <span style="font-size: 13px; font-weight: 600; color: #111827; display: block; margin-bottom: 6px;">Items to ship:</span>
@@ -49,7 +49,7 @@ export function buildSellerNewOrderEmail(data: {
     </div>
   `
 
-  const text = `Congratulations! You received new order #${data.orderNumber} from ${data.buyerName}. Total payout: $${data.total.toFixed(2)}. Process it at https://kelalshop.com/dashboard/orders/${data.orderNumber}`
+  const text = `Congratulations! You received new order #${data.orderNumber} from ${data.buyerName}. Total payout: ${data.total.toLocaleString()} ETB. Process it at https://kelalshop.com/dashboard/orders/${data.orderNumber}`
 
   return {
     subject,

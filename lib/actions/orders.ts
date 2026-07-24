@@ -370,6 +370,10 @@ export async function createOrder(
       targetProfileId: user.id,
       idempotencyKey: `order-placed-${order.id}`,
     })
+    emitTelegramEvent('customer', 'ORDER_RECEIVED', { orderId: order.id, amount }, {
+      targetProfileId: product.shopper_id,
+      idempotencyKey: `order-received-${order.id}`,
+    })
     
     const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single()
     await logUserAction({
@@ -404,6 +408,10 @@ export async function createOrder(
   emitTelegramEvent('customer', 'ORDER_PLACED', { orderId, amount }, {
     targetProfileId: user.id,
     idempotencyKey: `order-placed-${orderId}`,
+  })
+  emitTelegramEvent('customer', 'ORDER_RECEIVED', { orderId, amount }, {
+    targetProfileId: product.shopper_id,
+    idempotencyKey: `order-received-${orderId}`,
   })
   
   const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single()
