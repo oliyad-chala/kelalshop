@@ -67,15 +67,15 @@ async function recordTelegramSuccess() {
   }
 }
 
-async function sendAdminMessage(chatId: number, text: string) {
-  await bot.api.sendMessage(chatId, text, { parse_mode: 'HTML' })
+async function sendAdminMessage(chatId: number, text: string, replyMarkup?: any) {
+  await bot.api.sendMessage(chatId, text, { parse_mode: 'HTML', reply_markup: replyMarkup })
 }
 
 async function sendCustomerMessage(chatId: number, text: string) {
   await customerBot.api.sendMessage(chatId, text, { parse_mode: 'HTML' })
 }
 
-export async function deliverAdminBroadcast(message: string) {
+export async function deliverAdminBroadcast(message: string, replyMarkup?: any) {
   const supabase = getTelegramSupabase()
   const { data: admins } = await supabase
     .from('telegram_admins')
@@ -86,7 +86,7 @@ export async function deliverAdminBroadcast(message: string) {
 
   for (const admin of admins) {
     try {
-      await sendAdminMessage(admin.telegram_chat_id, message)
+      await sendAdminMessage(admin.telegram_chat_id, message, replyMarkup)
       await recordTelegramSuccess()
     } catch (e) {
       await recordTelegramFailure()
@@ -129,7 +129,16 @@ export async function processNotificationQueue(limit = 25): Promise<{ processed:
     try {
       if (item.channel === 'admin') {
         const text = buildAdminMessage(item.event_type, item.payload as Record<string, unknown>)
-        await deliverAdminBroadcast(text)
+        let replyMarkup: any = undefined
+        if (item.event_type === 'SUPPORT_TICKET') {
+          const ticketId = String((item.payload as any).ticketId || '')
+          replyMarkup = {
+            inline_keyboard: [[
+              { text: '🙋‍♂️ Claim & Reply', callback_data: `claim_ticket:${ticketId}` }
+            ]]
+          }
+        }
+        await deliverAdminBroadcast(text, replyMarkup)
       } else {
         const text = buildCustomerMessage(
           item.event_type as Parameters<typeof buildCustomerMessage>[0],

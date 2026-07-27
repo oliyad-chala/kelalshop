@@ -77,10 +77,91 @@ export function registerCustomerHandlers(bot: Bot<CustomerBotContext>) {
 
   registerSearchFlow(bot)
 
+  // Interactive Cart Summary Command
+  bot.command('cart', async (ctx) => {
+    const chatId = ctx.chat?.id
+    if (!chatId) return
+    const admin = getTelegramSupabase()
+    
+    const { data: tgUser } = await admin
+      .from('telegram_users')
+      .select('profile_id, is_verified')
+      .eq('chat_id', chatId)
+      .maybeSingle()
+
+    if (!tgUser || !tgUser.is_verified || !tgUser.profile_id) {
+      return ctx.reply('⚠️ Please link your account first using /link to view your cart.', { parse_mode: 'HTML' })
+    }
+
+    const { data: items } = await admin
+      .from('cart_items')
+      .select('*, product:product_id(name, price)')
+      .eq('user_id', tgUser.profile_id)
+
+    if (!items || items.length === 0) {
+      return ctx.reply('🛒 Your cart is empty.', { parse_mode: 'HTML' })
+    }
+
+    let text = '🛒 <b>Your Cart Summary:</b>\n\n'
+    let subtotal = 0
+    for (const item of items) {
+      const price = Number(item.product?.price || 0)
+      const qty = item.quantity
+      text += `• <b>${item.product?.name}</b>\n  ${qty} × ${price} ETB = <b>${qty * price} ETB</b>\n\n`
+      subtotal += qty * price
+    }
+    text += `Subtotal: <b>${subtotal} ETB</b>`
+
+    const keyboard = {
+      inline_keyboard: [[
+        { text: '💳 Secure Checkout Mini App', web_app: { url: 'https://kelalshop.com/telegram/checkout' } }
+      ]]
+    }
+
+    await ctx.reply(text, { parse_mode: 'HTML', reply_markup: keyboard })
+  })
+
   bot.on('message:text', async (ctx) => {
-    await ctx.reply(
-      'Try /search for products or /support for help.',
-      { parse_mode: 'HTML', reply_markup: mainMenu }
-    )
+    const text = ctx.message.text.trim()
+    if (text.startsWith('/')) return
+
+    const chatId = ctx.chat?.id
+    if (!chatId) return
+
+    const admin = getTelegramSupabase()
+
+    // 1. Check if the customer is in an active human support takeover session
+    const { data: activeSession } = await admin
+      .from('support_sessions')
+      .select('id, assigned_staff_tg_chat_id, status')
+      .eq('guest_id', chatId.toString())
+      .neq('status', 'closed')
+      .maybeSingle()
+
+    if (activeSession && activeSession.status === 'human') {
+      // Save customer message to support messages
+      await admin.from('support_messages').insert({
+        session_id: activeSession.id,
+        sender_type: 'user',
+        content: text,
+      })
+
+      if (activeSession.assigned_staff_tg_chat_id) {
+        // Forward message to the claimed staff member's Admin Bot chat
+        const { bot: adminBot } = await import('../admin/bot')
+        await adminBot.api.sendMessage(
+          activeSession.assigned_staff_tg_chat_id,
+          `💬 <b>Customer (Ticket #${activeSession.id.slice(0, 8)}):</b>\n\n${text}`,
+          { parse_mode: 'HTML' }
+        )
+      } else {
+        await ctx.reply(`⏳ Your request is queued. An agent will claim it and reply shortly. (Ticket #${activeSession.id.slice(0, 8)})`, { parse_mode: 'HTML' })
+      }
+      return
+    }
+
+    // 2. Otherwise, route query through Gemini AI Shopping/FAQ Agent
+    const { handleCustomerAIQuery } = await import('../ai/customer-agent')
+    await handleCustomerAIQuery(ctx)
   })
 }

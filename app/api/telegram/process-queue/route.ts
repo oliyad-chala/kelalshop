@@ -13,6 +13,12 @@ export async function GET(req: Request) {
   }
 
   const result = await processNotificationQueue(50)
+
+  // Trigger cart abandonment reminders check in the background
+  import('@/lib/telegram/notifications/reminder-engine')
+    .then((m) => m.sendCartAbandonmentReminders())
+    .catch((err) => console.error('[Reminder Engine Cron] Failed:', err))
+
   return NextResponse.json({ ok: true, ...result })
 }
 

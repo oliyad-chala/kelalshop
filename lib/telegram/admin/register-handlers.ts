@@ -554,9 +554,190 @@ async function getChatIdForSession(sessionId: string): Promise<number | null> {
     await ctx.reply('✅ Cancelled.', { parse_mode: 'HTML' })
   })
 
+  bot.command('close_ticket', async (ctx) => {
+    const adminChatId = ctx.chat?.id
+    if (!adminChatId) return
+
+    const supabase = getTelegramSupabase()
+    const { data: claimedSession } = await supabase
+      .from('support_sessions')
+      .select('id, guest_id, user_id')
+      .eq('assigned_staff_tg_chat_id', adminChatId)
+      .neq('status', 'closed')
+      .maybeSingle()
+
+    if (!claimedSession) {
+      return ctx.reply('❌ You do not have any active claimed tickets.', { parse_mode: 'HTML' })
+    }
+
+    await supabase
+      .from('support_sessions')
+      .update({
+        status: 'closed',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', claimedSession.id)
+
+    // Notify customer
+    let customerChatId: number | null = null
+    if (claimedSession.guest_id) {
+      const num = Number(claimedSession.guest_id)
+      if (!isNaN(num)) customerChatId = num
+    }
+    if (!customerChatId && claimedSession.user_id) {
+      const { data: tgUser } = await supabase
+        .from('telegram_users')
+        .select('chat_id')
+        .eq('profile_id', claimedSession.user_id)
+        .maybeSingle()
+      if (tgUser?.chat_id) customerChatId = tgUser.chat_id
+    }
+
+    if (customerChatId) {
+      const { customerBot } = await import('../customer/bot')
+      await customerBot.api.sendMessage(
+        customerChatId,
+        `🎫 <b>Your support session (Ticket #${claimedSession.id.slice(0, 8)}) has been closed.</b>\n\nYou are now chatting with our AI Assistant!`,
+        { parse_mode: 'HTML' }
+      )
+    }
+
+    await ctx.reply(`✅ <b>Support session closed.</b> You have released the claim.`, { parse_mode: 'HTML' })
+  })
+
+  bot.command('demand', async (ctx) => {
+    if (!requireStaff(ctx, 'analytics')) return
+    const supabase = getTelegramSupabase()
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
+
+    const { data: logs, error } = await supabase
+      .from('search_logs')
+      .select('query')
+      .eq('results_count', 0)
+      .gt('created_at', sevenDaysAgo)
+
+    if (error) {
+      return ctx.reply('❌ Error fetching demand logs.', { parse_mode: 'HTML' })
+    }
+
+    if (!logs || logs.length === 0) {
+      return ctx.reply('✅ No zero-result searches in the last 7 days!', { parse_mode: 'HTML' })
+    }
+
+    const counts: Record<string, number> = {}
+    for (const log of logs) {
+      const term = log.query.toLowerCase().trim()
+      counts[term] = (counts[term] || 0) + 1
+    }
+
+    const sortedDemand = Object.entries(counts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+
+    let text = `📈 <b>Lost Demand Report (Last 7 Days)</b>\n`
+    text += `<i>Top searches with zero results:</i>\n\n`
+    for (const [term, count] of sortedDemand) {
+      text += `• <b>${escapeHtml(term)}</b> — <code>${count} searches</code>\n`
+    }
+    
+    await ctx.reply(text, { parse_mode: 'HTML' })
+  })
+
+  bot.callbackQuery(/^claim_ticket:(.+)$/, async (ctx) => {
+    const ticketId = ctx.match[1]
+    const adminChatId = ctx.chat?.id
+    if (!adminChatId) return
+
+    const supabase = getTelegramSupabase()
+
+    const { data: session } = await supabase
+      .from('support_sessions')
+      .select('id, status, assigned_staff_tg_chat_id')
+      .eq('id', ticketId)
+      .maybeSingle()
+
+    if (!session) {
+      return ctx.answerCallbackQuery({ text: '❌ Ticket not found.', show_alert: true })
+    }
+
+    if (session.status === 'closed') {
+      return ctx.answerCallbackQuery({ text: '❌ This ticket is already closed.', show_alert: true })
+    }
+
+    if (session.assigned_staff_tg_chat_id) {
+      if (session.assigned_staff_tg_chat_id === adminChatId) {
+        return ctx.answerCallbackQuery({ text: 'You have already claimed this ticket.', show_alert: true })
+      } else {
+        return ctx.answerCallbackQuery({ text: '❌ Already claimed by another admin.', show_alert: true })
+      }
+    }
+
+    const { error: claimErr } = await supabase
+      .from('support_sessions')
+      .update({
+        assigned_staff_tg_chat_id: adminChatId,
+        status: 'human',
+      })
+      .eq('id', ticketId)
+
+    if (claimErr) {
+      return ctx.answerCallbackQuery({ text: '❌ Failed to claim ticket.', show_alert: true })
+    }
+
+    await ctx.answerCallbackQuery({ text: '✅ Ticket claimed! You are now in human takeover mode.' })
+    await ctx.reply(`🙋‍♂️ <b>You have claimed Ticket #${ticketId.slice(0, 8)}.</b>\n\nAny message you type now (that doesn't start with /) will be forwarded directly to the customer.\n\nUse /close_ticket to end the takeover.`, { parse_mode: 'HTML' })
+  })
+
   bot.on('message:text', async (ctx, next) => {
     const text = ctx.message.text
     if (text.startsWith('/')) return next()
+
+    const adminChatId = ctx.chat?.id
+    if (adminChatId) {
+      const supabase = getTelegramSupabase()
+      
+      const { data: claimedSession } = await supabase
+        .from('support_sessions')
+        .select('id, guest_id, user_id')
+        .eq('assigned_staff_tg_chat_id', adminChatId)
+        .neq('status', 'closed')
+        .maybeSingle()
+
+      if (claimedSession) {
+        await supabase.from('support_messages').insert({
+          session_id: claimedSession.id,
+          sender_type: 'admin',
+          content: text,
+        })
+
+        let customerChatId: number | null = null
+        if (claimedSession.guest_id) {
+          const num = Number(claimedSession.guest_id)
+          if (!isNaN(num)) customerChatId = num
+        }
+        if (!customerChatId && claimedSession.user_id) {
+          const { data: tgUser } = await supabase
+            .from('telegram_users')
+            .select('chat_id')
+            .eq('profile_id', claimedSession.user_id)
+            .maybeSingle()
+          if (tgUser?.chat_id) customerChatId = tgUser.chat_id
+        }
+
+        if (customerChatId) {
+          const { customerBot } = await import('../customer/bot')
+          await customerBot.api.sendMessage(
+            customerChatId,
+            `💬 <b>Support Reply:</b>\n\n${escapeHtml(text)}`,
+            { parse_mode: 'HTML' }
+          )
+          await ctx.reply(`✉️ <b>Message forwarded to customer.</b>`, { parse_mode: 'HTML' })
+        } else {
+          await ctx.reply(`❌ Could not resolve customer Telegram Chat ID for this session.`, { parse_mode: 'HTML' })
+        }
+        return
+      }
+    }
 
     if (ctx.chat && ctx.isAdmin && ctx.adminRole === 'admin') {
       const supabase = getTelegramSupabase()
