@@ -387,7 +387,7 @@ async function createSupportTicketTool(description: string, profileId: string | 
   })
 
   // Notify Admin Bot
-  emitTelegramEvent('admin', 'SUPPORT_TICKET', {
+  await emitTelegramEvent('admin', 'SUPPORT_TICKET', {
     ticketId: session.id,
     customerDetails: `Telegram Chat ID: ${chatId}`,
     reason: 'Created via AI Shopping Assistant',

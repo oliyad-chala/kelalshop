@@ -16,9 +16,12 @@ export async function POST(req: Request) {
     await bot.handleUpdate(update)
 
     // Process queue opportunistically after each update
-    import('@/lib/telegram/notifications/queue-processor')
-      .then((m) => m.processNotificationQueue(5))
-      .catch(() => {})
+    try {
+      const { processNotificationQueue } = await import('@/lib/telegram/notifications/queue-processor')
+      await processNotificationQueue(5)
+    } catch (err) {
+      console.error('[Webhook Queue Process] Error:', err)
+    }
 
     return new Response('OK', { status: 200 })
   } catch (error) {

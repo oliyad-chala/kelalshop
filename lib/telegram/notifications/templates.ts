@@ -125,18 +125,18 @@ export async function enqueueNotification(params: {
   }
 }
 
-/** Fire-and-forget from server actions */
-export function emitTelegramEvent(
+/** Promisified/awaited from server actions to prevent serverless execution cutoff */
+export async function emitTelegramEvent(
   channel: 'admin' | 'customer',
   eventType: string,
   payload: Record<string, unknown>,
   options?: { idempotencyKey?: string; targetProfileId?: string }
-) {
-  enqueueNotification({
+): Promise<void> {
+  await enqueueNotification({
     channel,
     eventType,
     payload,
     idempotencyKey: options?.idempotencyKey,
     targetProfileId: options?.targetProfileId,
-  }).catch(() => {})
+  })
 }

@@ -140,12 +140,12 @@ export async function executeTelegramCheckout(initData: string) {
     createdOrderIds.push(order.id)
 
     // Emit bot events
-    emitTelegramEvent('admin', 'NEW_ORDER', { orderId: order.id, amount }, { idempotencyKey: `order-${order.id}` })
-    emitTelegramEvent('customer', 'ORDER_PLACED', { orderId: order.id, amount }, {
+    await emitTelegramEvent('admin', 'NEW_ORDER', { orderId: order.id, amount }, { idempotencyKey: `order-${order.id}` })
+    await emitTelegramEvent('customer', 'ORDER_PLACED', { orderId: order.id, amount }, {
       targetProfileId: profileId,
       idempotencyKey: `order-placed-${order.id}`,
     })
-    emitTelegramEvent('customer', 'ORDER_RECEIVED', { orderId: order.id, amount }, {
+    await emitTelegramEvent('customer', 'ORDER_RECEIVED', { orderId: order.id, amount }, {
       targetProfileId: product.shopper_id,
       idempotencyKey: `order-received-${order.id}`,
     })
