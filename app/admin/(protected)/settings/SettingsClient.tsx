@@ -7,12 +7,22 @@ import {
   Mail, Phone, Building, Clock
 } from 'lucide-react'
 
-import { updatePlatformSettings } from '@/lib/actions/admin-settings'
+import {
+  updatePlatformSettings,
+  updateAdminAccount,
+  updateAdminSecurity,
+  updateAdminNotifications
+} from '@/lib/actions/admin-settings'
 
 interface SettingsClientProps {
   profile: any
   email: string
-  initialMaintenanceMode?: boolean
+  platformSettings: {
+    maintenanceMode: boolean
+    platformName: string
+    supportEmail: string
+    autoVerify: boolean
+  }
 }
 
 type Tab = 'account' | 'security' | 'notifications' | 'platform'
@@ -65,7 +75,7 @@ function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: 
   )
 }
 
-export function SettingsClient({ profile, email, initialMaintenanceMode = false }: SettingsClientProps) {
+export function SettingsClient({ profile, email, platformSettings }: SettingsClientProps) {
   const [activeTab, setActiveTab] = useState<Tab>('account')
   const [pending, startTransition] = useTransition()
   const [saved, setSaved] = useState(false)
@@ -80,21 +90,22 @@ export function SettingsClient({ profile, email, initialMaintenanceMode = false 
   const [currentPassword, setCurrentPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [sessionTimeout, setSessionTimeout] = useState('30')
-  const [twoFactor, setTwoFactor] = useState(false)
+  const [sessionTimeout, setSessionTimeout] = useState(String(profile?.session_timeout ?? 30))
+  const [twoFactor, setTwoFactor] = useState(profile?.two_factor ?? false)
 
   // Notification state
-  const [notifVerifications, setNotifVerifications] = useState(true)
-  const [notifPayments, setNotifPayments] = useState(true)
-  const [notifDisputes, setNotifDisputes] = useState(true)
-  const [notifNewSellers, setNotifNewSellers] = useState(false)
-  const [emailDigest, setEmailDigest] = useState(true)
+  const [notifVerifications, setNotifVerifications] = useState(profile?.notif_verifications ?? true)
+  const [notifPayments, setNotifPayments] = useState(profile?.notif_payments ?? true)
+  const [notifDisputes, setNotifDisputes] = useState(profile?.notif_disputes ?? true)
+  const [notifNewSellers, setNotifNewSellers] = useState(profile?.notif_new_sellers ?? false)
+  const [emailDigest, setEmailDigest] = useState(profile?.email_digest ?? true)
+  const [digestEmailAddress, setDigestEmailAddress] = useState(profile?.digest_email_address ?? email)
 
   // Platform state
-  const [platformName, setPlatformName] = useState('KelalShop')
-  const [supportEmail, setSupportEmail] = useState('support@kelalshop.com')
-  const [maintenanceMode, setMaintenanceMode] = useState(initialMaintenanceMode)
-  const [autoVerify, setAutoVerify] = useState(false)
+  const [platformName, setPlatformName] = useState(platformSettings.platformName)
+  const [supportEmail, setSupportEmail] = useState(platformSettings.supportEmail)
+  const [maintenanceMode, setMaintenanceMode] = useState(platformSettings.maintenanceMode)
+  const [autoVerify, setAutoVerify] = useState(platformSettings.autoVerify)
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'account',       label: 'Account',       icon: <User size={16} /> },
@@ -111,10 +122,33 @@ export function SettingsClient({ profile, email, initialMaintenanceMode = false 
     }
     startTransition(async () => {
       try {
-        if (activeTab === 'platform') {
-          await updatePlatformSettings(maintenanceMode)
-        } else {
-          await new Promise(r => setTimeout(r, 600)) // Simulate API call for others
+        if (activeTab === 'account') {
+          await updateAdminAccount(fullName, phone)
+        } else if (activeTab === 'security') {
+          await updateAdminSecurity(
+            newPassword || undefined,
+            parseInt(sessionTimeout, 10),
+            twoFactor
+          )
+          setCurrentPassword('')
+          setNewPassword('')
+          setConfirmPassword('')
+        } else if (activeTab === 'notifications') {
+          await updateAdminNotifications({
+            notifVerifications,
+            notifPayments,
+            notifDisputes,
+            notifNewSellers,
+            emailDigest,
+            digestEmailAddress
+          })
+        } else if (activeTab === 'platform') {
+          await updatePlatformSettings({
+            maintenanceMode,
+            platformName,
+            supportEmail,
+            autoVerify
+          })
         }
         setSaved(true)
         setTimeout(() => setSaved(false), 3000)
@@ -324,7 +358,8 @@ export function SettingsClient({ profile, email, initialMaintenanceMode = false 
                     <input
                       className="admin-input"
                       type="email"
-                      defaultValue={email}
+                      value={digestEmailAddress}
+                      onChange={e => setDigestEmailAddress(e.target.value)}
                       placeholder="admin@example.com"
                     />
                   </div>

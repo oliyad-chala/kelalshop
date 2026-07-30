@@ -1,8 +1,8 @@
-import { GoogleGenAI } from '@google/genai'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { emitTelegramEvent } from '../notifications/templates'
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
+import { generateAIContentWithFallback } from './client-wrapper'
+import { InlineKeyboard } from 'grammy'
+import { formatEtb } from '../core/telegram-format'
 
 const SYSTEM_INSTRUCTION = `
 You are the official KelalShop AI Shopping & Support Assistant.
@@ -45,6 +45,7 @@ export async function handleCustomerAIQuery(ctx: any): Promise<void> {
   const text = ctx.message?.text
   if (!chatId || !text) return
 
+  const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://kelalshop.com'
   await ctx.replyWithChatAction('typing')
 
   const admin = createAdminClient()
@@ -69,78 +70,76 @@ export async function handleCustomerAIQuery(ctx: any): Promise<void> {
   history.push({ role: 'user', parts: [{ text }] })
 
   try {
-    // Call Gemini with tools
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+    // Call AI with fallback
+    const response = await generateAIContentWithFallback({
       contents: history.map((h) => ({
         role: h.role,
         parts: h.parts,
       })),
-      config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
-        tools: [{
-          functionDeclarations: [
-            {
-              name: 'search_products',
-              description: 'Search for available products on KelalShop',
-              parameters: {
-                type: 'OBJECT',
-                properties: {
-                  query: { type: 'STRING', description: 'Search term/keyword' },
-                  category: { type: 'STRING', description: 'Optional category' },
-                  minPrice: { type: 'NUMBER', description: 'Minimum price filter' },
-                  maxPrice: { type: 'NUMBER', description: 'Maximum price filter' }
-                },
-                required: ['query']
-              }
-            },
-            {
-              name: 'get_cart',
-              description: 'Get current cart items for the customer',
-              parameters: { type: 'OBJECT', properties: {} }
-            },
-            {
-              name: 'add_to_cart',
-              description: 'Add a product to the cart',
-              parameters: {
-                type: 'OBJECT',
-                properties: {
-                  productId: { type: 'STRING', description: 'The UUID of the product' },
-                  quantity: { type: 'NUMBER', description: 'Quantity to add' }
-                },
-                required: ['productId', 'quantity']
-              }
-            },
-            {
-              name: 'remove_from_cart',
-              description: 'Remove a product from the cart',
-              parameters: {
-                type: 'OBJECT',
-                properties: {
-                  productId: { type: 'STRING', description: 'The UUID of the product' }
-                },
-                required: ['productId']
-              }
-            },
-            {
-              name: 'get_orders',
-              description: 'Retrieve recent orders placed by this customer',
-              parameters: { type: 'OBJECT', properties: {} }
-            },
-            {
-              name: 'create_support_ticket',
-              description: 'Create a support ticket for help from a human staff member',
-              parameters: {
-                type: 'OBJECT',
-                properties: {
-                  description: { type: 'STRING', description: 'Summary of the issue or dispute' }
-                },
-                required: ['description']
-              }
+      systemInstruction: SYSTEM_INSTRUCTION,
+      tools: [{
+        functionDeclarations: [
+          {
+            name: 'search_products',
+            description: 'Search for available products on KelalShop',
+            parameters: {
+              type: 'OBJECT',
+              properties: {
+                query: { type: 'STRING', description: 'Search term/keyword' },
+                category: { type: 'STRING', description: 'Optional category' },
+                minPrice: { type: 'NUMBER', description: 'Minimum price filter' },
+                maxPrice: { type: 'NUMBER', description: 'Maximum price filter' },
+                sortBy: { type: 'STRING', description: 'Sort order: price_asc (cheapest first), price_desc (most expensive first), newest' }
+              },
+              required: ['query']
             }
-          ]
-        }]
-      }
+          },
+          {
+            name: 'get_cart',
+            description: 'Get current cart items for the customer',
+            parameters: { type: 'OBJECT', properties: {} }
+          },
+          {
+            name: 'add_to_cart',
+            description: 'Add a product to the cart',
+            parameters: {
+              type: 'OBJECT',
+              properties: {
+                productId: { type: 'STRING', description: 'The UUID of the product' },
+                quantity: { type: 'NUMBER', description: 'Quantity to add' }
+              },
+              required: ['productId', 'quantity']
+            }
+          },
+          {
+            name: 'remove_from_cart',
+            description: 'Remove a product from the cart',
+            parameters: {
+              type: 'OBJECT',
+              properties: {
+                productId: { type: 'STRING', description: 'The UUID of the product' }
+              },
+              required: ['productId']
+            }
+          },
+          {
+            name: 'get_orders',
+            description: 'Retrieve recent orders placed by this customer',
+            parameters: { type: 'OBJECT', properties: {} }
+          },
+          {
+            name: 'create_support_ticket',
+            description: 'Create a support ticket for help from a human staff member',
+            parameters: {
+              type: 'OBJECT',
+              properties: {
+                description: { type: 'STRING', description: 'Summary of the issue or dispute' }
+              },
+              required: ['description']
+            }
+          }
+        ]
+      }]
     })
 
     const functionCalls = response.functionCalls
@@ -149,6 +148,7 @@ export async function handleCustomerAIQuery(ctx: any): Promise<void> {
       const toolParts: any[] = []
       const replyButtons: any[] = []
 
+      let foundProducts: any[] = []
       for (const call of functionCalls) {
         const { name, args } = call
         let result: any = null
@@ -157,19 +157,20 @@ export async function handleCustomerAIQuery(ctx: any): Promise<void> {
           const sArgs = args as any
           const products = await searchProductsTool(sArgs, profileId)
           result = products
+          foundProducts = products
           
           // Formulate checkout quick actions if products were returned
           if (products.length > 0) {
-            replyButtons.push({ text: '🛒 Open Checkout Mini App', web_app: { url: 'https://kelalshop.com/telegram/checkout' } })
+            replyButtons.push({ text: '🛒 Open Checkout Mini App', web_app: { url: `${BASE_URL}/telegram/checkout` } })
           }
         } else if (name === 'get_cart') {
           result = await getCartTool(profileId)
-          replyButtons.push({ text: '🛒 Open Checkout Mini App', web_app: { url: 'https://kelalshop.com/telegram/checkout' } })
+          replyButtons.push({ text: '🛒 Open Checkout Mini App', web_app: { url: `${BASE_URL}/telegram/checkout` } })
         } else if (name === 'add_to_cart') {
           const aArgs = args as any
           result = await addToCartTool(aArgs.productId, aArgs.quantity, profileId)
           if (result.success) {
-            replyButtons.push({ text: '🛒 Open Checkout Mini App', web_app: { url: 'https://kelalshop.com/telegram/checkout' } })
+            replyButtons.push({ text: '🛒 Open Checkout Mini App', web_app: { url: `${BASE_URL}/telegram/checkout` } })
           }
         } else if (name === 'remove_from_cart') {
           const rArgs = args as any
@@ -192,23 +193,25 @@ export async function handleCustomerAIQuery(ctx: any): Promise<void> {
       // Add model's tool request and tool results to history
       history.push({
         role: 'model',
-        parts: [{ functionCalls }]
+        parts: functionCalls.map((fc: any) => ({
+          functionCall: {
+            name: fc.name,
+            args: fc.args
+          }
+        }))
       })
       history.push({
         role: 'user',
         parts: toolParts
       })
 
-      // Request second turn from Gemini after sending tool outputs
-      const secondResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+      // Request second turn from AI after sending tool outputs
+      const secondResponse = await generateAIContentWithFallback({
         contents: history.map((h) => ({
           role: h.role,
           parts: h.parts,
         })),
-        config: {
-          systemInstruction: SYSTEM_INSTRUCTION
-        }
+        systemInstruction: SYSTEM_INSTRUCTION
       })
 
       let finalMessage = secondResponse.text || "I've processed your request."
@@ -220,6 +223,35 @@ export async function handleCustomerAIQuery(ctx: any): Promise<void> {
       // Send to user
       const keyboard = replyButtons.length > 0 ? { inline_keyboard: [replyButtons] } : undefined
       await ctx.reply(finalMessage, { parse_mode: 'HTML', reply_markup: keyboard })
+
+      // Send product details with images if available
+      if (foundProducts && foundProducts.length > 0) {
+        for (const product of foundProducts) {
+          const productKeyboard = new InlineKeyboard()
+            .url('🛒 View', `${BASE_URL}/products/${product.id}`)
+            .url('🛍️ Shop', `${BASE_URL}/products`)
+
+          if (product.image) {
+            try {
+              await ctx.replyWithPhoto(product.image, {
+                caption: `📦 <b>${product.name}</b>\n💰 ${formatEtb(product.price)}`,
+                parse_mode: 'HTML',
+                reply_markup: productKeyboard
+              })
+            } catch (err) {
+              await ctx.reply(`📦 <b>${product.name}</b>\n💰 ${formatEtb(product.price)}`, {
+                parse_mode: 'HTML',
+                reply_markup: productKeyboard
+              })
+            }
+          } else {
+            await ctx.reply(`📦 <b>${product.name}</b>\n💰 ${formatEtb(product.price)}`, {
+              parse_mode: 'HTML',
+              reply_markup: productKeyboard
+            })
+          }
+        }
+      }
     } else {
       let finalMessage = response.text || "Sorry, I didn't catch that."
       finalMessage = sanitizeHtmlFormatting(finalMessage)
@@ -238,16 +270,20 @@ export async function handleCustomerAIQuery(ctx: any): Promise<void> {
 function sanitizeHtmlFormatting(text: string): string {
   // Strip out any markdown wrappers like ** or * or ```
   return text
+    .replace(/<li>/g, '• ')
+    .replace(/<\/li>/g, '\n')
+    .replace(/<\/?(ul|ol)>/g, '')
     .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>') // Convert **bold** to <b>bold</b>
     .replace(/\*(.*?)\*/g, '<i>$1</i>')     // Convert *italic* to <i>italic</i>
     .replace(/`(.*?)`/g, '<code>$1</code>') // Convert `code` to <code>code</code>
     .replace(/```[a-z]*\n([\s\S]*?)```/g, '<pre>$1</pre>') // Convert block code
     .replace(/<\/?(div|p|span|section|h1|h2|h3|h4)>/g, '') // Strip unsupported tags
+    .trim()
 }
 
 // --- Tool Implementations ---
 
-async function searchProductsTool(args: { query: string; category?: string; minPrice?: number; maxPrice?: number }, profileId: string | null) {
+async function searchProductsTool(args: { query: string; category?: string; minPrice?: number; maxPrice?: number; sortBy?: 'price_asc' | 'price_desc' | 'newest' }, profileId: string | null) {
   const admin = createAdminClient()
   let dbQuery = admin
     .from('products')
@@ -263,6 +299,14 @@ async function searchProductsTool(args: { query: string; category?: string; minP
   }
   if (args.maxPrice) {
     dbQuery = dbQuery.lte('price', args.maxPrice)
+  }
+
+  if (args.sortBy === 'price_asc') {
+    dbQuery = dbQuery.order('price', { ascending: true })
+  } else if (args.sortBy === 'price_desc') {
+    dbQuery = dbQuery.order('price', { ascending: false })
+  } else if (args.sortBy === 'newest') {
+    dbQuery = dbQuery.order('created_at', { ascending: false })
   }
 
   const { data, error } = await dbQuery.limit(5)

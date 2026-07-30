@@ -1,7 +1,5 @@
-import { GoogleGenAI } from "@google/genai";
-import { createClient } from "@supabase/supabase-js";
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+import { generateAIContentWithFallback } from '../telegram/ai/client-wrapper'
+import { createClient } from "@supabase/supabase-js"
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
@@ -18,8 +16,7 @@ Format your response using Markdown.
 
 User Query: ${query}
 `;
-        const response = await ai.models.generateContent({
-            model: "gemini-2.5-flash",
+        const response = await generateAIContentWithFallback({
             contents: prompt,
         });
         return response.text || "I could not generate a response.";
@@ -67,8 +64,7 @@ ${JSON.stringify(contextData, null, 2)}
 User Query: ${query}
 `;
 
-    const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
+    const response = await generateAIContentWithFallback({
         contents: prompt,
     });
 

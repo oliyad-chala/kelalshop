@@ -4,15 +4,15 @@ import { useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { adminSignOut } from '@/lib/actions/admin-auth'
 
-const TIMEOUT_MS = 30 * 60 * 1000 // 30 minutes
-const WARNING_MS = 5 * 60 * 1000  // Warn 5 minutes before
-
 const ACTIVITY_EVENTS = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart', 'click']
 
-export function AdminInactivityGuard() {
+export function AdminInactivityGuard({ sessionTimeout = 30 }: { sessionTimeout?: number }) {
   const router = useRouter()
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const warningRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const TIMEOUT_MS = sessionTimeout * 60 * 1000
+  const WARNING_MS = Math.min(5 * 60 * 1000, TIMEOUT_MS / 6)
 
   const clearTimers = useCallback(() => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current)
@@ -30,7 +30,7 @@ export function AdminInactivityGuard() {
     timeoutRef.current = setTimeout(async () => {
       await adminSignOut()
     }, TIMEOUT_MS)
-  }, [clearTimers])
+  }, [clearTimers, TIMEOUT_MS, WARNING_MS])
 
   useEffect(() => {
     resetTimer()

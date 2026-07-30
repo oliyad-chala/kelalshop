@@ -35,9 +35,20 @@ export default async function AdminProtectedLayout({
   const admin = createAdminClient()
   const alerts = await getAdminAlertCounts(admin, user.id)
 
+  // Filter alerts based on notification preferences
+  if (profile?.notif_verifications === false) {
+    alerts.pendingVerifications = 0
+  }
+  if (profile?.notif_payments === false) {
+    alerts.pendingPayments = 0
+  }
+  if (profile?.notif_disputes === false) {
+    alerts.openDisputes = 0
+  }
+
   return (
     <>
-      <AdminInactivityGuard />
+      <AdminInactivityGuard sessionTimeout={profile?.session_timeout ?? 30} />
       <AdminShellClient
         user={profile as Profile}
         userRole={profile!.role}

@@ -1,8 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { customerBot } from '../customer/bot'
-import { GoogleGenAI } from '@google/genai'
-
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
+import { generateAIContentWithFallback } from '../ai/client-wrapper'
 
 export async function sendCartAbandonmentReminders(): Promise<void> {
   const admin = createAdminClient()
@@ -71,8 +69,7 @@ CRITICAL FORMATTING RULES:
 `
 
     try {
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+      const response = await generateAIContentWithFallback({
         contents: prompt,
       })
 
@@ -86,9 +83,10 @@ CRITICAL FORMATTING RULES:
       if (!aiMsg) continue
 
       // 6. Deliver the reminder with direct Web App checkout link button
+      const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://kelalshop.com'
       const keyboard = {
         inline_keyboard: [[
-          { text: '💳 Secure Checkout Mini App', web_app: { url: 'https://kelalshop.com/telegram/checkout' } }
+          { text: '💳 Secure Checkout Mini App', web_app: { url: `${BASE_URL}/telegram/checkout` } }
         ]]
       }
 

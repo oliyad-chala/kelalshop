@@ -1,6 +1,4 @@
-import { GoogleGenAI } from "@google/genai";
-
-const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+import { generateAIContentWithFallback } from '../telegram/ai/client-wrapper'
 
 export interface ShoppingIntent {
     keywords: string[];
@@ -28,8 +26,7 @@ Return ONLY the raw JSON string, with no markdown code blocks or additional text
 `;
 
     try {
-        const response = await genAI.models.generateContent({
-            model: "gemini-2.5-flash",
+        const response = await generateAIContentWithFallback({
             contents: prompt,
         });
 
@@ -52,8 +49,7 @@ Question: "${question}"
 `;
 
     try {
-        const response = await genAI.models.generateContent({
-            model: "gemini-2.5-flash",
+        const response = await generateAIContentWithFallback({
             contents: prompt,
         });
 

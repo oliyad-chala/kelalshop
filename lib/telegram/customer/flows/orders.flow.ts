@@ -61,12 +61,13 @@ export function registerOrdersFlow(bot: Bot<CustomerBotContext>) {
       return ctx.reply('✅ No active orders to track.')
     }
 
+    const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://kelalshop.com'
     for (const order of orders) {
       const keyboard = new InlineKeyboard()
       if (order.status === 'pending') {
         keyboard.text('❌ Cancel', `cancel_order_${order.id}`)
       }
-      keyboard.url('🌐 View', `https://kelalshop.com/dashboard/orders`)
+      keyboard.url('🌐 View', `${BASE_URL}/dashboard/orders`)
 
       await ctx.reply(
         `🚚 <b>Order #${truncateId(order.id)}</b>\nStatus: <b>${order.status}</b>`,

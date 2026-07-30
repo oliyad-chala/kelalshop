@@ -6,6 +6,10 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { emitTelegramEvent } from '@/lib/telegram/notifications/templates'
 
+import { getPlatformSettings } from '@/lib/actions/admin-settings'
+import { queueEmail } from '@/lib/email/queue'
+import { buildSellerVerificationEmail } from '@/lib/email/templates'
+
 export async function submitVerification(
   formData: FormData
 ): Promise<void> {
@@ -42,6 +46,11 @@ export async function submitVerification(
   // The admin page generates fresh 1-hour signed URLs from this path on every load
   const documentRef = storagePath
 
+  // Read platform settings to check if auto-approve is enabled
+  const platformSettings = await getPlatformSettings()
+  const autoApprove = platformSettings.autoVerify
+  const targetStatus = autoApprove ? 'verified' : 'pending'
+
   await supabase
     .from('profiles')
     .update({ phone } as any)
@@ -50,8 +59,9 @@ export async function submitVerification(
   const { error: updateError } = await admin
     .from('shopper_profiles')
     .update({
-      verification_status: 'pending',
+      verification_status: targetStatus,
       id_document_url: documentRef,
+      updated_at: new Date().toISOString()
     } as any)
     .eq('id', user.id)
 
@@ -63,9 +73,29 @@ export async function submitVerification(
     .eq('id', user.id)
     .maybeSingle()
 
-  emitTelegramEvent('admin', 'NEW_SELLER', {
-    storeName: store?.business_name ?? 'New Seller',
-  }, { idempotencyKey: `seller-pending-${user.id}` })
+  if (autoApprove) {
+    // Automatically approved, queue the verification email notification
+    try {
+      const emailData = buildSellerVerificationEmail('approved')
+      await queueEmail(
+        'seller-verification-approved',
+        {
+          to: user.email ?? '',
+          subject: emailData.subject,
+          html: emailData.html,
+          text: emailData.text,
+        },
+        `seller-verification-${user.id}-approved`
+      )
+    } catch (err) {
+      console.error('[Verification Auto-Approve Email] Failed:', err)
+    }
+  } else {
+    // Standard manual review flow, send Telegram alert
+    emitTelegramEvent('admin', 'NEW_SELLER', {
+      storeName: store?.business_name ?? 'New Seller',
+    }, { idempotencyKey: `seller-pending-${user.id}` })
+  }
 
   revalidatePath('/dashboard/verification')
   revalidatePath('/dashboard')

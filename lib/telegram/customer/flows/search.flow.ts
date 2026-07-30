@@ -50,7 +50,7 @@ export function registerSearchFlow(bot: Bot<CustomerBotContext>) {
     const intent = await extractShoppingIntent(text)
     let query = getTelegramSupabase()
       .from('products')
-      .select('id, name, price')
+      .select('id, name, price, product_images(*)')
       .eq('is_available', true)
       .eq('approval_status', 'approved')
 
@@ -72,14 +72,35 @@ export function registerSearchFlow(bot: Bot<CustomerBotContext>) {
 
     await ctx.reply(`🔍 <b>Found ${products.length} product(s)</b>`, { parse_mode: 'HTML' })
 
+    const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://kelalshop.com'
     for (const product of products) {
       const keyboard = new InlineKeyboard()
-        .url('🛒 View', `https://kelalshop.com/products/${product.id}`)
-        .url('🛍️ Shop', 'https://kelalshop.com/products')
-      await ctx.reply(`📦 <b>${product.name}</b>\n💰 ${formatEtb(Number(product.price))}`, {
-        parse_mode: 'HTML',
-        reply_markup: keyboard,
-      })
+        .url('🛒 View', `${BASE_URL}/products/${product.id}`)
+        .url('🛍️ Shop', `${BASE_URL}/products`)
+
+      const images = product.product_images || []
+      const imageUrl = images.find((i: any) => i.is_primary)?.url || images[0]?.url || null
+
+      if (imageUrl) {
+        try {
+          await ctx.replyWithPhoto(imageUrl, {
+            caption: `📦 <b>${product.name}</b>\n💰 ${formatEtb(Number(product.price))}`,
+            parse_mode: 'HTML',
+            reply_markup: keyboard,
+          })
+        } catch (err) {
+          // Fallback to text if image fails to load
+          await ctx.reply(`📦 <b>${product.name}</b>\n💰 ${formatEtb(Number(product.price))}`, {
+            parse_mode: 'HTML',
+            reply_markup: keyboard,
+          })
+        }
+      } else {
+        await ctx.reply(`📦 <b>${product.name}</b>\n💰 ${formatEtb(Number(product.price))}`, {
+          parse_mode: 'HTML',
+          reply_markup: keyboard,
+        })
+      }
     }
   })
 }

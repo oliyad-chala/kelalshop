@@ -20,7 +20,13 @@ export default async function AdminSettingsPage() {
 
   if (!isAdminRole(profile?.role)) redirect('/admin/dashboard')
 
-  const { maintenanceMode } = await getPlatformSettings()
+  const platformSettings = await getPlatformSettings()
 
-  return <SettingsClient profile={profile} email={user.email ?? ''} initialMaintenanceMode={maintenanceMode} />
+  return (
+    <SettingsClient
+      profile={profile}
+      email={user.email ?? ''}
+      platformSettings={platformSettings}
+    />
+  )
 }

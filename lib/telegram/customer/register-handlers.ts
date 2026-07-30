@@ -112,9 +112,10 @@ export function registerCustomerHandlers(bot: Bot<CustomerBotContext>) {
     }
     text += `Subtotal: <b>${subtotal} ETB</b>`
 
+    const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://kelalshop.com'
     const keyboard = {
       inline_keyboard: [[
-        { text: '💳 Secure Checkout Mini App', web_app: { url: 'https://kelalshop.com/telegram/checkout' } }
+        { text: '💳 Secure Checkout Mini App', web_app: { url: `${BASE_URL}/telegram/checkout` } }
       ]]
     }
 

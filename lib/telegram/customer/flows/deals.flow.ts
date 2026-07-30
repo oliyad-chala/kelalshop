@@ -23,8 +23,9 @@ export async function handleDeals(ctx: CustomerBotContext) {
 
   await ctx.reply(`⚡ <b>Active Flash Deals</b> — ${promotions.length} found`, { parse_mode: 'HTML' })
 
+  const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://kelalshop.com'
   for (const promo of promotions) {
-    const keyboard = new InlineKeyboard().url('🛒 View Deals', `https://kelalshop.com/promotions/${promo.id}`)
+    const keyboard = new InlineKeyboard().url('🛒 View Deals', `${BASE_URL}/promotions/${promo.id}`)
     await ctx.reply(
       `⚡ <b>${promo.name}</b>\n💥 Up to <b>${promo.discount_percentage ?? 0}%</b> off`,
       { parse_mode: 'HTML', reply_markup: keyboard }
