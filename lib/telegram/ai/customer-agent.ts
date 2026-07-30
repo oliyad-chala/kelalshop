@@ -15,7 +15,7 @@ CRITICAL SEARCH & TOOLS RULES:
 
 IMPORTANT FORMATTING RULES:
 - Respond in clean HTML format. Use <b>, <i>, <code>, <a> tags for formatting.
-- CRITICAL: Never output markdown like asterisks (e.g. **, *), underscores (_), or markdown code blocks (e.g. ````). Telegram's HTML parser will crash or display errors if you output markdown. Output ONLY valid HTML tags or plain text.
+- CRITICAL: Never output markdown like asterisks (e.g. **, *), underscores (_), or markdown code blocks (e.g. \`\`\`\`). Telegram's HTML parser will crash or display errors if you output markdown. Output ONLY valid HTML tags or plain text.
 - If you want to make text bold, use <b>text</b> instead of **text**.
 - Keep responses concise and scannable.
 
