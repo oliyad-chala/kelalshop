@@ -88,7 +88,7 @@ export default function TelegramCheckoutPage() {
         }
         setError('Telegram Web App SDK failed to initialize. Open in Telegram.')
         setLoading(false)
-      }, 500)
+      }, 2000)
       return () => clearTimeout(timer)
     }
   }, [])

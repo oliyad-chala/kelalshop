@@ -78,15 +78,17 @@ export const metadata: Metadata = {
  *   app/(shop)/layout.tsx  → buyer shop
  *   app/(admin)/layout.tsx → admin portal
  */
+import Script from 'next/script'
+
 export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className="font-sans" data-scroll-behavior="smooth">
-      <head>
-        <script src="https://telegram.org/js/telegram-web-app.js" defer />
-      </head>
-      <body>{children}</body>
+      <body>
+        {children}
+        <Script src="https://telegram.org/js/telegram-web-app.js" strategy="afterInteractive" />
+      </body>
     </html>
   )
 }
