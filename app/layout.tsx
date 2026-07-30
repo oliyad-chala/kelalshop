@@ -83,6 +83,9 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className="font-sans" data-scroll-behavior="smooth">
+      <head>
+        <script src="https://telegram.org/js/telegram-web-app.js" defer />
+      </head>
       <body>{children}</body>
     </html>
   )

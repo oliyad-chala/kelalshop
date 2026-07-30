@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState, useTransition } from 'react'
-import Script from 'next/script'
 import { verifyTelegramWebAppData, executeTelegramCheckout } from '@/lib/actions/telegram-checkout'
 import { formatPrice } from '@/lib/utils/formatters'
 import Image from 'next/image'
@@ -176,7 +175,6 @@ export default function TelegramCheckoutPage() {
 
   return (
     <main className="min-h-screen bg-slate-50 flex flex-col max-w-md mx-auto">
-      <Script src="https://telegram.org/js/telegram-web-app.js" strategy="beforeInteractive" />
       
       {/* Mini App Header */}
       <div className="bg-white px-5 py-4 border-b border-slate-200 shadow-sm shrink-0 flex items-center justify-between">

@@ -54,6 +54,31 @@ async function main() {
   
   await setWebhook(adminToken!, "Admin Bot", "/api/telegram/webhook");
   await setWebhook(customerToken!, "Customer Bot", "/api/telegram/customer-webhook");
+
+  // Directly register the persistent bottom menu web app button on Telegram
+  const customerApiUrl = `https://api.telegram.org/bot${customerToken}/setChatMenuButton`;
+  console.log("Registering persistent Shop / Checkout menu button for Customer Bot...");
+  try {
+    const btnRes = await fetch(customerApiUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        menu_button: {
+          type: "web_app",
+          text: "🛍️ Shop / Checkout",
+          web_app: { url: `${cleanDomain}/telegram/checkout` }
+        }
+      })
+    });
+    const btnData = await btnRes.json();
+    if (btnData.ok) {
+      console.log("✅ Success: Persistent Shop / Checkout menu button registered!");
+    } else {
+      console.error("❌ Error registering menu button:", btnData.description);
+    }
+  } catch (err) {
+    console.error("❌ Failed to register menu button:", err);
+  }
 }
 
 main();
