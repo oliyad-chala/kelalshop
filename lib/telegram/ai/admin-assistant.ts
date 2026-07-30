@@ -1,38 +1,10 @@
 import { getTelegramSupabase } from '../core/supabase-admin'
 import { getAnalyticsReport } from '../admin/services/analytics.service'
-import { formatEtb, escapeHtml } from '../core/telegram-format'
+import { formatEtb } from '../core/telegram-format'
 import { generateAIContentWithFallback } from './client-wrapper'
 
-// verifyResponse helper has been removed to allow natural, strategic conversational outputs
-
-export async function handleAdminGeminiQuery(query: string): Promise<string> {
-  const supabase = getTelegramSupabase()
-  const report = await getAnalyticsReport()
-
-  const { data: recentOrders } = await supabase
-    .from('orders')
-    .select('id, amount, status')
-    .order('created_at', { ascending: false })
-    .limit(5)
-
-  const contextData = {
-    date: new Date().toISOString(),
-    ordersToday: report.ordersToday,
-    revenueToday: report.revenueToday,
-    revenueWeek: report.revenueWeek,
-    revenueMonth: report.revenueMonth,
-    pendingProducts: report.pendingProducts,
-    pendingPayments: report.pendingPayments,
-    newUsersToday: report.newUsersToday,
-    topSellers: report.topSellers,
-    recentOrders: (recentOrders ?? []).map((o) => ({
-      id: o.id.slice(0, 8),
-      amount: Number(o.amount),
-      status: o.status,
-    })),
-  }
-
-  const prompt = `You are the official KelalShop Admin Operations, Analytics & Strategic Advisor.
+const SYSTEM_INSTRUCTION = `
+You are the official KelalShop Admin Operations, Analytics & Strategic Advisor.
 Your mission is to act as a highly competent co-pilot for the administrator. Speak like a normal, advanced conversational AI, helping staff analyze performance, suggesting strategic ideas to grow sales, and explaining how to moderate the platform.
 
 ADMIN OPERATIONS MANUAL:
@@ -51,28 +23,105 @@ ADMIN OPERATIONS MANUAL:
 
 ADVISOR GUIDELINES:
 - Respond in clean HTML format. Use <b>, <i>, <code>, <a> tags for formatting. Never output raw markdown bold markers (like * or **).
-- Suggest proactive business solutions or strategies based on the current stats.
+- Suggest proactive business solutions or strategies based on the current stats when analytics are requested.
 - Keep your tone friendly, professional, and strategic.
+`
 
-CONTEXT:
-${JSON.stringify(contextData, null, 2)}
-
-QUESTION: ${query}`
-
+export async function handleAdminGeminiQuery(query: string): Promise<string> {
   let text = ''
+  
   try {
-    const result = await generateAIContentWithFallback({
-      contents: prompt
+    const messages = [
+      { role: 'user', parts: [{ text: query }] }
+    ]
+
+    const response = await generateAIContentWithFallback({
+      contents: messages,
+      systemInstruction: SYSTEM_INSTRUCTION,
+      tools: [{
+        functionDeclarations: [
+          {
+            name: 'get_analytics_report',
+            description: 'Get platform analytics (orders today, revenue today/week/month, pending approvals, pending payments, new users)',
+            parameters: { type: 'OBJECT', properties: {} }
+          },
+          {
+            name: 'get_recent_orders',
+            description: 'Get the 5 most recent orders placed on the platform',
+            parameters: { type: 'OBJECT', properties: {} }
+          }
+        ]
+      }]
     })
-    text = result.text ?? 'No response generated.'
+
+    const functionCalls = response.functionCalls
+    if (functionCalls && functionCalls.length > 0) {
+      const toolParts: any[] = []
+
+      for (const call of functionCalls) {
+        const { name } = call
+        let result: any = null
+
+        if (name === 'get_analytics_report') {
+          result = await getAnalyticsReport()
+        } else if (name === 'get_recent_orders') {
+          const supabase = getTelegramSupabase()
+          const { data: recentOrders } = await supabase
+            .from('orders')
+            .select('id, amount, status')
+            .order('created_at', { ascending: false })
+            .limit(5)
+          result = (recentOrders ?? []).map((o) => ({
+            id: o.id.slice(0, 8),
+            amount: Number(o.amount),
+            status: o.status,
+          }))
+        }
+
+        toolParts.push({
+          functionResponse: {
+            name,
+            response: { result }
+          }
+        })
+      }
+
+      // Second turn with tool outputs
+      const secondResponse = await generateAIContentWithFallback({
+        contents: [
+          ...messages,
+          {
+            role: 'model',
+            parts: functionCalls.map((fc: any) => ({
+              functionCall: { name: fc.name, args: fc.args }
+            }))
+          },
+          {
+            role: 'user',
+            parts: toolParts
+          }
+        ],
+        systemInstruction: SYSTEM_INSTRUCTION
+      })
+
+      text = secondResponse.text || "I've processed your request."
+    } else {
+      text = response.text || "No response generated."
+    }
   } catch (err) {
     console.error('[Admin AI Assistant] Fallback query failed:', err)
-    return (
-      `📊 <b>Quick Stats</b>\n` +
-      `Orders today: ${report.ordersToday}\n` +
-      `Revenue today: ${formatEtb(report.revenueToday)}\n` +
-      `Pending products: ${report.pendingProducts}`
-    )
+    // Quick fallback metrics query
+    try {
+      const report = await getAnalyticsReport()
+      return (
+        `📊 <b>Quick Stats</b>\n` +
+        `Orders today: ${report.ordersToday}\n` +
+        `Revenue today: ${formatEtb(report.revenueToday)}\n` +
+        `Pending products: ${report.pendingProducts}`
+      )
+    } catch {
+      return '🤖 Sorry, I experienced an error processing your query.'
+    }
   }
 
   // Sanitize list tags and markdown for Telegram compatibility
@@ -85,6 +134,5 @@ QUESTION: ${query}`
     .replace(/`(.*?)`/g, '<code>$1</code>')
     .replace(/```[a-z]*\n([\s\S]*?)```/g, '<pre>$1</pre>')
     .replace(/<\/?(div|p|span|section|h1|h2|h3|h4)>/g, '')
-    .replace(/\n/g, '\n')
     .trim()
 }
