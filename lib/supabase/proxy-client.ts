@@ -131,27 +131,29 @@ export async function updateSession(request: NextRequest) {
   const supabaseOrigin = process.env.NEXT_PUBLIC_SUPABASE_URL ?? ''
   
   const isTelegramRoute = pathname.startsWith('/telegram')
+  const hasTgSession = request.cookies.has('tg_session') || request.nextUrl.searchParams.has('tgWebApp')
+  const isTelegram = isTelegramRoute || hasTgSession
   
-  if (!isTelegramRoute) {
+  if (!isTelegram) {
     supabaseResponse.headers.set('X-Frame-Options', 'DENY')
   }
   supabaseResponse.headers.set('X-Content-Type-Options', 'nosniff')
   supabaseResponse.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin')
   supabaseResponse.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
   
-  const scriptSrc = isTelegramRoute
+  const scriptSrc = isTelegram
     ? "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://telegram.org https://*.telegram.org"
     : "script-src 'self' 'unsafe-eval' 'unsafe-inline'"
 
-  const frameAncestors = isTelegramRoute
+  const frameAncestors = isTelegram
     ? "frame-ancestors 'self' https://telegram.org https://*.telegram.org"
     : "frame-ancestors 'none'"
 
-  const frameSrc = isTelegramRoute
+  const frameSrc = isTelegram
     ? "frame-src 'self' https://telegram.org https://*.telegram.org"
     : "frame-src 'none'"
 
-  const connectSrc = isTelegramRoute
+  const connectSrc = isTelegram
     ? `connect-src 'self' ${supabaseOrigin} wss: https://accounts.google.com https://oauth2.googleapis.com https://api.telegram.org`
     : `connect-src 'self' ${supabaseOrigin} wss: https://accounts.google.com https://oauth2.googleapis.com`
 
@@ -177,6 +179,15 @@ export async function updateSession(request: NextRequest) {
       frameAncestors,
     ].join('; ')
   )
+
+  if (isTelegramRoute) {
+    supabaseResponse.cookies.set('tg_session', 'true', {
+      path: '/',
+      maxAge: 86400, // 24 hours
+      sameSite: 'none',
+      secure: true,
+    })
+  }
 
   return supabaseResponse
 }
