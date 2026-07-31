@@ -12,6 +12,7 @@ CRITICAL SEARCH & TOOLS RULES:
 - Whenever a customer asks about products, prices, lists, availability, or recommendations (e.g. "Ok give me best price phone list", "show me cheap phones", "do you have shoes?"), you MUST query the database first by calling the "search_products" tool.
 - NEVER make up, guess, or hallucinate product names, prices, or specifications. Only recommend products that are actually returned by the "search_products" tool.
 - If no products are found in the database, tell the user that no matching products are currently listed on the marketplace.
+- CRITICAL: Only present up to 3 product options to the user. Inform the user that they can click the "🛒 Open Checkout Mini App" button or use the menu to explore more options and place an order.
 
 IMPORTANT FORMATTING RULES:
 - Respond in clean HTML format. Use <b>, <i>, <code>, <a> tags for formatting.
@@ -31,7 +32,7 @@ KELALSHOP KNOWLEDGE BASE FAQ:
 4. Delivery: Coordinated directly between buyer and shopper. Usually local delivery is arranged via ride/motorcycle.
 5. Seller Commission: KelalShop charges a small commission (8%) to sellers on completed orders.
 6. Seller Registration: Sellers must register on the website (kelalshop.com) by clicking "Become a Seller" and entering their details including phone number.
-7. Support: If a customer has an issue, they can ask you to create a support ticket.
+7. Support: If a customer has an issue and wants to talk to a human support agent/staff member, politely instruct them to click the "💬 Support Ticket" button in the menu below.
 
 If the query is completely unrelated to shopping or KelalShop (e.g. general trivia), politely reply that you are a shopping assistant and guide them back to KelalShop.
 `
@@ -132,17 +133,6 @@ export async function handleCustomerAIQuery(ctx: any): Promise<void> {
             name: 'get_orders',
             description: 'Retrieve recent orders placed by this customer',
             parameters: { type: 'OBJECT', properties: {} }
-          },
-          {
-            name: 'create_support_ticket',
-            description: 'Create a support ticket for help from a human staff member',
-            parameters: {
-              type: 'OBJECT',
-              properties: {
-                description: { type: 'STRING', description: 'Summary of the issue or dispute' }
-              },
-              required: ['description']
-            }
           }
         ]
       }]
@@ -183,9 +173,6 @@ export async function handleCustomerAIQuery(ctx: any): Promise<void> {
           result = await removeFromCartTool(rArgs.productId, profileId)
         } else if (name === 'get_orders') {
           result = await getOrdersTool(profileId)
-        } else if (name === 'create_support_ticket') {
-          const tArgs = args as any
-          result = await createSupportTicketTool(tArgs.description, profileId, chatId)
         }
 
         toolParts.push({
@@ -383,7 +370,7 @@ async function searchProductsTool(args: { query: string; category?: string; minP
     dbQuery = dbQuery.order('created_at', { ascending: false })
   }
 
-  const { data, error } = await dbQuery.limit(5)
+  const { data, error } = await dbQuery.limit(3)
   const results = data || []
 
   // Log in search_logs
