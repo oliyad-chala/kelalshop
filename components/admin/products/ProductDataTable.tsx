@@ -21,6 +21,7 @@ interface ProductRow {
   created_at: string
   approval_status: 'pending' | 'approved' | 'rejected'
   approval_notes: string | null
+  imageUrl: string | null
 }
 
 function AvailabilityToggle({ productId, initial }: { productId: string; initial: boolean }) {
@@ -152,7 +153,7 @@ function ApprovalActions({ productId, currentStatus, reason }: { productId: stri
   )
 }
 
-const buildColumns = (canManage: boolean): ColumnDef<ProductRow, any>[] => [
+const buildColumns = (canManage: boolean, onViewImage: (url: string) => void): ColumnDef<ProductRow, any>[] => [
   {
     id: 'product_details',
     header: 'Product Details',
@@ -160,9 +161,20 @@ const buildColumns = (canManage: boolean): ColumnDef<ProductRow, any>[] => [
       <div className="flex flex-col">
         <div className="flex items-center gap-2">
           <span className="font-semibold text-slate-900 text-sm">{row.original.name}</span>
-          <Link href={`/products/${row.original.id}`} target="_blank" className="text-slate-400 hover:text-slate-600 transition-colors" title="View on marketplace">
-            <Eye size={14} />
-          </Link>
+          {row.original.imageUrl ? (
+            <button
+              type="button"
+              onClick={() => onViewImage(row.original.imageUrl!)}
+              className="text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer bg-transparent border-none p-0 inline-flex items-center"
+              title="Preview product image"
+            >
+              <Eye size={14} />
+            </button>
+          ) : (
+            <span className="text-slate-200 cursor-not-allowed inline-flex items-center" title="No image available">
+              <Eye size={14} />
+            </span>
+          )}
         </div>
         <span className="text-xs text-slate-500 mt-0.5">
           {row.original.category} • by <span className="font-medium text-slate-700">{row.original.shopperName}</span>
@@ -234,7 +246,8 @@ const buildColumns = (canManage: boolean): ColumnDef<ProductRow, any>[] => [
 export function ProductDataTable({ rows, canManage = true }: { rows: ProductRow[]; canManage?: boolean }) {
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [approvalFilter, setApprovalFilter] = useState<string>('all')
-  const columns = useMemo(() => buildColumns(canManage), [canManage])
+  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null)
+  const columns = useMemo(() => buildColumns(canManage, setSelectedImageUrl), [canManage])
 
   const uniqueCategories = useMemo(() => {
     const cats = new Set<string>()
@@ -300,6 +313,34 @@ export function ProductDataTable({ rows, canManage = true }: { rows: ProductRow[
         columns={columns}
         searchPlaceholder="Search product, seller, category…"
       />
+
+      {/* Image Preview Modal */}
+      {selectedImageUrl && (
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity duration-300"
+          onClick={() => setSelectedImageUrl(null)}
+        >
+          <div 
+            className="relative max-w-lg max-h-[85vh] p-2 bg-white rounded-xl shadow-2xl overflow-hidden scale-100 transition-transform duration-300 flex flex-col items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button 
+              type="button"
+              className="absolute top-3 right-3 text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 p-2 rounded-full transition-colors z-10"
+              onClick={() => setSelectedImageUrl(null)}
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <img 
+              src={selectedImageUrl} 
+              alt="Product preview" 
+              className="max-w-full max-h-[75vh] object-contain rounded-lg"
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
