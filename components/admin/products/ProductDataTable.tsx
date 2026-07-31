@@ -153,7 +153,7 @@ function ApprovalActions({ productId, currentStatus, reason }: { productId: stri
   )
 }
 
-const buildColumns = (canManage: boolean, onViewImage: (url: string) => void): ColumnDef<ProductRow, any>[] => [
+const buildColumns = (canManage: boolean, onViewProduct: (product: ProductRow) => void): ColumnDef<ProductRow, any>[] => [
   {
     id: 'product_details',
     header: 'Product Details',
@@ -164,9 +164,9 @@ const buildColumns = (canManage: boolean, onViewImage: (url: string) => void): C
           {row.original.imageUrl ? (
             <button
               type="button"
-              onClick={() => onViewImage(row.original.imageUrl!)}
+              onClick={() => onViewProduct(row.original)}
               className="text-slate-400 hover:text-indigo-600 transition-colors cursor-pointer bg-transparent border-none p-0 inline-flex items-center"
-              title="Preview product image"
+              title="Preview product details & image"
             >
               <Eye size={14} />
             </button>
@@ -246,8 +246,8 @@ const buildColumns = (canManage: boolean, onViewImage: (url: string) => void): C
 export function ProductDataTable({ rows, canManage = true }: { rows: ProductRow[]; canManage?: boolean }) {
   const [categoryFilter, setCategoryFilter] = useState<string>('all')
   const [approvalFilter, setApprovalFilter] = useState<string>('all')
-  const [selectedImageUrl, setSelectedImageUrl] = useState<string | null>(null)
-  const columns = useMemo(() => buildColumns(canManage, setSelectedImageUrl), [canManage])
+  const [selectedProduct, setSelectedProduct] = useState<ProductRow | null>(null)
+  const columns = useMemo(() => buildColumns(canManage, setSelectedProduct), [canManage])
 
   const uniqueCategories = useMemo(() => {
     const cats = new Set<string>()
@@ -314,30 +314,58 @@ export function ProductDataTable({ rows, canManage = true }: { rows: ProductRow[
         searchPlaceholder="Search product, seller, category…"
       />
 
-      {/* Image Preview Modal */}
-      {selectedImageUrl && (
+      {/* Premium Product Details Preview Modal */}
+      {selectedProduct && selectedProduct.imageUrl && (
         <div 
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm transition-opacity duration-300"
-          onClick={() => setSelectedImageUrl(null)}
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/75 backdrop-blur-md transition-opacity duration-300 p-4"
+          onClick={() => setSelectedProduct(null)}
         >
           <div 
-            className="relative max-w-lg max-h-[85vh] p-2 bg-white rounded-xl shadow-2xl overflow-hidden scale-100 transition-transform duration-300 flex flex-col items-center"
+            className="relative max-w-lg w-full bg-white rounded-2xl shadow-2xl overflow-hidden border border-slate-100 flex flex-col transform transition-transform duration-300 scale-100"
             onClick={(e) => e.stopPropagation()}
           >
-            <button 
-              type="button"
-              className="absolute top-3 right-3 text-slate-500 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 p-2 rounded-full transition-colors z-10"
-              onClick={() => setSelectedImageUrl(null)}
-            >
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-            <img 
-              src={selectedImageUrl} 
-              alt="Product preview" 
-              className="max-w-full max-h-[75vh] object-contain rounded-lg"
-            />
+            {/* Top Header Row */}
+            <div className="flex justify-between items-start p-4 border-b border-slate-100 bg-slate-50">
+              <div>
+                <h3 className="font-bold text-slate-900 text-lg leading-snug">{selectedProduct.name}</h3>
+                <p className="text-xs text-slate-500 mt-0.5">{selectedProduct.category} • by <span className="font-semibold text-slate-700">{selectedProduct.shopperName}</span></p>
+              </div>
+              <button 
+                type="button"
+                className="text-slate-400 hover:text-slate-750 bg-slate-200/60 hover:bg-slate-200 p-1.5 rounded-full transition-all cursor-pointer outline-none flex items-center justify-center border-none"
+                onClick={() => setSelectedProduct(null)}
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Image Body */}
+            <div className="bg-slate-950 p-2 flex items-center justify-center relative aspect-square max-h-[50vh] border-b border-slate-100">
+              <img 
+                src={selectedProduct.imageUrl} 
+                alt={selectedProduct.name} 
+                className="max-w-full max-h-full object-contain rounded-md"
+              />
+            </div>
+
+            {/* Footer Details */}
+            <div className="flex justify-between items-center p-4 bg-slate-50">
+              <div className="flex flex-col">
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">Marketplace Price</span>
+                <span className="text-xl font-extrabold text-slate-900">ETB {Number(selectedProduct.price).toLocaleString()}</span>
+              </div>
+              <div className="flex gap-2">
+                <Link 
+                  href={`/products/${selectedProduct.id}`} 
+                  target="_blank"
+                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-sm hover:shadow transition-all inline-flex items-center gap-1 cursor-pointer"
+                >
+                  View Product Page
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       )}
