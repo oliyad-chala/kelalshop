@@ -16,6 +16,7 @@ CRITICAL SEARCH & TOOLS RULES:
 IMPORTANT FORMATTING RULES:
 - Respond in clean HTML format. Use <b>, <i>, <code>, <a> tags for formatting.
 - CRITICAL: Never output markdown like asterisks (e.g. **, *), underscores (_), or markdown code blocks (e.g. \`\`\`\`). Telegram's HTML parser will crash or display errors if you output markdown. Output ONLY valid HTML tags or plain text.
+- CRITICAL: Never output line breaks as HTML tags (like <br> or <p>). Use standard newlines instead.
 - If you want to make text bold, use <b>text</b> instead of **text**.
 - Keep responses concise and scannable.
 
@@ -227,7 +228,7 @@ export async function handleCustomerAIQuery(ctx: any): Promise<void> {
 
       // Send to user
       const keyboard = replyButtons.length > 0 ? { inline_keyboard: [replyButtons] } : undefined
-      await ctx.reply(finalMessage, { parse_mode: 'HTML', reply_markup: keyboard })
+      await safeReply(ctx, finalMessage, { reply_markup: keyboard })
 
       // Send product details with images if available
       if (foundProducts && foundProducts.length > 0) {
@@ -238,20 +239,17 @@ export async function handleCustomerAIQuery(ctx: any): Promise<void> {
 
           if (product.image) {
             try {
-              await ctx.replyWithPhoto(product.image, {
+              await safeReplyWithPhoto(ctx, product.image, {
                 caption: `📦 <b>${product.name}</b>\n💰 ${formatEtb(product.price)}`,
-                parse_mode: 'HTML',
                 reply_markup: productKeyboard
               })
             } catch (err) {
-              await ctx.reply(`📦 <b>${product.name}</b>\n💰 ${formatEtb(product.price)}`, {
-                parse_mode: 'HTML',
+              await safeReply(ctx, `📦 <b>${product.name}</b>\n💰 ${formatEtb(product.price)}`, {
                 reply_markup: productKeyboard
               })
             }
           } else {
-            await ctx.reply(`📦 <b>${product.name}</b>\n💰 ${formatEtb(product.price)}`, {
-              parse_mode: 'HTML',
+            await safeReply(ctx, `📦 <b>${product.name}</b>\n💰 ${formatEtb(product.price)}`, {
               reply_markup: productKeyboard
             })
           }
@@ -264,26 +262,97 @@ export async function handleCustomerAIQuery(ctx: any): Promise<void> {
       // Save model response
       history.push({ role: 'model', parts: [{ text: finalMessage }] })
 
-      await ctx.reply(finalMessage, { parse_mode: 'HTML' })
+      await safeReply(ctx, finalMessage)
     }
   } catch (err: any) {
     console.error('[handleCustomerAIQuery] Gemini error:', err)
-    await ctx.reply('🤖 Sorry, I experienced an error processing your query. Please try again.', { parse_mode: 'HTML' })
+    await safeReply(ctx, '🤖 Sorry, I experienced an error processing your query. Please try again.')
+  }
+}
+
+async function safeReply(ctx: any, text: string, options: any = {}) {
+  try {
+    return await ctx.reply(text, { ...options, parse_mode: 'HTML' })
+  } catch (err: any) {
+    const errMsg = err.message || err.description || ''
+    if (errMsg.includes("can't parse entities") || errMsg.includes("parse_mode")) {
+      console.warn('[safeReply] HTML parsing failed, falling back to plain text. Original text:', text, 'Error:', errMsg)
+      const plainText = text.replace(/<[^>]*>/g, '')
+      return await ctx.reply(plainText, { ...options, parse_mode: undefined })
+    }
+    throw err
+  }
+}
+
+async function safeReplyWithPhoto(ctx: any, photo: string, options: any = {}) {
+  try {
+    return await ctx.replyWithPhoto(photo, { ...options, parse_mode: 'HTML' })
+  } catch (err: any) {
+    const errMsg = err.message || err.description || ''
+    if (errMsg.includes("can't parse entities") || errMsg.includes("parse_mode")) {
+      console.warn('[safeReplyWithPhoto] HTML parsing failed, falling back to plain text. Original caption:', options.caption, 'Error:', errMsg)
+      const plainCaption = options.caption ? options.caption.replace(/<[^>]*>/g, '') : undefined
+      return await ctx.replyWithPhoto(photo, { ...options, caption: plainCaption, parse_mode: undefined })
+    }
+    throw err
   }
 }
 
 function sanitizeHtmlFormatting(text: string): string {
-  // Strip out any markdown wrappers like ** or * or ```
-  return text
-    .replace(/<li>/g, '• ')
-    .replace(/<\/li>/g, '\n')
-    .replace(/<\/?(ul|ol)>/g, '')
-    .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>') // Convert **bold** to <b>bold</b>
-    .replace(/\*(.*?)\*/g, '<i>$1</i>')     // Convert *italic* to <i>italic</i>
-    .replace(/`(.*?)`/g, '<code>$1</code>') // Convert `code` to <code>code</code>
-    .replace(/```[a-z]*\n([\s\S]*?)```/g, '<pre>$1</pre>') // Convert block code
-    .replace(/<\/?(div|p|span|section|h1|h2|h3|h4)>/g, '') // Strip unsupported tags
-    .trim()
+  if (!text) return ''
+
+  // 1. Convert any variant of <br> to newline
+  let cleaned = text.replace(/<br\s*\/?>/gi, '\n')
+
+  // 2. Convert <li> to list bullets and </li> to newlines
+  cleaned = cleaned.replace(/<li>/gi, '• ').replace(/<\/li>/gi, '\n')
+
+  // 3. Remove <ul> and <ol> tags
+  cleaned = cleaned.replace(/<\/?(ul|ol)>/gi, '')
+
+  // 4. Convert <p> and </p> tags
+  cleaned = cleaned.replace(/<p>/gi, '').replace(/<\/p>/gi, '\n\n')
+
+  // 5. Convert markdown bold/italic/code to HTML format if they creep in
+  cleaned = cleaned
+    .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+    .replace(/\*(.*?)\*/g, '<i>$1</i>')
+    .replace(/`(.*?)`/g, '<code>$1</code>')
+    .replace(/```[a-z]*\n([\s\S]*?)```/g, '<pre>$1</pre>')
+
+  // 6. Strip any HTML tags that are not explicitly allowed in Telegram HTML parse mode.
+  // Allowed tags list: b, strong, i, em, u, ins, s, strike, del, span, a, code, pre, blockquote
+  const allowedTags = new Set([
+    'b', '/b', 'strong', '/strong',
+    'i', '/i', 'em', '/em',
+    'u', '/u', 'ins', '/ins',
+    's', '/s', 'strike', '/strike', 'del', '/del',
+    'span', '/span',
+    'a', '/a',
+    'code', '/code',
+    'pre', '/pre',
+    'blockquote', '/blockquote'
+  ])
+
+  cleaned = cleaned.replace(/<(\/?[a-z0-9_-]+)(?:\s+[^>]*?)?>/gi, (match, tagName) => {
+    const lowerTag = tagName.toLowerCase()
+    if (allowedTags.has(lowerTag)) {
+      // For 'a' tag, preserve ONLY the 'href' attribute
+      if (lowerTag.startsWith('a')) {
+        if (lowerTag === 'a') {
+          const hrefMatch = match.match(/\bhref="([^"]*)"/i) || match.match(/\bhref='([^']*)'/i)
+          return hrefMatch ? `<a href="${hrefMatch[1]}">` : '<a>'
+        }
+        return '</a>'
+      }
+      // For all other allowed tags, strip any attributes to prevent entity parsing errors
+      return `<${tagName}>`
+    }
+    // For unsupported tags, strip the tag entirely but keep inner text
+    return ''
+  })
+
+  return cleaned.trim()
 }
 
 // --- Tool Implementations ---
