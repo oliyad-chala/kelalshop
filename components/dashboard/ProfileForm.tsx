@@ -6,7 +6,7 @@ import { Card, CardHeader } from '@/components/ui/Card'
 import { Input, Textarea } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { Avatar } from '@/components/ui/Avatar'
-import { updateProfile, uploadAvatar, convertToSeller } from '@/lib/actions/profile'
+import { updateProfile, uploadAvatar, convertToSeller, signOutForUpgrade } from '@/lib/actions/profile'
 import Image from 'next/image'
 
 const initialState = {
@@ -26,19 +26,15 @@ export function ProfileForm({ user }: { user: any }) {
     setConverting(true)
     setConvertState({})
     const res = await convertToSeller()
-    setConverting(false)
     if (res.error) {
       setConvertState({ error: res.error })
+      setConverting(false)
       setShowConfirmModal(false)
     } else {
       setConvertState({ success: res.success })
       setShowConfirmModal(false)
-      // Force Next.js to reload server layouts
-      router.refresh()
-      setTimeout(() => {
-        // Hard reload ensures state and session variables are correctly aligned
-        window.location.href = '/dashboard/listings'
-      }, 1000)
+      // Automatically log out and redirect to login page
+      await signOutForUpgrade()
     }
   }
 

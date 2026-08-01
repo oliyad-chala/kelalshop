@@ -50,6 +50,7 @@ export function LoginForm() {
   const oauthFailed = searchParams.get('error') === 'oauth_failed'
   const adminRestricted = searchParams.get('error') === 'admin_restricted'
   const verified = searchParams.get('verified') === 'true'
+  const upgraded = searchParams.get('upgraded') === 'true'
   const emailParam = searchParams.get('email') || ''
 
   useEffect(() => {
@@ -93,6 +94,18 @@ export function LoginForm() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
           <div className="text-sm text-green-700">Email verified successfully! Please log in.</div>
+        </div>
+      )}
+
+      {/* Upgraded Seller notice banner */}
+      {upgraded && (
+        <div className="p-4 bg-indigo-50 rounded-xl border border-indigo-100 flex items-start gap-3 fade-in">
+          <svg className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div className="text-sm text-indigo-750 font-medium">
+            Account upgraded to Seller! Please sign in again to activate your seller dashboard.
+          </div>
         </div>
       )}
 

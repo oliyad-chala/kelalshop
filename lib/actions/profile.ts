@@ -1,6 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
+import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { logUserAction } from '@/lib/actions/activity-log'
 import type { ActionState } from '@/types/app.types'
@@ -66,8 +67,7 @@ export async function updateProfile(
     description: `Updated profile information`,
   })
 
-  revalidatePath('/dashboard/profile')
-  revalidatePath('/dashboard', 'layout')
+  revalidatePath('/', 'layout')
 
   return { success: 'Profile updated successfully.' }
 }
@@ -150,9 +150,25 @@ export async function convertToSeller(): Promise<ActionState> {
     description: `Converted account from Buyer to Seller (Shopper).`,
   })
 
-  revalidatePath('/dashboard/profile')
-  revalidatePath('/dashboard', 'layout')
+  revalidatePath('/', 'layout')
 
   return { success: 'Successfully converted account to Seller!' }
+}
+
+export async function signOutForUpgrade(): Promise<never> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user) {
+    const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single()
+    await logUserAction({
+      userId: user.id,
+      userName: profile?.full_name ?? user.email ?? 'Unknown',
+      actionType: 'logout',
+      description: 'User logged out automatically for seller upgrade'
+    })
+  }
+  await supabase.auth.signOut()
+  revalidatePath('/', 'layout')
+  redirect('/auth/login?upgraded=true')
 }
 
