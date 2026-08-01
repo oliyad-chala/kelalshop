@@ -67,7 +67,7 @@ export async function updateProfile(
   })
 
   revalidatePath('/dashboard/profile')
-  revalidatePath('/dashboard')
+  revalidatePath('/dashboard', 'layout')
 
   return { success: 'Profile updated successfully.' }
 }
@@ -151,7 +151,7 @@ export async function convertToSeller(): Promise<ActionState> {
   })
 
   revalidatePath('/dashboard/profile')
-  revalidatePath('/dashboard')
+  revalidatePath('/dashboard', 'layout')
 
   return { success: 'Successfully converted account to Seller!' }
 }

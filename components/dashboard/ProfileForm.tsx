@@ -1,6 +1,7 @@
 'use client'
 
 import { useActionState, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Input, Textarea } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
@@ -14,25 +15,29 @@ const initialState = {
 }
 
 export function ProfileForm({ user }: { user: any }) {
+  const router = useRouter()
   const [state, formAction, pending] = useActionState(updateProfile, initialState)
   const [avatarState, avatarFormAction, avatarPending] = useActionState(uploadAvatar, initialState)
+  const [showConfirmModal, setShowConfirmModal] = useState(false)
   const [converting, setConverting] = useState(false)
   const [convertState, setConvertState] = useState<{ error?: string; success?: string }>({})
 
-  async function handleConvertToSeller() {
-    if (!confirm('Are you sure you want to upgrade your account to a Seller account? This will grant you access to listings management and seller tools.')) {
-      return
-    }
+  async function confirmUpgrade() {
     setConverting(true)
     setConvertState({})
     const res = await convertToSeller()
     setConverting(false)
     if (res.error) {
       setConvertState({ error: res.error })
+      setShowConfirmModal(false)
     } else {
       setConvertState({ success: res.success })
+      setShowConfirmModal(false)
+      // Force Next.js to reload server layouts
+      router.refresh()
       setTimeout(() => {
-        window.location.reload()
+        // Hard reload ensures state and session variables are correctly aligned
+        window.location.href = '/dashboard/listings'
       }, 1000)
     }
   }
@@ -247,8 +252,8 @@ export function ProfileForm({ user }: { user: any }) {
                 <Button
                   type="button"
                   variant="outline"
-                  className="border-indigo-200 text-indigo-700 hover:bg-indigo-100 bg-white"
-                  onClick={handleConvertToSeller}
+                  className="border-indigo-200 text-indigo-700 hover:bg-indigo-100 bg-white cursor-pointer"
+                  onClick={() => setShowConfirmModal(true)}
                   loading={converting}
                   disabled={converting}
                 >
@@ -256,6 +261,42 @@ export function ProfileForm({ user }: { user: any }) {
                 </Button>
               </div>
             </Card>
+
+            {/* Custom Confirmation Modal */}
+            {showConfirmModal && (
+              <div className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/60 backdrop-blur-sm transition-opacity duration-300 p-4">
+                <div 
+                  className="bg-white rounded-2xl shadow-2xl max-w-md w-full border border-slate-100 p-6 flex flex-col transform transition-transform duration-300 scale-100"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <h3 className="text-navy-900 font-bold text-lg mb-2">Upgrade to Seller Account</h3>
+                  <p className="text-slate-500 text-sm mb-6 leading-relaxed">
+                    Are you sure you want to upgrade your account to a Seller account? This will grant you access to listings management, stock control, and seller tools.
+                  </p>
+                  <div className="flex justify-end gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="cursor-pointer"
+                      onClick={() => setShowConfirmModal(false)}
+                      disabled={converting}
+                    >
+                      Cancel
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="primary"
+                      className="cursor-pointer"
+                      onClick={confirmUpgrade}
+                      loading={converting}
+                      disabled={converting}
+                    >
+                      Confirm Upgrade
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
           </>
         )}
 
