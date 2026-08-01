@@ -114,3 +114,45 @@ export async function uploadAvatar(
 
   return { success: 'Avatar updated successfully.' }
 }
+
+export async function convertToSeller(): Promise<ActionState> {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Not authenticated.' }
+
+  // 1. Update profiles table to set role = 'shopper'
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .update({ role: 'shopper' })
+    .eq('id', user.id)
+
+  if (profileError) return { error: profileError.message }
+
+  // 2. Insert base record in shopper_profiles
+  const { error: shopperError } = await supabase
+    .from('shopper_profiles')
+    .upsert({
+      id: user.id,
+      business_name: null,
+      bio: null,
+      delivery_time_days: 14,
+    }, { onConflict: 'id' })
+
+  if (shopperError) return { error: shopperError.message }
+
+  // 3. Log user action
+  await logUserAction({
+    userId: user.id,
+    userName: user.email || 'User',
+    actionType: 'update_profile',
+    entityType: 'profile',
+    entityId: user.id,
+    description: `Converted account from Buyer to Seller (Shopper).`,
+  })
+
+  revalidatePath('/dashboard/profile')
+  revalidatePath('/dashboard')
+
+  return { success: 'Successfully converted account to Seller!' }
+}
+

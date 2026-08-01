@@ -5,7 +5,7 @@ import { Card, CardHeader } from '@/components/ui/Card'
 import { Input, Textarea } from '@/components/ui/Input'
 import { Button } from '@/components/ui/Button'
 import { Avatar } from '@/components/ui/Avatar'
-import { updateProfile, uploadAvatar } from '@/lib/actions/profile'
+import { updateProfile, uploadAvatar, convertToSeller } from '@/lib/actions/profile'
 import Image from 'next/image'
 
 const initialState = {
@@ -16,6 +16,26 @@ const initialState = {
 export function ProfileForm({ user }: { user: any }) {
   const [state, formAction, pending] = useActionState(updateProfile, initialState)
   const [avatarState, avatarFormAction, avatarPending] = useActionState(uploadAvatar, initialState)
+  const [converting, setConverting] = useState(false)
+  const [convertState, setConvertState] = useState<{ error?: string; success?: string }>({})
+
+  async function handleConvertToSeller() {
+    if (!confirm('Are you sure you want to upgrade your account to a Seller account? This will grant you access to listings management and seller tools.')) {
+      return
+    }
+    setConverting(true)
+    setConvertState({})
+    const res = await convertToSeller()
+    setConverting(false)
+    if (res.error) {
+      setConvertState({ error: res.error })
+    } else {
+      setConvertState({ success: res.success })
+      setTimeout(() => {
+        window.location.reload()
+      }, 1000)
+    }
+  }
 
   const isShopper = user.role === 'shopper'
   const isBuyer = user.role === 'buyer'
@@ -189,23 +209,54 @@ export function ProfileForm({ user }: { user: any }) {
 
         {/* ── Buyer-specific section ── */}
         {isBuyer && (
-          <Card>
-            <CardHeader title="Buyer Preferences" subtitle="Additional info to help sellers serve you better." />
-            <div className="space-y-4">
-              <p className="text-sm text-slate-500">
-                Your location set above will be shared with sellers for delivery estimates. Make sure it's accurate so sellers can quote shipping correctly.
-              </p>
-              <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-xl border border-amber-100">
-                <svg className="w-5 h-5 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                <span className="text-sm text-amber-800">
-                  Location is set in <strong>Personal Information</strong> above.
-                </span>
+          <>
+            <Card>
+              <CardHeader title="Buyer Preferences" subtitle="Additional info to help sellers serve you better." />
+              <div className="space-y-4">
+                <p className="text-sm text-slate-500">
+                  Your location set above will be shared with sellers for delivery estimates. Make sure it's accurate so sellers can quote shipping correctly.
+                </p>
+                <div className="flex items-center gap-3 p-3 bg-amber-50 rounded-xl border border-amber-100">
+                  <svg className="w-5 h-5 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <span className="text-sm text-amber-800">
+                    Location is set in <strong>Personal Information</strong> above.
+                  </span>
+                </div>
               </div>
-            </div>
-          </Card>
+            </Card>
+
+            <Card className="border border-indigo-100 bg-indigo-50/50">
+              <CardHeader title="💡 Become a Seller" subtitle="Want to start selling your own products on KelalShop?" />
+              <div className="space-y-4 p-6 pt-0">
+                {convertState.error && (
+                  <div className="p-3 bg-red-100 border border-red-200 text-red-700 text-xs rounded-lg">
+                    {convertState.error}
+                  </div>
+                )}
+                {convertState.success && (
+                  <div className="p-3 bg-green-100 border border-green-200 text-green-700 text-xs rounded-lg">
+                    {convertState.success}
+                  </div>
+                )}
+                <p className="text-sm text-indigo-950 leading-relaxed">
+                  You can convert your account into a Seller (Shopper) account. This will allow you to create product listings, manage stock, and receive orders from buyers in Ethiopia.
+                </p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="border-indigo-200 text-indigo-700 hover:bg-indigo-100 bg-white"
+                  onClick={handleConvertToSeller}
+                  loading={converting}
+                  disabled={converting}
+                >
+                  Upgrade to Seller Account
+                </Button>
+              </div>
+            </Card>
+          </>
         )}
 
         <div className="flex justify-end">

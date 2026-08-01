@@ -8,6 +8,17 @@ export async function addToCart(productId: string, quantity = 1) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'not_authenticated' }
 
+  // Check if user is the seller of this product
+  const { data: product } = await supabase
+    .from('products')
+    .select('shopper_id')
+    .eq('id', productId)
+    .single()
+
+  if (product && product.shopper_id === user.id) {
+    return { error: 'cannot_buy_own_product' }
+  }
+
   // Upsert: if already in cart, add qty
   const { error } = await supabase.rpc('upsert_cart_item', {
     p_user_id: user.id,

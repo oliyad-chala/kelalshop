@@ -140,6 +140,11 @@ export function CartProvider({ children, initialItems = [] }: CartProviderProps)
       dispatch({ type: 'REMOVE_ITEM', id: `temp-${product.id}` })
       dispatch({ type: 'CLOSE' })
       router.push(`/auth/login?redirectTo=${encodeURIComponent(pathname)}`)
+    } else if (result?.error === 'cannot_buy_own_product') {
+      // Revert and alert
+      dispatch({ type: 'REMOVE_ITEM', id: `temp-${product.id}` })
+      dispatch({ type: 'CLOSE' })
+      alert("You cannot add your own products to the cart.")
     }
   }, [router, pathname])
 

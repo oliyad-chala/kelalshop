@@ -116,6 +116,10 @@ export async function executeTelegramCheckout(initData: string) {
       throw new Error(`Product "${product.name}" is no longer available.`)
     }
 
+    if (product.shopper_id === profileId) {
+      throw new Error(`You cannot buy your own product "${product.name}".`)
+    }
+
     const price = Number(product.price)
     const amount = await resolveOrderPrice(admin, product.id, price)
 

@@ -415,9 +415,12 @@ async function addToCartTool(productId: string, quantity: number, profileId: str
     return { error: 'linked_account_required' }
   }
   const admin = createAdminClient()
-  const { data: product } = await admin.from('products').select('id, name').eq('id', productId).maybeSingle()
+  const { data: product } = await admin.from('products').select('id, name, shopper_id').eq('id', productId).maybeSingle()
   if (!product) {
     return { error: 'product_not_found' }
+  }
+  if (product.shopper_id === profileId) {
+    return { error: 'cannot_buy_own_product' }
   }
 
   const { data: existing } = await admin
