@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { logUserAction } from '@/lib/actions/activity-log'
 import type { ActionState } from '@/types/app.types'
 
@@ -120,8 +121,10 @@ export async function convertToSeller(): Promise<ActionState> {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { error: 'Not authenticated.' }
 
+  const admin = createAdminClient()
+
   // 1. Update profiles table to set role = 'shopper'
-  const { error: profileError } = await supabase
+  const { error: profileError } = await admin
     .from('profiles')
     .update({ role: 'shopper' })
     .eq('id', user.id)
@@ -129,7 +132,7 @@ export async function convertToSeller(): Promise<ActionState> {
   if (profileError) return { error: profileError.message }
 
   // 2. Insert base record in shopper_profiles
-  const { error: shopperError } = await supabase
+  const { error: shopperError } = await admin
     .from('shopper_profiles')
     .upsert({
       id: user.id,
