@@ -204,7 +204,7 @@ export async function generateAIContentWithFallback(params: {
   // 2. Try Groq
   if (GROQ_API_KEY) {
     try {
-      console.log('[AI Fallback Wrapper] Attempting Groq (llama-3.1-8b-instant)...')
+      console.log('[AI Fallback Wrapper] Attempting Groq (groq/compound-mini)...')
       const response = await withTimeout(async (signal) => {
         const fetchRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
           method: 'POST',
@@ -213,7 +213,7 @@ export async function generateAIContentWithFallback(params: {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            model: 'llama-3.1-8b-instant',
+            model: 'groq/compound-mini',
             messages: openAIMessages,
             ...(openAITools ? { tools: openAITools } : {}),
             temperature: 0.5,

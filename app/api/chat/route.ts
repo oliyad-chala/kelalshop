@@ -31,8 +31,10 @@ export async function POST(req: Request) {
       )
     }
 
+    const geminiApiKey = process.env.GEMINI_API_KEY
     const groqApiKey = process.env.GROQ_API_KEY
-    if (!groqApiKey) {
+
+    if (!geminiApiKey && !groqApiKey) {
       return NextResponse.json(
         { error: 'AI service not configured', reply: "I'm sorry, the AI service is temporarily unavailable. Please try again later." },
         { status: 500 }
@@ -134,37 +136,90 @@ export async function POST(req: Request) {
       content: msg.content,
     }))
 
-    const chatMessages = [
-      { role: 'system' as const, content: SYSTEM_PROMPT },
-      ...formattedHistory,
-      { role: 'user' as const, content: message },
-    ]
+    // --- AI: Try Gemini first, fall back to Groq ---
+    let responseText: string | null = null
 
-    const groqResponse = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${groqApiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages: chatMessages,
-        temperature: 0.5,
-        max_tokens: 512,
-      }),
-    })
+    // 1. Try Gemini (primary)
+    if (geminiApiKey) {
+      try {
+        console.log('[Chat API] Attempting Gemini...')
+        const geminiContents = [
+          ...formattedHistory.map(m => ({
+            role: m.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: m.content }],
+          })),
+          { role: 'user', parts: [{ text: message }] },
+        ]
 
-    if (!groqResponse.ok) {
-      const errBody = await groqResponse.text()
-      console.error('Groq API error:', groqResponse.status, errBody)
+        const geminiRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+              contents: geminiContents,
+              generationConfig: { temperature: 0.5, maxOutputTokens: 512 },
+            }),
+          }
+        )
+
+        if (geminiRes.ok) {
+          const geminiData = await geminiRes.json()
+          responseText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text ?? null
+          if (responseText) console.log('[Chat API] Gemini succeeded.')
+        } else {
+          const errBody = await geminiRes.text()
+          console.warn('[Chat API] Gemini failed:', geminiRes.status, errBody)
+        }
+      } catch (err: any) {
+        console.warn('[Chat API] Gemini exception:', err.message)
+      }
+    }
+
+    // 2. Fall back to Groq if Gemini failed
+    if (!responseText && groqApiKey) {
+      try {
+        console.log('[Chat API] Falling back to Groq (groq/compound-mini)...')
+        const chatMessages = [
+          { role: 'system' as const, content: SYSTEM_PROMPT },
+          ...formattedHistory,
+          { role: 'user' as const, content: message },
+        ]
+
+        const groqRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${groqApiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'groq/compound-mini',
+            messages: chatMessages,
+            temperature: 0.5,
+            max_tokens: 512,
+          }),
+        })
+
+        if (groqRes.ok) {
+          const groqData = await groqRes.json()
+          responseText = groqData.choices?.[0]?.message?.content ?? null
+          if (responseText) console.log('[Chat API] Groq succeeded.')
+        } else {
+          const errBody = await groqRes.text()
+          console.error('[Chat API] Groq failed:', groqRes.status, errBody)
+        }
+      } catch (err: any) {
+        console.error('[Chat API] Groq exception:', err.message)
+      }
+    }
+
+    if (!responseText) {
       return NextResponse.json(
         { error: 'AI service error', reply: "I'm sorry, I'm having trouble thinking right now. Please try again in a moment." },
         { status: 502 }
       )
     }
-
-    const groqData = await groqResponse.json()
-    const responseText = groqData.choices?.[0]?.message?.content || "I'm sorry, I'm having trouble connecting right now."
 
     await supabase.from('support_messages').insert({
       session_id: currentSessionId,
