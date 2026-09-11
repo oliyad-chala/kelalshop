@@ -18,6 +18,8 @@ import {
   Megaphone,
   Bell,
   ClipboardList,
+  MessageSquare,
+  SearchCheck,
 } from 'lucide-react'
 import { adminSignOut } from '@/lib/actions/admin-auth'
 import { isAdminRole, portalRoleLabel } from '@/lib/utils/admin-roles'
@@ -30,6 +32,8 @@ const navItems = [
   { href: '/admin/sellers',        label: 'Sellers',          icon: Users },
   { href: '/admin/products',       label: 'Products',         icon: Package },
   { href: '/admin/orders',         label: 'Orders',           icon: ShoppingCart },
+  { href: '/admin/requests',       label: 'Buyer Requests',   icon: SearchCheck },
+  { href: '/admin/messages',       label: 'Buyer-Seller Chats', icon: MessageSquare },
   { href: '/admin/verifications',  label: 'Verifications',    icon: ShieldCheck },
   { href: '/admin/payouts',        label: 'Payments',         icon: Wallet },
   { href: '/admin/disputes',       label: 'Disputes',         icon: MessageSquareWarning },

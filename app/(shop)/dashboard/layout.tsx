@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Sidebar } from '@/components/layout/Sidebar'
 import { MobileNav } from '@/components/layout/MobileNav'
 import { getSellerInboxCounts, totalInboxCount } from '@/lib/data/seller-alerts'
+import { RealtimeChatNotification } from '@/components/chat/RealtimeChatNotification'
 import type { Profile } from '@/types/app.types'
 
 export const metadata = {
@@ -50,6 +51,9 @@ export default async function DashboardLayout({
         unreadMessages={inbox.unreadMessages}
         totalInboxCount={totalInbox}
       />
+
+      {/* Real-time floating chat notifications & audio chime */}
+      <RealtimeChatNotification userId={user.id} />
     </div>
   )
 }

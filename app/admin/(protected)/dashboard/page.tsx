@@ -9,6 +9,8 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
+  MessageSquare,
+  SearchCheck,
 } from 'lucide-react'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
@@ -117,6 +119,24 @@ export default async function AdminDashboardPage() {
       color: '#5f63f2',
       bg: '#f0f1ff',
     },
+    {
+      href: '/admin/requests',
+      label: 'Buyer Requests',
+      description: 'Review items buyers want sourced',
+      count: stats.activeRequests,
+      icon: SearchCheck,
+      color: '#f59e0b',
+      bg: '#fffbeb',
+    },
+    {
+      href: '/admin/messages',
+      label: 'Buyer-Seller Chats',
+      description: 'Oversee and monitor live conversations',
+      count: null,
+      icon: MessageSquare,
+      color: '#06b6d4',
+      bg: '#ecfeff',
+    },
     ...(isAdmin ? [{
       href: '/admin/disputes',
       label: 'Open Disputes',
@@ -178,6 +198,7 @@ export default async function AdminDashboardPage() {
           bg="#f0f1ff"
           change="↑ 4"
           changeLabel="today"
+          href="/admin/requests"
         />
         <KpiCard
           label="New Sellers (30d)"
