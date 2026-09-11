@@ -52,6 +52,8 @@ export function registerCustomerHandlers(bot: Bot<CustomerBotContext>) {
         '• /track — Active orders\n' +
         '• /deals — Flash sales\n' +
         '• /search — Find products\n' +
+        '• /cart — View cart & checkout\n' +
+        '• /remind — Shopping reminders\n' +
         '• /support — Support ticket\n' +
         '• /link — Link account\n\n' +
         '🤖 Or describe what you need naturally!',
@@ -114,12 +116,113 @@ export function registerCustomerHandlers(bot: Bot<CustomerBotContext>) {
 
     const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://kelalshop.com'
     const keyboard = {
-      inline_keyboard: [[
-        { text: '💳 Secure Checkout Mini App', web_app: { url: `${BASE_URL}/telegram/checkout` } }
-      ]]
+      inline_keyboard: [
+        [
+          { text: '💳 Secure Checkout Mini App', web_app: { url: `${BASE_URL}/telegram/checkout` } }
+        ],
+        [
+          { text: '⏰ Remind Me Tomorrow', callback_data: 'remind_cart_tomorrow' }
+        ]
+      ]
     }
 
     await ctx.reply(text, { parse_mode: 'HTML', reply_markup: keyboard })
+  })
+
+  // ─── Customer Reminder Callbacks & Command ───────────────────────────────
+  bot.command('remind', async (ctx) => {
+    const chatId = ctx.chat?.id
+    if (!chatId) return
+    const admin = getTelegramSupabase()
+
+    const { data: tgUser } = await admin
+      .from('telegram_users')
+      .select('profile_id, is_verified, first_name')
+      .eq('chat_id', chatId)
+      .maybeSingle()
+
+    let hasCart = false
+    let pendingOrders = 0
+
+    if (tgUser?.profile_id) {
+      const [{ count: cartCount }, { count: orderCount }] = await Promise.all([
+        admin.from('cart_items').select('id', { count: 'exact', head: true }).eq('user_id', tgUser.profile_id),
+        admin.from('orders').select('id', { count: 'exact', head: true }).eq('buyer_id', tgUser.profile_id).eq('status', 'pending'),
+      ])
+      hasCart = Boolean(cartCount && cartCount > 0)
+      pendingOrders = orderCount || 0
+    }
+
+    const name = tgUser?.first_name ? ` ${tgUser.first_name}` : ''
+    let msg = `⏰ <b>Shopping Assistant Reminders</b>\n\n`
+
+    if (hasCart) {
+      msg += `🛒 <b>You have items in your shopping cart!</b>\nUse /cart to view your items or tap checkout below.\n\n`
+    }
+    if (pendingOrders > 0) {
+      msg += `📦 <b>You have ${pendingOrders} pending order(s)!</b>\nUse /orders to track and upload receipts.\n\n`
+    }
+    if (!hasCart && pendingOrders === 0) {
+      msg += `✨ You have no pending orders or cart items right now!\n\n` +
+        `Ready to shop? Check out today's top deals or search for any item you need.`
+    }
+
+    const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://kelalshop.com'
+    const keyboard = {
+      inline_keyboard: [
+        [
+          { text: '🛍️ Open Shop', web_app: { url: `${BASE_URL}/telegram/checkout` } },
+          { text: '⚡ Flash Deals', callback_data: 'nav_deals' }
+        ]
+      ]
+    }
+
+    await ctx.reply(msg, { parse_mode: 'HTML', reply_markup: keyboard })
+  })
+
+  // Handle inline button callbacks from reminders & cart
+  bot.callbackQuery('remind_cart_tomorrow', async (ctx) => {
+    await ctx.answerCallbackQuery({ text: '⏰ Reminder scheduled for tomorrow!' })
+    const chatId = ctx.chat?.id
+    if (chatId) {
+      const admin = getTelegramSupabase()
+      await admin.from('telegram_reminder_logs').insert({
+        chat_id: chatId,
+        reminder_type: 'cart_abandonment',
+      })
+    }
+    await ctx.reply(
+      '✅ <b>ተመዝግቧል!</b> እቃዎች እንዳያመልጡዎት ነገ በዚህ ሰዓት እናስታውስዎታለን። 😊\n\n' +
+      '<i>Got it! We will send you a friendly reminder tomorrow so you don\'t miss out on your items.</i>',
+      { parse_mode: 'HTML' }
+    )
+  })
+
+  bot.callbackQuery('nav_deals', async (ctx) => {
+    await ctx.answerCallbackQuery()
+    return handleDeals(ctx as any)
+  })
+
+  bot.callbackQuery('nav_search', async (ctx) => {
+    await ctx.answerCallbackQuery()
+    await ctx.reply(
+      '🔍 <b>Product Search</b>\n\nType what you are looking for below (e.g. <i>iPhone 15, Nike shoes, perfume</i>):',
+      { parse_mode: 'HTML', reply_markup: { force_reply: true, selective: true } }
+    )
+  })
+
+  bot.callbackQuery('nav_support', async (ctx) => {
+    await ctx.answerCallbackQuery()
+    return handleSupportPrompt(ctx as any)
+  })
+
+  bot.callbackQuery('nav_ai_help', async (ctx) => {
+    await ctx.answerCallbackQuery()
+    await ctx.reply(
+      '🤖 <b>How can I help you today?</b>\n\n' +
+      'Type any question about products, delivery, payment (CBE / Telebirr), or how to place an order, and I\'ll assist you right away!',
+      { parse_mode: 'HTML' }
+    )
   })
 
   bot.on('message:text', async (ctx) => {
