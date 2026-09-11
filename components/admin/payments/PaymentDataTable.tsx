@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useMemo } from 'react'
 import { type ColumnDef } from '@tanstack/react-table'
-import { DollarSign, CheckCircle, XCircle, Clock, Image as ImageIcon } from 'lucide-react'
+import { DollarSign, CheckCircle, XCircle, Clock, Zap } from 'lucide-react'
 import { DataTable } from '@/components/admin/DataTable'
 import { approvePayment, rejectPayment } from '@/lib/actions/admin'
 
@@ -14,10 +14,98 @@ interface PaymentRow {
   amount: number
   status: string
   created_at: string
+  tx_ref?: string | null
 }
 
 function fmtCurrency(n: number) {
   return `ETB ${Number(n).toFixed(2)}`
+}
+
+// Chapa / ShegerPay inline verifier component
+function ChapaVerify({ paymentId, initialTxRef }: { paymentId: string; initialTxRef?: string | null }) {
+  const [txRef, setTxRef] = useState(initialTxRef ?? '')
+  const [provider, setProvider] = useState<'cbe' | 'telebirr'>('cbe')
+  const [loading, setLoading] = useState(false)
+  const [result, setResult] = useState<{ ok: boolean; message: string } | null>(null)
+
+  const handleVerify = async () => {
+    if (!txRef.trim()) return
+    setLoading(true)
+    setResult(null)
+    try {
+      const res = await fetch('/api/payments/verify-chapa', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tx_ref: txRef.trim(),
+          payment_request_id: paymentId,
+          provider,
+        }),
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setResult({ ok: true, message: data.message })
+      } else {
+        setResult({ ok: false, message: data.error ?? 'Verification failed' })
+      }
+    } catch (e: any) {
+      setResult({ ok: false, message: e.message })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (result?.ok) {
+    return (
+      <div style={{ fontSize: '0.72rem', color: 'var(--color-success)', fontWeight: 600, maxWidth: 220 }}>
+        ✅ {result.message}
+      </div>
+    )
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', minWidth: 220 }}>
+      <div style={{ display: 'flex', gap: '0.3rem', alignItems: 'center' }}>
+        <select
+          value={provider}
+          onChange={(e) => setProvider(e.target.value as any)}
+          style={{
+            fontSize: '0.68rem', padding: '3px 4px',
+            border: '1px solid var(--color-border)', borderRadius: 6,
+            background: 'var(--color-bg)', color: 'var(--color-text-primary)',
+            fontWeight: 600
+          }}
+        >
+          <option value="cbe">CBE</option>
+          <option value="telebirr">Telebirr</option>
+        </select>
+        <input
+          type="text"
+          value={txRef}
+          onChange={(e) => setTxRef(e.target.value)}
+          placeholder="FT... or Tx ID"
+          style={{
+            flex: 1, fontSize: '0.7rem', padding: '3px 6px',
+            border: '1px solid var(--color-border)', borderRadius: 6,
+            background: 'var(--color-bg)', color: 'var(--color-text-primary)'
+          }}
+        />
+        <button
+          className="admin-btn admin-btn-primary"
+          style={{ fontSize: '0.7rem', padding: '3px 7px', display: 'flex', alignItems: 'center', gap: 3 }}
+          onClick={handleVerify}
+          disabled={loading || !txRef.trim()}
+          title="Verify with Gateway"
+        >
+          <Zap size={11} />
+          {loading ? '...' : 'Verify'}
+        </button>
+      </div>
+      {result && !result.ok && (
+        <span style={{ fontSize: '0.65rem', color: 'var(--color-danger)', lineHeight: 1.2 }}>{result.message}</span>
+      )}
+    </div>
+  )
 }
 
 import { ConfirmModal } from '@/components/ui/ConfirmModal'
@@ -142,6 +230,15 @@ const buildColumns = (canManage: boolean): ColumnDef<PaymentRow, any>[] => [
     accessorKey: 'created_at',
     header: 'Date',
     cell: ({ getValue }) => new Date(getValue()).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+  },
+  {
+    id: 'chapa_verify',
+    header: 'Chapa Verify',
+    enableSorting: false,
+    cell: ({ row }) => {
+      if (row.original.status !== 'pending' || !canManage) return null
+      return <ChapaVerify paymentId={row.original.id} initialTxRef={row.original.tx_ref} />
+    },
   },
   {
     id: 'action',

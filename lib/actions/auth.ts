@@ -1,6 +1,7 @@
 'use server'
 
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { generateDeviceFingerprint, checkRateLimit } from '@/lib/utils/security'
@@ -320,6 +321,16 @@ export async function signOut() {
     })
   }
   await supabase.auth.signOut()
+
+  // Ensure all auth cookies and chunks are expired/cleared
+  const cookieStore = await cookies()
+  const allCookies = cookieStore.getAll()
+  for (const c of allCookies) {
+    if (c.name.startsWith('sb-') && c.name.includes('-auth-token')) {
+      cookieStore.delete(c.name)
+    }
+  }
+
   redirect('/')
 }
 
@@ -503,7 +514,7 @@ export async function confirmPasswordWithOtp(
   await adminClient.from('email_verifications').delete().eq('email', email)
 
   // Notify user that password was changed
-  await notifyPasswordChangedForUser(user.id, user.email, user.user_metadata?.full_name)
+  await notifyPasswordChangedForUser(user.id, user.email || email, user.user_metadata?.full_name)
 
   return { success: 'Password successfully updated.' }
 }

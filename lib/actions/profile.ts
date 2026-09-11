@@ -2,6 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { logUserAction } from '@/lib/actions/activity-log'
@@ -171,6 +172,16 @@ export async function signOutForUpgrade(): Promise<never> {
     })
   }
   await supabase.auth.signOut()
+
+  // Ensure all auth cookies and chunks are expired/cleared
+  const cookieStore = await cookies()
+  const allCookies = cookieStore.getAll()
+  for (const c of allCookies) {
+    if (c.name.startsWith('sb-') && c.name.includes('-auth-token')) {
+      cookieStore.delete(c.name)
+    }
+  }
+
   revalidatePath('/', 'layout')
   redirect('/auth/login?upgraded=true')
 }

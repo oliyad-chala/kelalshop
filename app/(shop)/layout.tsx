@@ -10,6 +10,7 @@ import { getPlatformSettings } from '@/lib/actions/admin-settings'
 import type { Profile } from '@/types/app.types'
 import type { CartItem } from '@/lib/context/CartContext'
 import { resolveProductPrices } from '@/lib/utils/campaign-pricing'
+import { CookieConsentBanner } from '@/components/ui/CookieConsentBanner'
 import '../globals.css'
 
 export default async function ShopLayout({
@@ -116,6 +117,7 @@ export default async function ShopLayout({
           </LayoutWrapper>
           <CartDrawer />
           <SupportWidget />
+          <CookieConsentBanner />
         </CartProvider>
       </WishlistProvider>
     </div>

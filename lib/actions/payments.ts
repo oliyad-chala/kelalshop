@@ -20,6 +20,7 @@ export async function submitPaymentRequest(
   const paymentType = formData.get('payment_type') as string
   const targetId = formData.get('target_id') as string | null
   const receiptFile = formData.get('receipt') as File | null
+  const txRef = (formData.get('tx_ref') as string | null)?.trim() || null
 
   if (!paymentType || !receiptFile || receiptFile.size === 0) {
     return { error: 'Payment type and receipt image are required.' }
@@ -55,6 +56,7 @@ export async function submitPaymentRequest(
     amount,
     receipt_url: storagePath,
     status: 'pending',
+    reference_number: txRef,
   } as any)
 
   if (error) {

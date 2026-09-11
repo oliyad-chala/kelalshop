@@ -28,6 +28,35 @@ export function PaymentForm({ userId, products, mode, initialBoostProductId, act
   const [state, formAction, isPending] = useActionState(submitPaymentRequest, initialState)
   const [paymentMethod, setPaymentMethod] = useState<'cbe' | 'telebirr'>('cbe')
 
+  // OCR state
+  const [txRef, setTxRef] = useState('')
+  const [ocrLoading, setOcrLoading] = useState(false)
+  const [ocrError, setOcrError] = useState<string | null>(null)
+
+  async function handleReceiptChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Auto-scan tx_ref from receipt image using Gemini Vision
+    setOcrLoading(true)
+    setOcrError(null)
+    try {
+      const fd = new FormData()
+      fd.append('receipt', file)
+      const res = await fetch('/api/payments/ocr-receipt', { method: 'POST', body: fd })
+      const data = await res.json()
+      if (data.tx_ref) {
+        setTxRef(data.tx_ref)
+      } else {
+        setOcrError('Could not auto-detect — please type the transaction ID manually.')
+      }
+    } catch {
+      setOcrError('OCR failed — please type the transaction ID manually.')
+    } finally {
+      setOcrLoading(false)
+    }
+  }
+
   // Subscription plan selection state
   const [selectedPlan, setSelectedPlan] = useState<PlanConfig | null>(null)
 
@@ -223,9 +252,31 @@ export function PaymentForm({ userId, products, mode, initialBoostProductId, act
                     name="receipt"
                     accept="image/*"
                     required
+                    onChange={handleReceiptChange}
                     className="w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
                   />
                   <p className="text-xs text-slate-400 mt-2 ml-1">Upload a clear screenshot of your transaction.</p>
+                </div>
+
+                {/* OCR tx_ref field */}
+                <div className="mt-4">
+                  <label htmlFor="tx_ref" className="block text-sm font-semibold text-navy-900 mb-1">
+                    Transaction Reference ID
+                    {ocrLoading && <span className="ml-2 text-xs font-normal text-blue-500 animate-pulse">Reading from receipt...</span>}
+                  </label>
+                  <input
+                    type="text"
+                    id="tx_ref"
+                    name="tx_ref"
+                    value={txRef}
+                    onChange={(e) => setTxRef(e.target.value)}
+                    placeholder={ocrLoading ? 'Scanning receipt...' : 'e.g. CHAPA-ABC123 (auto-detected or type manually)'}
+                    disabled={ocrLoading}
+                    className="w-full px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-sm text-navy-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 disabled:opacity-60"
+                  />
+                  {ocrError && <p className="text-xs text-amber-600 mt-1">{ocrError}</p>}
+                  {txRef && !ocrLoading && <p className="text-xs text-emerald-600 mt-1">✓ Transaction ID detected</p>}
+                  <p className="text-xs text-slate-400 mt-1">Auto-detected from your receipt. You can edit it if needed.</p>
                 </div>
               </div>
             </div>

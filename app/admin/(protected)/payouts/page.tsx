@@ -26,7 +26,7 @@ export default async function PaymentsPage() {
   // Fetch all payment requests
   const { data: payments, error: paymentsError } = await admin
     .from('payment_requests')
-    .select('id, amount, payment_type, receipt_url, status, created_at, shopper_id')
+    .select('id, amount, payment_type, receipt_url, status, created_at, shopper_id, reference_number')
     .order('created_at', { ascending: false })
 
   // Fetch shopper names separately to avoid FK hint issues
@@ -49,6 +49,7 @@ export default async function PaymentsPage() {
       receipt_url: (await getSignedReceiptUrl(p.receipt_url)) ?? '',
       status: p.status,
       created_at: p.created_at,
+      tx_ref: p.reference_number ?? null,
     }))
   )
 

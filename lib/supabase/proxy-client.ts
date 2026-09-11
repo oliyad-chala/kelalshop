@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 import type { Database } from '@/types/database.types'
 import { isAdminOnlyPath, isAdminPortalRole } from '@/lib/utils/admin-roles'
+import { getSecureCookieOptions, isProduction } from '@/lib/supabase/cookie-config'
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
@@ -21,6 +22,7 @@ export async function updateSession(request: NextRequest) {
     supabaseUrl,
     supabaseAnonKey,
     {
+      cookieOptions: getSecureCookieOptions(),
       cookies: {
         getAll() {
           return request.cookies.getAll()
@@ -31,7 +33,12 @@ export async function updateSession(request: NextRequest) {
           )
           supabaseResponse = NextResponse.next({ request })
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
+            supabaseResponse.cookies.set(name, value, {
+              ...options,
+              path: options?.path ?? '/',
+              sameSite: (options?.sameSite as 'lax' | 'strict' | 'none') ?? 'lax',
+              secure: isProduction,
+            })
           )
         },
       },
@@ -180,7 +187,7 @@ export async function updateSession(request: NextRequest) {
     ].join('; ')
   )
 
-  if (isTelegramRoute) {
+  if (isTelegramRoute && !request.cookies.has('tg_session')) {
     supabaseResponse.cookies.set('tg_session', 'true', {
       path: '/',
       maxAge: 86400, // 24 hours

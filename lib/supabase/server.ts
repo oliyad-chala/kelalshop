@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import type { Database } from '@/types/database.types'
+import { getSecureCookieOptions, isProduction } from '@/lib/supabase/cookie-config'
 
 export async function createClient() {
   const cookieStore = await cookies()
@@ -16,6 +17,7 @@ export async function createClient() {
     supabaseUrl,
     supabaseAnonKey,
     {
+      cookieOptions: getSecureCookieOptions(),
       cookies: {
         getAll() {
           return cookieStore.getAll()
@@ -23,7 +25,12 @@ export async function createClient() {
         setAll(cookiesToSet) {
           try {
             cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options)
+              cookieStore.set(name, value, {
+                ...options,
+                path: options?.path ?? '/',
+                sameSite: (options?.sameSite as 'lax' | 'strict' | 'none') ?? 'lax',
+                secure: isProduction,
+              })
             )
           } catch {
             // Called from a Server Component — safe to ignore
