@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import Image from 'next/image'
+import { SoldWatermark } from '@/components/products/SoldWatermark'
 
 interface ProductGalleryProps {
   images: { url: string; is_primary?: boolean }[]
@@ -90,6 +91,8 @@ export function ProductGallery({ images, productName }: ProductGalleryProps) {
           </svg>
           Hover to zoom
         </div>
+
+        <SoldWatermark size="lg" />
       </div>
     </div>
   )

@@ -9,6 +9,7 @@ import type { ProductWithDetails } from '@/types/app.types'
 import { useCart } from '@/lib/context/CartContext'
 import { useWishlist } from '@/lib/context/WishlistContext'
 import { FlashCountdown } from '@/components/home/FlashCountdown'
+import { SoldWatermark } from '@/components/products/SoldWatermark'
 
 interface HomeProductCardProps {
   product: ProductWithDetails
@@ -127,6 +128,8 @@ export function HomeProductCard({ product, discount, endsAt }: HomeProductCardPr
             <FlashCountdown endsAt={endsAt} />
           </div>
         )}
+
+        <SoldWatermark size="md" />
       </Link>
 
       {/* Content */}

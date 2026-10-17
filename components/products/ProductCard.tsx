@@ -8,6 +8,7 @@ import { formatPrice } from '@/lib/utils/formatters'
 import type { ProductWithDetails } from '@/types/app.types'
 import { useWishlist } from '@/lib/context/WishlistContext'
 import { useRouter } from 'next/navigation'
+import { SoldWatermark } from '@/components/products/SoldWatermark'
 
 interface ProductCardProps {
   product: ProductWithDetails
@@ -56,6 +57,7 @@ export function ProductCard({ product, view = 'grid' }: ProductCardProps) {
             </svg>
           </div>
         )}
+        <SoldWatermark size={view === 'list' ? 'sm' : 'md'} />
       </Link>
 
       {/* Content Area */}
