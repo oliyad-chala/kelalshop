@@ -129,20 +129,18 @@ export default async function Home() {
 
   const [{ data: activeBoosts }, { data: recentProducts }] = await Promise.all([
     // Get active boosts
-    supabase
+    admin
       .from('products')
       .select('*, product_images(*), profiles:shopper_id(id, full_name, avatar_url, trust_score, role, shopper_profiles(verification_status))')
-      .eq('is_available', true)
       .eq('approval_status', 'approved')
       .gt('boosted_until', now)
       .order('boosted_until', { ascending: false })
       .limit(16),
 
     // Get recent normal products
-    supabase
+    admin
       .from('products')
       .select('*, product_images(*), profiles:shopper_id(id, full_name, avatar_url, trust_score, role, shopper_profiles(verification_status))')
-      .eq('is_available', true)
       .eq('approval_status', 'approved')
       .or(`boosted_until.lt.${now},boosted_until.is.null`)
       .order('created_at', { ascending: false })

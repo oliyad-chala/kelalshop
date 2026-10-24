@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/Button'
 import { formatPrice, formatDate } from '@/lib/utils/formatters'
 import type { ProductWithDetails } from '@/types/app.types'
 import { DeleteProductButton } from '@/components/products/DeleteProductButton'
+import { ProductAvailabilityButton } from '@/components/products/ProductAvailabilityButton'
 import { deleteProduct } from '@/lib/actions/products'
 
 export const metadata = {
@@ -149,9 +150,7 @@ export default async function ListingsPage() {
                       <div className="text-xs text-slate-500 mt-0.5">{product.categories?.name} · Stock: {product.stock}</div>
                       <div className="mt-2 flex flex-col items-start gap-2">
                         <div className="flex items-center gap-2">
-                          <Badge variant={product.is_available ? 'success' : 'default'} size="sm">
-                            {product.is_available ? 'Active' : 'Hidden'}
-                          </Badge>
+                          <ProductAvailabilityButton productId={product.id} isAvailable={product.is_available} variant="badge" />
                           <Badge variant={product.approval_status === 'approved' ? 'success' : product.approval_status === 'pending' ? 'warning' : 'danger'} size="sm">
                             {product.approval_status === 'approved' ? 'Approved' : product.approval_status === 'pending' ? 'Pending Approval' : 'Rejected'}
                           </Badge>
@@ -168,6 +167,7 @@ export default async function ListingsPage() {
                   <div className="mt-4 pt-4 border-t border-slate-100 flex flex-wrap items-center justify-between gap-3">
                     <span className="text-xs text-slate-400">{formatDate(product.created_at)}</span>
                     <div className="flex items-center gap-2">
+                      <ProductAvailabilityButton productId={product.id} isAvailable={product.is_available} />
                       <Link href={`/dashboard/billing?tab=boosts&boostProductId=${product.id}`}>
                         <Button variant="ghost" size="sm" className="text-amber-500 hover:text-amber-600 font-semibold bg-amber-50 hover:bg-amber-100 px-3 py-1.5 h-auto rounded-lg">
                           Boost 🚀
@@ -226,9 +226,7 @@ export default async function ListingsPage() {
                       </td>
                       <td className="p-4 align-top">
                         <div className="flex flex-col gap-1.5 items-start">
-                          <Badge variant={product.is_available ? 'success' : 'default'}>
-                            {product.is_available ? 'Active' : 'Hidden'}
-                          </Badge>
+                          <ProductAvailabilityButton productId={product.id} isAvailable={product.is_available} variant="badge" />
                           <Badge variant={product.approval_status === 'approved' ? 'success' : product.approval_status === 'pending' ? 'warning' : 'danger'} size="sm">
                             {product.approval_status === 'approved' ? 'Approved' : product.approval_status === 'pending' ? 'Pending Approval' : 'Rejected'}
                           </Badge>
@@ -249,6 +247,7 @@ export default async function ListingsPage() {
                         {formatDate(product.created_at)}
                       </td>
                       <td className="p-4 pr-6 text-right space-x-2">
+                        <ProductAvailabilityButton productId={product.id} isAvailable={product.is_available} />
                         <Link href={`/dashboard/billing?tab=boosts&boostProductId=${product.id}`}>
                           <Button variant="ghost" size="sm" className="text-amber-500 hover:text-amber-600 font-semibold bg-amber-50 hover:bg-amber-100 px-2 py-1 h-auto rounded">
                             Boost 🚀

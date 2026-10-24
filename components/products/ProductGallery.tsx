@@ -7,9 +7,10 @@ import { SoldWatermark } from '@/components/products/SoldWatermark'
 interface ProductGalleryProps {
   images: { url: string; is_primary?: boolean }[]
   productName: string
+  isSold?: boolean
 }
 
-export function ProductGallery({ images, productName }: ProductGalleryProps) {
+export function ProductGallery({ images, productName, isSold = false }: ProductGalleryProps) {
   // Sort to put primary image first
   const sortedImages = [...images].sort((a, b) => {
     if (a.is_primary) return -1
@@ -92,7 +93,7 @@ export function ProductGallery({ images, productName }: ProductGalleryProps) {
           Hover to zoom
         </div>
 
-        <SoldWatermark size="lg" />
+        {isSold && <SoldWatermark size="lg" />}
       </div>
     </div>
   )

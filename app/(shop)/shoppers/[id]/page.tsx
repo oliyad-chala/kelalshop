@@ -1,6 +1,7 @@
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -62,12 +63,12 @@ export default async function ShopperDetailPage({ params }: { params: Promise<{ 
     : profile.shopper_profiles
   if (!shopperData) notFound()
 
-  // Fetch shopper's products
-  const { data: products } = await supabase
+  // Fetch shopper's products (both available and sold)
+  const admin = createAdminClient()
+  const { data: products } = await admin
     .from('products')
     .select('*, product_images(*), categories(*), profiles:shopper_id(*)')
     .eq('shopper_id', id)
-    .eq('is_available', true)
     .order('created_at', { ascending: false })
 
   return (

@@ -90,7 +90,6 @@ export const metadata: Metadata = {
  *   app/(shop)/layout.tsx  → buyer shop
  *   app/(admin)/layout.tsx → admin portal
  */
-import Script from 'next/script'
 import { PwaInstallPrompt } from '@/components/pwa/PwaInstallPrompt'
 
 export default function RootLayout({
@@ -99,7 +98,6 @@ export default function RootLayout({
   return (
     <html lang="en" className="font-sans" data-scroll-behavior="smooth" suppressHydrationWarning>
       <body suppressHydrationWarning>
-        <Script src="https://telegram.org/js/telegram-web-app.js" strategy="beforeInteractive" />
         {children}
         <PwaInstallPrompt />
       </body>

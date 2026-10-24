@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { InfiniteProductGrid } from '@/components/products/InfiniteProductGrid'
 import { ProductCard } from '@/components/products/ProductCard'
 import { ProductsFilter } from '@/components/products/ProductsFilter'
@@ -18,11 +19,11 @@ export default async function ProductsFeedPage({
 }) {
    const params = await searchParams
    const supabase = await createClient()
+   const admin = createAdminClient()
 
-   let query = supabase
+   let query = admin
       .from('products')
       .select('*, product_images(*), profiles:shopper_id(*, shopper_profiles(verification_status))')
-      .eq('is_available', true)
       .eq('approval_status', 'approved')
 
    if (params.q) {
@@ -44,7 +45,7 @@ export default async function ProductsFeedPage({
          if (categorySlug === 'vehicles') categorySlug = 'automotive'
          if (categorySlug === 'food-grocery' || categorySlug === 'food') categorySlug = 'food'
          
-         const { data: catRecord } = await supabase
+         const { data: catRecord } = await admin
             .from('categories')
             .select('id')
             .or(`slug.eq.${categorySlug},name.ilike.%${params.category}%`)
@@ -81,7 +82,7 @@ export default async function ProductsFeedPage({
    query = query.range(0, 11)
 
    const { data: products } = await query
-   const { data: categories } = await supabase.from('categories').select('*').order('name')
+   const { data: categories } = await admin.from('categories').select('*').order('name')
    const items = products && products.length > 0 ? (products as ProductWithDetails[]) : []
    const catList = categories && categories.length > 0 ? categories : [
       { id: 'mock-1', name: 'Electronics' },

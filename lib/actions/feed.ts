@@ -1,6 +1,7 @@
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import type { ProductWithDetails } from '@/types/app.types'
 
 export async function loadMoreProducts(
@@ -8,12 +9,11 @@ export async function loadMoreProducts(
   limit: number,
   params: { q?: string; category?: string; min_price?: string; max_price?: string; sort?: string }
 ): Promise<ProductWithDetails[]> {
-  const supabase = await createClient()
+  const admin = createAdminClient()
 
-  let query = supabase
+  let query = admin
     .from('products')
     .select('*, product_images(*), profiles:shopper_id(*, shopper_profiles(verification_status))')
-    .eq('is_available', true)
     .eq('approval_status', 'approved')
 
   if (params.q) {

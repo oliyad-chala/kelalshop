@@ -1,7 +1,4 @@
-'use client'
-
 import React from 'react'
-import { DEMO_CONFIG } from '@/lib/config/demo'
 
 interface SoldWatermarkProps {
   size?: 'sm' | 'md' | 'lg'
@@ -12,14 +9,10 @@ interface SoldWatermarkProps {
 
 export function SoldWatermark({
   size = 'md',
-  text = DEMO_CONFIG.watermarkText,
+  text = 'SOLD',
   className = '',
   showBackdrop = true,
 }: SoldWatermarkProps) {
-  if (!DEMO_CONFIG.showSoldWatermark) {
-    return null
-  }
-
   const badgeSizes = {
     sm: 'text-[10px] tracking-[0.16em] px-2.5 py-0.5 gap-1.5 rounded-full',
     md: 'text-[11px] sm:text-xs tracking-[0.2em] px-3.5 py-1.5 gap-2 rounded-full',
@@ -39,7 +32,6 @@ export function SoldWatermark({
       } ${className}`}
       aria-label={text}
     >
-      {/* Sleek, luxury glassmorphism badge: clear, pleasant, and easy on the eyes */}
       <div
         className={`inline-flex items-center font-medium uppercase text-white bg-slate-900/80 backdrop-blur-md border border-white/20 shadow-lg transition-transform duration-300 group-hover:scale-105 ${badgeSizes[size]}`}
         style={{

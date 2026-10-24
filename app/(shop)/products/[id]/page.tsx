@@ -204,7 +204,11 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
           
           {/* Photos Area (Gallery) */}
           <div className="w-full md:w-[55%] p-4 sm:p-6 border-b md:border-b-0 md:border-r border-slate-100 bg-white">
-             <ProductGallery images={product.product_images || []} productName={product.name} />
+             <ProductGallery
+               images={product.product_images || []}
+               productName={product.name}
+               isSold={product.is_available === false}
+             />
           </div>
 
           {/* Details Area */}

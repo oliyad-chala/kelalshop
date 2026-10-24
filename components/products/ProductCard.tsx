@@ -20,6 +20,7 @@ export function ProductCard({ product, view = 'grid' }: ProductCardProps) {
   const { wishlistItems, toggleWishlistItem } = useWishlist()
   
   const isSaved = wishlistItems.includes(product.id)
+  const isSold = product.is_available === false
   const primaryImage = product.product_images?.find((img) => img.is_primary)?.url || product.product_images?.[0]?.url
 
   return (
@@ -57,7 +58,7 @@ export function ProductCard({ product, view = 'grid' }: ProductCardProps) {
             </svg>
           </div>
         )}
-        <SoldWatermark size={view === 'list' ? 'sm' : 'md'} />
+        {isSold && <SoldWatermark size={view === 'list' ? 'sm' : 'md'} />}
       </Link>
 
       {/* Content Area */}
@@ -74,11 +75,17 @@ export function ProductCard({ product, view = 'grid' }: ProductCardProps) {
             <span className="text-sm font-semibold mr-1">Br</span>
             {formatPrice(product.price).replace(/[^0-9.,]/g, '')}
           </div>
-          <Link href={`/products/${product.id}`} className="flex items-center justify-center w-10 h-10 rounded-xl bg-orange-50 text-amber-500 border border-amber-100 hover:bg-amber-500 hover:text-white transition-colors">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-          </Link>
+          {isSold ? (
+            <span className="text-[11px] font-semibold text-rose-600 bg-rose-50 px-2 py-1 rounded-lg border border-rose-100">
+              Sold Out
+            </span>
+          ) : (
+            <Link href={`/products/${product.id}`} className="flex items-center justify-center w-10 h-10 rounded-xl bg-orange-50 text-amber-500 border border-amber-100 hover:bg-amber-500 hover:text-white transition-colors">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </Link>
+          )}
         </div>
 
         <div className="mt-auto flex flex-col gap-1.5 pt-2 border-t border-slate-50">

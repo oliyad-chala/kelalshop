@@ -225,6 +225,8 @@ export async function toggleProductAvailability(productId: string, isAvailable: 
   const { data: adminProfile } = await (admin.from('profiles') as any).select('full_name').eq('id', user.id).single()
   await logAdminAction({ adminId: user.id, adminName: adminProfile?.full_name ?? 'Admin', actionType: 'update_product', entityType: 'product', entityId: productId, description: `Set product availability to ${isAvailable ? 'available' : 'unavailable'}` })
   revalidatePath('/admin/products')
+  revalidatePath('/products')
+  revalidatePath('/')
 }
 
 export async function adminToggleProductBoost(productId: string, boost: boolean) {
@@ -537,6 +539,9 @@ export async function adminUpdateProduct(
     return { error: `"${oversized.name}" exceeds the 5 MB limit per image.` }
   }
 
+  const isAvailableRaw = formData.get('is_available')
+  const is_available = isAvailableRaw !== null ? isAvailableRaw === 'true' : undefined
+
   // Update product details
   const { error: updateError } = await admin
     .from('products')
@@ -548,6 +553,7 @@ export async function adminUpdateProduct(
       category_id: category_id || null,
       location: location?.trim() || null,
       attributes,
+      ...(is_available !== undefined ? { is_available } : {}),
       updated_at: new Date().toISOString()
     } as any)
     .eq('id', productId)

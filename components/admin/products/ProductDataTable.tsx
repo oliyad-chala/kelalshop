@@ -55,9 +55,11 @@ function AvailabilityToggle({ productId, initial }: { productId: string; initial
       }}
     >
       {enabled
-        ? <ToggleRight size={16} className="text-green-500" style={{ flexShrink: 0 }} />
-        : <ToggleLeft size={16} className="text-slate-400" style={{ flexShrink: 0 }} />}
-      <span className={enabled ? 'text-green-700' : 'text-slate-500'}>{enabled ? 'Active' : 'Hidden'}</span>
+        ? <ToggleRight size={18} className="text-emerald-500" style={{ flexShrink: 0 }} />
+        : <ToggleLeft size={18} className="text-rose-500" style={{ flexShrink: 0 }} />}
+      <span className={enabled ? 'text-emerald-700 font-semibold' : 'text-rose-600 font-semibold'}>
+        {enabled ? 'Available' : 'Sold'}
+      </span>
     </button>
   )
 }

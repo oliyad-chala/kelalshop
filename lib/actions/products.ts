@@ -182,6 +182,8 @@ export async function toggleProductAvailability(productId: string, isAvailable: 
 
   revalidatePath('/dashboard/listings')
   revalidatePath('/')
+  revalidatePath('/products')
+  revalidatePath('/admin/products')
 }
 
 export async function deleteProduct(productId: string) {
@@ -314,6 +316,9 @@ export async function updateProduct(
     return { error: `"${oversized.name}" exceeds the 5 MB limit per image.` }
   }
 
+  const isAvailableRaw = formData.get('is_available')
+  const is_available = isAvailableRaw !== null ? isAvailableRaw === 'true' : undefined
+
   // Update product details
   const { error: updateError } = await supabase
     .from('products')
@@ -325,6 +330,7 @@ export async function updateProduct(
       category_id: category_id || null,
       location: location?.trim() || null,
       attributes,
+      ...(is_available !== undefined ? { is_available } : {}),
       approval_status: 'pending',
       updated_at: new Date().toISOString()
     } as any)

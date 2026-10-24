@@ -26,6 +26,7 @@ export function HomeProductCard({ product, discount, endsAt }: HomeProductCardPr
   const [added, setAdded] = useState(false)
 
   const isSaved = wishlistItems.includes(product.id)
+  const isSold = product.is_available === false
 
   const primaryImage =
     product.product_images?.find((img) => img.is_primary)?.url ||
@@ -129,7 +130,7 @@ export function HomeProductCard({ product, discount, endsAt }: HomeProductCardPr
           </div>
         )}
 
-        <SoldWatermark size="md" />
+        {isSold && <SoldWatermark size="md" />}
       </Link>
 
       {/* Content */}
@@ -169,13 +170,13 @@ export function HomeProductCard({ product, discount, endsAt }: HomeProductCardPr
           {/* Add to Cart button (Small Icon) */}
           <button
             onClick={handleAddToCart}
-            disabled={!product.is_available}
-            aria-label="Add to cart"
+            disabled={isSold}
+            aria-label={isSold ? "Sold out" : "Add to cart"}
             className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-all duration-200 ${added
                 ? 'bg-green-500 text-white scale-110'
-                : product.is_available
+                : !isSold
                   ? 'bg-amber-100 hover:bg-amber-500 text-amber-600 hover:text-white active:scale-95'
-                  : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                  : 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-60'
               }`}
           >
             {added ? (

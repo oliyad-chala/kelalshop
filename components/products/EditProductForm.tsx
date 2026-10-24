@@ -214,6 +214,19 @@ export function EditProductForm({ categories, initialData, action }: EditProduct
             </div>
           </div>
 
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="is_available" className="text-sm font-medium text-navy-900">Availability Status</label>
+            <select
+              id="is_available"
+              name="is_available"
+              defaultValue={initialData.is_available ? 'true' : 'false'}
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-navy-900 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
+            >
+              <option value="true">Available (Active & In Stock)</option>
+              <option value="false">Sold (Marked as Sold Out)</option>
+            </select>
+          </div>
+
           {/* ── Dynamic Attributes Section ────────────────────────────── */}
           {(() => {
             const catName = categories.find(c => c.id === selectedCategory)?.name
