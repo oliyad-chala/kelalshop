@@ -183,7 +183,7 @@ export default async function ShopperDetailPage({ params }: { params: Promise<{ 
             {/* Main Content -> Listings & Reviews */}
             <div className="md:col-span-2 space-y-8 pt-10 md:pt-0">
                <div>
-                  <h2 className="text-xl font-bold text-navy-900 mb-6 flex items-center gap-2">
+                  <h2 className="text-xl font-bold text-navy-900 md:text-white mb-6 flex items-center gap-2">
                      Current Listings
                      <Badge className="bg-amber-100 text-amber-700">{products?.length || 0}</Badge>
                   </h2>
