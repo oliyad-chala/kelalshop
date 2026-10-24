@@ -8,6 +8,9 @@ import {
 
 export const viewport: Viewport = {
   themeColor: '#FF6A00',
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
 }
 
 const defaultTitle = `${SITE_NAME} (ቀላል ሾፕ) — Best Online Shopping & E-Commerce in Ethiopia`
@@ -24,12 +27,21 @@ export const metadata: Metadata = {
   creator: SITE_NAME,
   publisher: SITE_NAME,
   applicationName: SITE_NAME,
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: SITE_NAME,
+  },
+  formatDetection: {
+    telephone: false,
+  },
   icons: {
     icon: [
+      { url: '/icons/icon-192.png', type: 'image/png', sizes: '192x192' },
       { url: '/icon.png', type: 'image/png', sizes: '512x512' },
       { url: '/favicon.ico', type: 'image/x-icon' },
     ],
-    apple: [{ url: '/apple-icon.png', type: 'image/png', sizes: '512x512' }],
+    apple: [{ url: '/apple-icon.png', type: 'image/png', sizes: '180x180' }],
     shortcut: '/favicon.ico',
   },
   openGraph: {
@@ -79,6 +91,7 @@ export const metadata: Metadata = {
  *   app/(admin)/layout.tsx → admin portal
  */
 import Script from 'next/script'
+import { PwaInstallPrompt } from '@/components/pwa/PwaInstallPrompt'
 
 export default function RootLayout({
   children,
@@ -88,6 +101,7 @@ export default function RootLayout({
       <body suppressHydrationWarning>
         <Script src="https://telegram.org/js/telegram-web-app.js" strategy="beforeInteractive" />
         {children}
+        <PwaInstallPrompt />
       </body>
     </html>
   )
