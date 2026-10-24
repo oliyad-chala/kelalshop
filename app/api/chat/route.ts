@@ -33,8 +33,9 @@ export async function POST(req: Request) {
 
     const geminiApiKey = process.env.GEMINI_API_KEY
     const groqApiKey = process.env.GROQ_API_KEY
+    const openrouterApiKey = process.env.OPENROUTER_API_KEY
 
-    if (!geminiApiKey && !groqApiKey) {
+    if (!geminiApiKey && !groqApiKey && !openrouterApiKey) {
       return NextResponse.json(
         { error: 'AI service not configured', reply: "I'm sorry, the AI service is temporarily unavailable. Please try again later." },
         { status: 500 }
@@ -136,13 +137,13 @@ export async function POST(req: Request) {
       content: msg.content,
     }))
 
-    // --- AI: Try Gemini first, fall back to Groq ---
+    // --- AI: Try Gemini first, fall back to OpenRouter, then Groq ---
     let responseText: string | null = null
 
     // 1. Try Gemini (primary)
     if (geminiApiKey) {
       try {
-        console.log('[Chat API] Attempting Gemini...')
+        console.log('[Chat API] Attempting Gemini (gemini-2.5-flash)...')
         const geminiContents = [
           ...formattedHistory.map(m => ({
             role: m.role === 'assistant' ? 'model' : 'user',
@@ -152,7 +153,7 @@ export async function POST(req: Request) {
         ]
 
         const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiApiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -177,10 +178,49 @@ export async function POST(req: Request) {
       }
     }
 
-    // 2. Fall back to Groq if Gemini failed
+    // 2. Fall back to OpenRouter if Gemini failed
+    if (!responseText && openrouterApiKey) {
+      try {
+        console.log('[Chat API] Falling back to OpenRouter (meta-llama/llama-3.3-70b-instruct)...')
+        const chatMessages = [
+          { role: 'system' as const, content: SYSTEM_PROMPT },
+          ...formattedHistory,
+          { role: 'user' as const, content: message },
+        ]
+
+        const openrouterRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${openrouterApiKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'https://kelalshop.com',
+            'X-Title': 'KelalShop Support',
+          },
+          body: JSON.stringify({
+            model: 'meta-llama/llama-3.3-70b-instruct',
+            messages: chatMessages,
+            temperature: 0.5,
+            max_tokens: 512,
+          }),
+        })
+
+        if (openrouterRes.ok) {
+          const orData = await openrouterRes.json()
+          responseText = orData.choices?.[0]?.message?.content ?? null
+          if (responseText) console.log('[Chat API] OpenRouter succeeded.')
+        } else {
+          const errBody = await openrouterRes.text()
+          console.warn('[Chat API] OpenRouter failed:', openrouterRes.status, errBody)
+        }
+      } catch (err: any) {
+        console.warn('[Chat API] OpenRouter exception:', err.message)
+      }
+    }
+
+    // 3. Fall back to Groq if still no response
     if (!responseText && groqApiKey) {
       try {
-        console.log('[Chat API] Falling back to Groq (groq/compound-mini)...')
+        console.log('[Chat API] Falling back to Groq...')
         const chatMessages = [
           { role: 'system' as const, content: SYSTEM_PROMPT },
           ...formattedHistory,
@@ -194,7 +234,7 @@ export async function POST(req: Request) {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'groq/compound-mini',
+            model: 'openai/gpt-oss-120b',
             messages: chatMessages,
             temperature: 0.5,
             max_tokens: 512,
