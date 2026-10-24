@@ -40,7 +40,7 @@ export function BuyButton({ product, seller, currentUserId }: BuyButtonProps) {
         <Button 
           size="lg" 
           variant="outline" 
-          className="flex-1 border-amber-500 text-amber-600 hover:bg-amber-50 font-semibold" 
+          className="flex-1 border-amber-500 text-amber-600 hover:bg-amber-50 font-semibold disabled:border-slate-200 disabled:text-slate-400 disabled:bg-slate-50 disabled:cursor-not-allowed" 
           disabled={isSold || loadingCart}
           onClick={handleAddToCart}
           loading={loadingCart}
@@ -52,17 +52,10 @@ export function BuyButton({ product, seller, currentUserId }: BuyButtonProps) {
           size="lg" 
           variant="primary" 
           className="flex-1 bg-amber-500 hover:bg-amber-400 text-navy-950 font-bold flex items-center justify-center gap-2 shadow-sm" 
-          disabled={isSold}
           onClick={() => setIsContactOpen(true)}
         >
-          {isSold ? (
-            'Sold Out'
-          ) : (
-            <>
-              <Phone className="w-4 h-4" />
-              <span>Show Contact</span>
-            </>
-          )}
+          <Phone className="w-4 h-4" />
+          <span>Show Contact</span>
         </Button>
       </div>
 
@@ -80,6 +73,7 @@ export function BuyButton({ product, seller, currentUserId }: BuyButtonProps) {
           price: product.price,
           image: product.image,
         }}
+        isSold={isSold}
         currentUserId={currentUserId}
       />
     </>

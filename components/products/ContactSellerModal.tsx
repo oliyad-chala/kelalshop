@@ -25,6 +25,7 @@ interface ContactSellerModalProps {
     image?: string | null
     location?: string | null
   }
+  isSold?: boolean
   currentUserId?: string | null
 }
 
@@ -65,6 +66,7 @@ export function ContactSellerModal({
   onClose,
   seller,
   product,
+  isSold,
   currentUserId,
 }: ContactSellerModalProps) {
   const [copied, setCopied] = useState(false)
@@ -123,7 +125,9 @@ export function ContactSellerModal({
             </div>
             <div>
               <h3 className="text-base font-bold text-navy-950">Contact Seller</h3>
-              <p className="text-[11px] text-slate-500">Connect directly to negotiate or buy</p>
+              <p className="text-[11px] text-slate-500">
+                {isSold ? 'Ask seller about restock or availability' : 'Connect directly to negotiate or buy'}
+              </p>
             </div>
           </div>
           <button
@@ -151,7 +155,14 @@ export function ContactSellerModal({
             )}
             <div className="flex-1 min-w-0">
               <div className="text-xs font-bold text-navy-900 truncate">{product.name}</div>
-              <div className="text-sm font-extrabold text-amber-600">{formatPrice(product.price)}</div>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-sm font-extrabold text-amber-600">{formatPrice(product.price)}</span>
+                {isSold && (
+                  <span className="text-[10px] font-bold uppercase tracking-wider bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
+                    Sold Out
+                  </span>
+                )}
+              </div>
             </div>
             {location && (
               <span className="text-[11px] font-medium text-slate-500 bg-white px-2 py-1 rounded-lg border border-slate-200 flex items-center gap-1">
@@ -160,6 +171,16 @@ export function ContactSellerModal({
               </span>
             )}
           </div>
+
+          {/* Sold Notice if applicable */}
+          {isSold && (
+            <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200/80 text-xs text-amber-900 flex items-start gap-2.5">
+              <span className="text-base leading-none mt-0.5">📦</span>
+              <p className="leading-relaxed">
+                This item is currently marked as <strong>Sold</strong>. You can call or chat with the seller to ask if they have more in stock or can arrange another one for you.
+              </p>
+            </div>
+          )}
 
           {/* Seller Profile Summary */}
           <div className="flex items-center gap-3.5 p-3.5 rounded-2xl bg-gradient-to-br from-amber-50/50 via-white to-slate-50 border border-amber-100/70">
