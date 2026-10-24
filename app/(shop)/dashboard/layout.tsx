@@ -4,6 +4,7 @@ import { Sidebar } from '@/components/layout/Sidebar'
 import { MobileNav } from '@/components/layout/MobileNav'
 import { getSellerInboxCounts, totalInboxCount } from '@/lib/data/seller-alerts'
 import { RealtimeChatNotification } from '@/components/chat/RealtimeChatNotification'
+import { PhoneReminderBanner } from '@/components/dashboard/PhoneReminderBanner'
 import type { Profile } from '@/types/app.types'
 
 export const metadata = {
@@ -31,6 +32,8 @@ export default async function DashboardLayout({
   const inbox = await getSellerInboxCounts(supabase, user.id)
   const totalInbox = totalInboxCount(inbox)
 
+  const hasPhone = Boolean(profile?.phone && profile.phone.trim().length > 0)
+
   return (
     <div className="dashboard-locked flex flex-1 overflow-hidden">
       {/* Desktop sidebar — hidden on mobile */}
@@ -42,6 +45,7 @@ export default async function DashboardLayout({
 
       {/* Main content — extra bottom padding on mobile for the nav bar */}
       <div className="flex-1 w-full p-4 sm:p-8 lg:p-10 max-w-7xl mx-auto overflow-y-auto overflow-x-hidden pb-24 md:pb-10">
+        {!hasPhone && <PhoneReminderBanner userRole={profile?.role} />}
         {children}
       </div>
 

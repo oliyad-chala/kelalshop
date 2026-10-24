@@ -112,6 +112,16 @@ export async function verifyEmailOtp(email: string, otpCode: string): Promise<Ac
     is_success: true
   })
 
+  // Ensure profile has phone number from user metadata
+  const metadataPhone = user.user_metadata?.phone
+  if (metadataPhone) {
+    await adminClient
+      .from('profiles')
+      .update({ phone: metadataPhone } as any)
+      .eq('id', user.id)
+      .is('phone', null)
+  }
+
   // 7. Queue welcome email for verified user
   const fullName = user.user_metadata?.full_name || email.split('@')[0]
   const welcome = buildWelcomeEmail(fullName)

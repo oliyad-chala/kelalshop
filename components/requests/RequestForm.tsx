@@ -11,13 +11,14 @@ interface RequestFormProps {
   categories: { id: string; name: string }[]
   verifiedSellers?: { id: string; name: string }[]
   shopperId?: string // Optional specific shopper to request from directly via URL
+  defaultPhone?: string
 }
 
 const initialState = {
   error: '',
 }
 
-export function RequestForm({ categories, verifiedSellers = [], shopperId }: RequestFormProps) {
+export function RequestForm({ categories, verifiedSellers = [], shopperId, defaultPhone = '' }: RequestFormProps) {
   const [state, formAction, pending] = useActionState(createRequest, initialState)
   
   // To handle the "Other" category logic
@@ -114,6 +115,18 @@ export function RequestForm({ categories, verifiedSellers = [], shopperId }: Req
             placeholder="Color, size, exact model number, preferred source country, etc."
             rows={5} 
             required
+          />
+
+          <Input
+            label="Your Contact Phone Number"
+            name="phone"
+            type="tel"
+            required
+            defaultValue={defaultPhone}
+            placeholder="+251 911 234 567"
+            pattern="^\+?[0-9\s\-\(\)]{7,20}$"
+            title="Please enter a valid phone number"
+            hint="Sellers and shoppers need your phone number to contact you directly with offers and quotes."
           />
 
           <Input

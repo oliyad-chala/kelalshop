@@ -118,14 +118,34 @@ export default async function RequestDetailPage({ params }: { params: Promise<{ 
 
              {/* Right - Profile & Actions */}
              <div className="space-y-6">
-                <div>
+                 <div>
                   <h4 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">Requested By</h4>
-                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex items-center gap-3">
-                     <Avatar src={request.profiles.avatar_url} name={request.profiles.full_name} size="md" />
-                     <div>
-                        <div className="font-medium text-navy-900">{request.profiles.full_name}</div>
-                        <div className="text-xs text-slate-500">Buyer</div>
+                  <div className="bg-slate-50 rounded-2xl p-4 border border-slate-100 flex flex-col gap-3">
+                     <div className="flex items-center gap-3">
+                        <Avatar src={request.profiles?.avatar_url} name={request.profiles?.full_name} size="md" />
+                        <div>
+                           <div className="font-medium text-navy-900">{request.profiles?.full_name}</div>
+                           <div className="text-xs text-slate-500">Buyer</div>
+                        </div>
                      </div>
+
+                     {/* Show buyer phone number to shoppers / sellers */}
+                     {(isShopper || isOwner) && request.profiles?.phone && (
+                        <div className="mt-1 pt-3 border-t border-slate-200/60 flex items-center justify-between gap-2">
+                           <div className="flex items-center gap-2 text-xs font-semibold text-navy-900">
+                              <svg className="w-4 h-4 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                              </svg>
+                              <span className="font-mono">{request.profiles.phone}</span>
+                           </div>
+                           <a
+                              href={`tel:${request.profiles.phone}`}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium bg-emerald-50 text-emerald-700 hover:bg-emerald-100 transition-colors border border-emerald-200/60"
+                           >
+                              Call Buyer
+                           </a>
+                        </div>
+                     )}
                   </div>
                 </div>
 
@@ -160,11 +180,20 @@ export default async function RequestDetailPage({ params }: { params: Promise<{ 
                         )}
                      </div>
                   ) : isShopper && request.status === 'open' ? (
-                     <Link href={`/dashboard/chat/dm/${request.buyer_id}`} className="block w-full">
-                        <Button variant="primary" size="lg" fullWidth className="shadow-lg shadow-amber-500/20">
-                           Message Buyer & Create Offer
-                        </Button>
-                     </Link>
+                     <div className="space-y-3">
+                        <Link href={`/dashboard/chat/dm/${request.buyer_id}`} className="block w-full">
+                           <Button variant="primary" size="lg" fullWidth className="shadow-lg shadow-amber-500/20">
+                              Message Buyer & Create Offer
+                           </Button>
+                        </Link>
+                        {request.profiles?.phone && (
+                           <a href={`tel:${request.profiles.phone}`} className="block w-full">
+                              <Button variant="outline" size="md" fullWidth className="text-emerald-700 border-emerald-200 hover:bg-emerald-50">
+                                 Call Buyer ({request.profiles.phone})
+                              </Button>
+                           </a>
+                        )}
+                     </div>
                   ) : isAssigned ? (
                      <Link href={`/dashboard/chat/dm/${request.buyer_id === user.id ? request.shopper_id : request.buyer_id}`} className="block w-full">
                         <Button variant="primary" size="lg" fullWidth className="shadow-lg shadow-amber-500/20">

@@ -15,7 +15,7 @@ export default async function NewRequestPage() {
   // Ensure user is a buyer
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, phone')
     .eq('id', user.id)
     .single()
 
@@ -51,7 +51,11 @@ export default async function NewRequestPage() {
         </p>
       </div>
 
-      <RequestForm categories={categories || []} verifiedSellers={verifiedSellers} />
+      <RequestForm
+        categories={categories || []}
+        verifiedSellers={verifiedSellers}
+        defaultPhone={profile?.phone || ''}
+      />
     </div>
   )
 }

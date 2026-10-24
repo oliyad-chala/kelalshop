@@ -19,11 +19,23 @@ export async function createRequest(
   const budget = formData.get('budget') ? Number(formData.get('budget')) : null
   const source_url = formData.get('source_url') as string
   const category_id = formData.get('category_id') as string
-  const shopper_id = formData.get('shopper_id') as string // NEW
+  const shopper_id = formData.get('shopper_id') as string
+  const phone = (formData.get('phone') as string)?.trim()
 
   if (!title || !description) {
     return { error: 'Title and description are required.' }
   }
+
+  if (!phone || phone.length < 7) {
+    return { error: 'A valid contact phone number is required so sellers can reach you.' }
+  }
+
+  // Update profile phone if not already saved
+  await supabase
+    .from('profiles')
+    .update({ phone } as any)
+    .eq('id', user.id)
+    .or('phone.is.null,phone.eq.""')
 
   const { data: requestResult, error } = await supabase
     .from('requests')
