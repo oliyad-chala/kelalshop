@@ -1,58 +1,87 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { Phone } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useCart } from '@/lib/context/CartContext'
 import type { CartItem } from '@/lib/context/CartContext'
+import { ContactSellerModal } from '@/components/products/ContactSellerModal'
 
 interface BuyButtonProps {
   product: CartItem['product']
+  seller?: {
+    id?: string
+    name?: string
+    phone?: string | null
+    avatarUrl?: string | null
+    location?: string | null
+    verificationStatus?: string | null
+  }
+  currentUserId?: string | null
 }
 
-export function BuyButton({ product }: BuyButtonProps) {
-  const router = useRouter()
+export function BuyButton({ product, seller, currentUserId }: BuyButtonProps) {
   const { addItem, openCart } = useCart()
-  const [loading, setLoading] = useState<'cart' | 'buy' | null>(null)
+  const [loadingCart, setLoadingCart] = useState(false)
+  const [isContactOpen, setIsContactOpen] = useState(false)
 
   const handleAddToCart = async () => {
-    setLoading('cart')
+    setLoadingCart(true)
     await addItem(product)
-    setLoading(null)
+    setLoadingCart(false)
     openCart()
-  }
-
-  const handleBuyNow = async () => {
-    setLoading('buy')
-    await addItem(product)
-    router.push('/checkout')
   }
 
   const isSold = product.is_available === false
 
   return (
-    <div className="flex gap-3">
-      <Button 
-        size="lg" 
-        variant="outline" 
-        className="flex-1 border-amber-500 text-amber-600 hover:bg-amber-50" 
-        disabled={isSold || loading !== null}
-        onClick={handleAddToCart}
-        loading={loading === 'cart'}
-      >
-        {isSold ? 'Sold Out' : 'Add to Cart'}
-      </Button>
+    <>
+      <div className="flex gap-3">
+        <Button 
+          size="lg" 
+          variant="outline" 
+          className="flex-1 border-amber-500 text-amber-600 hover:bg-amber-50 font-semibold" 
+          disabled={isSold || loadingCart}
+          onClick={handleAddToCart}
+          loading={loadingCart}
+        >
+          {isSold ? 'Sold Out' : 'Add to Cart'}
+        </Button>
 
-      <Button 
-        size="lg" 
-        variant="primary" 
-        className="flex-1 bg-amber-500 hover:bg-amber-400 text-navy-950 font-bold" 
-        disabled={isSold || loading !== null}
-        onClick={handleBuyNow}
-        loading={loading === 'buy'}
-      >
-        {isSold ? 'Sold Out' : 'Buy Now'}
-      </Button>
-    </div>
+        <Button 
+          size="lg" 
+          variant="primary" 
+          className="flex-1 bg-amber-500 hover:bg-amber-400 text-navy-950 font-bold flex items-center justify-center gap-2 shadow-sm" 
+          disabled={isSold}
+          onClick={() => setIsContactOpen(true)}
+        >
+          {isSold ? (
+            'Sold Out'
+          ) : (
+            <>
+              <Phone className="w-4 h-4" />
+              <span>Show Contact</span>
+            </>
+          )}
+        </Button>
+      </div>
+
+      <ContactSellerModal
+        isOpen={isContactOpen}
+        onClose={() => setIsContactOpen(false)}
+        seller={seller || {
+          id: product.shopperId,
+          name: product.shopperName,
+          phone: null,
+        }}
+        product={{
+          id: product.id,
+          name: product.name,
+          price: product.price,
+          image: product.image,
+        }}
+        currentUserId={currentUserId}
+      />
+    </>
   )
 }

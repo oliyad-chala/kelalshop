@@ -2,6 +2,7 @@ import { notFound } from 'next/navigation'
 import Image from 'next/image'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Avatar } from '@/components/ui/Avatar'
@@ -75,7 +76,8 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
     }
   } else {
     // ── Handle Real DB Product ──
-    const { data: productResult } = await supabase
+    const admin = createAdminClient()
+    const { data: productResult } = await admin
       .from('products')
       .select('*, product_images(*), categories(*), profiles:shopper_id(*), shopper_profiles:shopper_id(*)')
       .eq('id', id)
@@ -319,6 +321,15 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                   shopperName: product.profiles?.full_name || 'Shopper',
                   shopperId: product.shopper_id || 'mock',
                 }}
+                seller={{
+                  id: product.shopper_id || 'mock',
+                  name: product.profiles?.full_name || 'Verified Shopper',
+                  phone: product.profiles?.phone || null,
+                  avatarUrl: product.profiles?.avatar_url || null,
+                  location: product.location || product.profiles?.location || null,
+                  verificationStatus: product.shopper_profiles?.verification_status || 'verified',
+                }}
+                currentUserId={user?.id}
               />
 
               <Link
