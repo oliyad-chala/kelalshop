@@ -5,6 +5,7 @@ import { requireAdmin, requireStaffOrAdmin } from '@/lib/actions/admin-access'
 import { uploadWatermarkedProductImages } from '@/lib/utils/product-image-storage'
 import { logAdminAction } from '@/lib/actions/activity-log'
 import { emitTelegramEvent } from '@/lib/telegram/notifications/templates'
+import { broadcastProductToTelegramChannel } from '@/lib/telegram/channel-broadcast'
 
 import { queueEmail } from '@/lib/email/queue'
 import { buildSellerVerificationEmail } from '@/lib/email/templates'
@@ -599,6 +600,12 @@ export async function adminApproveProduct(productId: string) {
   emitTelegramEvent('admin', 'PRODUCT_APPROVED', { productName: product?.name ?? productId }, {
     idempotencyKey: `product-approved-${productId}`,
   })
+
+  // Auto-post approved product to the public Telegram Channel
+  await broadcastProductToTelegramChannel(productId).catch((err) => {
+    console.error('[adminApproveProduct] Error broadcasting to channel:', err)
+  })
+
   revalidatePath('/admin/products')
   revalidatePath('/dashboard/listings')
   revalidatePath('/')
