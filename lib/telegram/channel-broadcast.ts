@@ -14,11 +14,7 @@ export async function broadcastProductToTelegramChannel(productId: string): Prom
   messageId?: number
   error?: string
 }> {
-  const channelId = process.env.TELEGRAM_CHANNEL_ID?.trim()
-  if (!channelId) {
-    console.log('[Telegram Channel] TELEGRAM_CHANNEL_ID is not set in environment. Skipping broadcast.')
-    return { success: false, error: 'TELEGRAM_CHANNEL_ID not configured' }
-  }
+  const channelId = process.env.TELEGRAM_CHANNEL_ID?.trim() || '@kelalshoppp'
 
   const token =
     process.env.TELEGRAM_CHANNEL_BOT_TOKEN?.trim() ||
