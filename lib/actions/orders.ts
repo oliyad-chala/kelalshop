@@ -32,8 +32,8 @@ async function sendOrderCreationEmails(
   try {
     const supabase = createAdminClient()
 
-    const { data: { user: buyerUser } } = await supabase.auth.admin.getUser(buyerId)
-    const { data: { user: shopperUser } } = await supabase.auth.admin.getUser(shopperId)
+    const { data: { user: buyerUser } } = await supabase.auth.admin.getUserById(buyerId)
+    const { data: { user: shopperUser } } = await supabase.auth.admin.getUserById(shopperId)
 
     if (buyerUser && buyerUser.email) {
       // Get product image
@@ -110,7 +110,7 @@ async function sendOrderStatusEmailNotification(
 
     const productName = product?.name || 'Item'
 
-    const { data: { user: buyerUser } } = await supabase.auth.admin.getUser(order.buyer_id)
+    const { data: { user: buyerUser } } = await supabase.auth.admin.getUserById(order.buyer_id)
     if (!buyerUser || !buyerUser.email) return
 
     const buyerName = buyerUser.user_metadata?.full_name || buyerUser.email.split('@')[0] || 'Customer'
@@ -491,4 +491,111 @@ export async function submitReview(orderId: string, revieweeId: string, rating: 
 
   revalidatePath('/dashboard/orders')
   revalidatePath('/admin/trust')
+}
+
+/**
+ * Seller records a direct sale made via phone, telegram, or in-person.
+ */
+export async function recordDirectSale(data: {
+  productId?: string | null
+  productName?: string
+  amount: number
+  customerName?: string
+  customerPhone?: string
+  channel?: 'phone' | 'telegram' | 'in_person' | 'other'
+  markAsSold?: boolean
+  notes?: string
+}) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { error: 'Unauthorized. Please log in.' }
+
+  if (!data.amount || data.amount <= 0) {
+    return { error: 'Please enter a valid sale price.' }
+  }
+
+  const admin = createAdminClient()
+
+  let finalProductId: string | null = data.productId || null
+
+  if (data.productId) {
+    const { data: product } = await admin
+      .from('products')
+      .select('id, name, price')
+      .eq('id', data.productId)
+      .eq('shopper_id', user.id)
+      .maybeSingle()
+
+    if (product) {
+      finalProductId = product.id
+    }
+  }
+
+  const channelMap: Record<string, string> = {
+    phone: 'Phone Call 📞',
+    telegram: 'Telegram ✈️',
+    in_person: 'In Person 🤝',
+    other: 'Direct Contact',
+  }
+  const channelDisplay = channelMap[data.channel || 'phone'] || 'Direct Contact'
+
+  const details = [
+    `Channel: ${channelDisplay}`,
+    data.customerName ? `Customer: ${data.customerName.trim()}` : null,
+    data.customerPhone ? `Phone: ${data.customerPhone.trim()}` : null,
+    data.notes ? `Note: ${data.notes.trim()}` : null,
+  ].filter(Boolean).join(' | ')
+
+  const saleNotes = `[Direct Sale] ${details}`
+
+  // Insert into orders table
+  const { data: order, error: insertError } = await admin
+    .from('orders')
+    .insert({
+      shopper_id: user.id,
+      buyer_id: user.id, // Self-recorded by seller
+      product_id: finalProductId,
+      amount: Number(data.amount),
+      status: 'delivered', // Completed sale
+      notes: saleNotes,
+    })
+    .select()
+    .single()
+
+  if (insertError || !order) {
+    console.error('Error recording direct sale:', insertError)
+    return { error: insertError?.message || 'Failed to record sale.' }
+  }
+
+  // If markAsSold is requested, toggle product to unavailable
+  if (data.markAsSold && finalProductId) {
+    await admin
+      .from('products')
+      .update({ is_available: false })
+      .eq('id', finalProductId)
+      .eq('shopper_id', user.id)
+  }
+
+  revalidatePath('/dashboard')
+  revalidatePath('/dashboard/orders')
+  revalidatePath('/dashboard/listings')
+
+  return { success: true, orderId: order.id }
+}
+
+/**
+ * Fetch seller's available products to select from when recording a direct sale.
+ */
+export async function getSellerProductsForSale() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return []
+
+  const { data: products } = await supabase
+    .from('products')
+    .select('id, name, price, is_available')
+    .eq('shopper_id', user.id)
+    .order('created_at', { ascending: false })
+
+  return products || []
 }

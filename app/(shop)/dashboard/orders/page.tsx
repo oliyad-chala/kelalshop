@@ -3,9 +3,10 @@ import { createClient } from '@/lib/supabase/server'
 import { Card } from '@/components/ui/Card'
 import { Badge } from '@/components/ui/Badge'
 import { getOrderStatusColor, formatPrice, formatDate } from '@/lib/utils/formatters'
-import { acceptOrder, markOrderShipped, confirmDelivery, cancelOrder } from '@/lib/actions/orders'
+import { acceptOrder, markOrderShipped, confirmDelivery, cancelOrder, getSellerProductsForSale } from '@/lib/actions/orders'
 import { RealtimeListener } from '@/components/dashboard/RealtimeListener'
 import { RateSellerButton } from '@/components/orders/RateSellerButton'
+import { OrdersHeaderAndTabs } from '@/components/orders/OrdersHeaderAndTabs'
 import type { OrderWithDetails } from '@/types/app.types'
 
 export const metadata = {
@@ -35,8 +36,12 @@ export default async function DashboardOrdersPage() {
     query = query.eq('buyer_id', user.id)
   }
 
-  const { data: orders } = await query.order('created_at', { ascending: false })
-  const items = orders as unknown as OrderWithDetails[] | null
+  const [ordersRes, sellerProducts] = await Promise.all([
+    query.order('created_at', { ascending: false }),
+    isShopper ? getSellerProductsForSale() : Promise.resolve([]),
+  ])
+
+  const items = ordersRes.data as unknown as OrderWithDetails[] | null
 
   const statusLabel: Record<string, string> = {
     pending: 'Processing',
@@ -50,16 +55,12 @@ export default async function DashboardOrdersPage() {
   return (
     <div className="space-y-6 fade-in">
       <RealtimeListener userId={user.id} />
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-navy-900 tracking-tight">
-          {isShopper ? 'Manage Orders' : 'My Orders'}
-        </h1>
-        <p className="text-slate-500 mt-1">
-          {isShopper
-            ? 'Track and update the status of your active orders.'
-            : 'Track the status of items you have purchased.'}
-        </p>
-      </div>
+      <OrdersHeaderAndTabs
+        isShopper={isShopper}
+        ordersCount={items?.length ?? 0}
+        sellerProducts={sellerProducts as any}
+      >
+        <div className="space-y-6">
 
       {/* Workflow legend */}
       <div className="flex flex-wrap gap-2 items-center text-xs text-slate-500 mb-2">
@@ -108,12 +109,23 @@ export default async function DashboardOrdersPage() {
                 </div>
               </div>
 
-              {/* Direct Payment & Coordination info (Jiji style) */}
-              <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/10 space-y-3">
-                <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  📞 Direct Coordination (Cash on Delivery / Mobile Money)
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-navy-950">
+              {/* Direct Payment & Coordination info or Direct Sale Info */}
+              {order.notes?.includes('[Direct Sale]') ? (
+                <div className="px-6 py-4 border-b border-slate-100 bg-emerald-50/20 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider">Direct Sale Log:</span>
+                    <span className="text-xs text-slate-700 font-medium">{order.notes.replace('[Direct Sale] ', '')}</span>
+                  </div>
+                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                    Recorded Offline Sale
+                  </span>
+                </div>
+              ) : (
+                <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/10 space-y-3">
+                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+                    📞 Direct Coordination (Cash on Delivery / Mobile Money)
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-navy-950">
                   {isShopper ? (
                     <>
                       <div>
@@ -188,7 +200,7 @@ export default async function DashboardOrdersPage() {
                   </p>
                 </div>
               </div>
-
+              )}
 
               {/* Actions */}
               <div className="px-6 py-4 flex flex-wrap gap-3 items-center justify-end">
@@ -247,7 +259,14 @@ export default async function DashboardOrdersPage() {
                   </form>
                 )}
 
-                {order.status === 'delivered' && (
+                {order.notes?.includes('[Direct Sale]') && (
+                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-100">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span>Completed & Revenue Counted</span>
+                  </div>
+                )}
+
+                {order.status === 'delivered' && !order.notes?.includes('[Direct Sale]') && (
                   <div className="flex items-center gap-4 w-full sm:w-auto">
                     <span className="text-sm text-green-600 font-medium flex items-center gap-1">
                       <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -269,6 +288,8 @@ export default async function DashboardOrdersPage() {
           ))}
         </div>
       )}
+        </div>
+      </OrdersHeaderAndTabs>
     </div>
   )
 }

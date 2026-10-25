@@ -41,8 +41,8 @@ export type RequestWithDetails = Request & {
 }
 
 export type OrderWithDetails = Order & {
-  buyer: Pick<Profile, 'id' | 'full_name' | 'avatar_url'>
-  shopper: Pick<Profile, 'id' | 'full_name' | 'avatar_url'>
+  buyer: Pick<Profile, 'id' | 'full_name' | 'avatar_url'> & { phone?: string | null; telegram_users?: any }
+  shopper: Pick<Profile, 'id' | 'full_name' | 'avatar_url'> & { phone?: string | null; location?: string | null; telegram_users?: any }
   products: Pick<Product, 'id' | 'name' | 'price'> & {
     product_images: ProductImage[]
   } | null

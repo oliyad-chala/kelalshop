@@ -6,6 +6,7 @@ import { Phone, PhoneCall, Copy, Check, MessageSquare, ShieldCheck, MapPin, X, S
 import { Avatar } from '@/components/ui/Avatar'
 import { ShopperBadge } from '@/components/shoppers/ShopperBadge'
 import { formatPrice } from '@/lib/utils/formatters'
+import { saveContactedProduct } from '@/lib/utils/contacted-items'
 
 interface ContactSellerModalProps {
   isOpen: boolean
@@ -74,6 +75,18 @@ export function ContactSellerModal({
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden'
+      // Record this product in contacted history
+      saveContactedProduct({
+        productId: product.id,
+        productName: product.name,
+        productPrice: product.price,
+        productImage: product.image,
+        sellerId: seller.id,
+        sellerName: seller.name,
+        sellerPhone: seller.phone,
+        sellerLocation: product.location || seller.location || null,
+        channel: 'phone',
+      })
     } else {
       document.body.style.overflow = ''
       setCopied(false)
@@ -81,7 +94,7 @@ export function ContactSellerModal({
     return () => {
       document.body.style.overflow = ''
     }
-  }, [isOpen])
+  }, [isOpen, product.id, product.name, product.price, product.image, product.location, seller.id, seller.name, seller.phone, seller.location])
 
   if (!isOpen) return null
 
@@ -90,6 +103,20 @@ export function ContactSellerModal({
   const telHref = rawPhone ? getTelHref(rawPhone) : null
   const telegramHref = rawPhone ? getTelegramHref(rawPhone) : null
   const location = product.location || seller.location || null
+
+  const logInquiry = (channel: 'phone' | 'telegram' | 'chat') => {
+    saveContactedProduct({
+      productId: product.id,
+      productName: product.name,
+      productPrice: product.price,
+      productImage: product.image,
+      sellerId: seller.id,
+      sellerName: seller.name,
+      sellerPhone: seller.phone,
+      sellerLocation: location,
+      channel,
+    })
+  }
 
   const handleCopy = async () => {
     if (!rawPhone) return
@@ -236,6 +263,7 @@ export function ContactSellerModal({
                 {/* Call Now */}
                 <a
                   href={telHref!}
+                  onClick={() => logInquiry('phone')}
                   className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 px-4 rounded-xl text-sm shadow-md shadow-emerald-600/20 active:scale-[0.98] transition-all"
                 >
                   <PhoneCall className="w-4 h-4" />
@@ -244,7 +272,10 @@ export function ContactSellerModal({
 
                 {/* Copy Number */}
                 <button
-                  onClick={handleCopy}
+                  onClick={() => {
+                    logInquiry('phone')
+                    handleCopy()
+                  }}
                   className={`flex items-center justify-center gap-2 font-bold py-3.5 px-4 rounded-xl text-sm border transition-all active:scale-[0.98] ${
                     copied
                       ? 'bg-emerald-50 border-emerald-300 text-emerald-700'
@@ -271,6 +302,7 @@ export function ContactSellerModal({
                   href={telegramHref}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => logInquiry('telegram')}
                   className="flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl text-xs font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-100 transition-colors"
                 >
                   <Send className="w-3.5 h-3.5 text-sky-500" />
@@ -300,7 +332,10 @@ export function ContactSellerModal({
                 ? `/dashboard/chat/dm/${seller.id || 'mock'}`
                 : `/auth/login?redirectTo=${encodeURIComponent(`/products/${product.id}`)}`
             }
-            onClick={onClose}
+            onClick={() => {
+              logInquiry('chat')
+              onClose()
+            }}
             className="flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl text-sm font-bold text-slate-700 bg-slate-100 hover:bg-slate-200/80 transition-colors"
           >
             <MessageSquare className="w-4 h-4 text-slate-500" />
