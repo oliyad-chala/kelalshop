@@ -246,7 +246,8 @@ export default function SupportInboxClient({
     <div style={{
       display: 'grid',
       gridTemplateColumns: selectedConvoId ? '320px 1fr 340px' : '320px 1fr',
-      height: '650px',
+      height: '100%',
+      minHeight: '650px',
       background: 'var(--color-admin-surface)',
       border: '1px solid var(--color-admin-border)',
       borderRadius: '12px',
@@ -445,6 +446,8 @@ export default function SupportInboxClient({
         display: 'flex',
         flexDirection: 'column',
         height: '100%',
+        minHeight: 0,
+        overflow: 'hidden',
         background: '#fff'
       }}>
         {selectedConvoId === null ? (
@@ -520,6 +523,7 @@ export default function SupportInboxClient({
             {/* Chat logs */}
             <div style={{
               flex: 1,
+              minHeight: 0,
               padding: '1.25rem',
               overflowY: 'auto',
               background: '#f8fafb',
@@ -619,7 +623,8 @@ export default function SupportInboxClient({
               background: '#fff',
               display: 'flex',
               flexDirection: 'column',
-              gap: '0.5rem'
+              gap: '0.5rem',
+              flexShrink: 0
             }}>
               <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'flex-end' }}>
                 <textarea

@@ -122,7 +122,8 @@ export async function submitSupportMessage(prevState: any, formData: FormData) {
     // Non-blocking: database message has already been recorded
   }
 
-  // Revalidate the admin notifications page so the new message shows up immediately
+  // Revalidate the admin notifications & support page so the new message shows up immediately
+  revalidatePath('/admin/support')
   revalidatePath('/admin/notifications')
   
   return { success: true }

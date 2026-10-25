@@ -5,13 +5,11 @@ import { isAdminRole } from '@/lib/utils/admin-roles'
 import { getAdminAlertCounts, getRecentPendingProducts, totalAlertCount } from '@/lib/data/admin-alerts'
 import { 
   Bell, AlertTriangle, CheckCircle, Clock, Package, 
-  ShoppingCart, Megaphone, ShieldCheck, Wallet, ArrowRight, MessageSquare
+  ShoppingCart, Megaphone, ShieldCheck, Wallet, ArrowRight, Headphones
 } from 'lucide-react'
 import Link from 'next/link'
-import { getSupportInbox } from './actions'
-import SupportInboxClient from './SupportInboxClient'
 
-export const metadata = { title: 'Notifications & Support' }
+export const metadata = { title: 'System Notifications' }
 
 export default async function NotificationsPage() {
   const supabase = await createClient()
@@ -27,13 +25,11 @@ export default async function NotificationsPage() {
   if (!isAdminRole(profile?.role)) redirect('/admin/dashboard')
 
   const admin = createAdminClient()
-  const [alerts, pendingProducts, inboxRes] = await Promise.all([
+  const [alerts, pendingProducts] = await Promise.all([
     getAdminAlertCounts(admin, user.id),
     getRecentPendingProducts(admin, 10),
-    getSupportInbox()
   ])
 
-  const initialConversations = 'conversations' in inboxRes ? inboxRes.conversations : []
   const allClear = totalAlertCount(alerts) === 0
 
   const alertCards = [
@@ -195,16 +191,20 @@ export default async function NotificationsPage() {
         )}
       </div>
 
-      {/* SUPPORT CENTER SECTION (FULL WIDTH) */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', paddingLeft: '0.25rem' }}>
-          <MessageSquare size={18} color="var(--color-primary)" />
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 600, margin: 0 }}>Support Desk Center</h3>
+      {/* SUPPORT DESK SHORTCUT */}
+      <div className="admin-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.25rem 1.5rem', background: 'var(--color-admin-surface)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <div style={{ width: 42, height: 42, borderRadius: 10, background: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Headphones size={22} color="var(--color-accent-500, #3b82f6)" />
+          </div>
+          <div>
+            <h4 style={{ margin: 0, fontSize: '0.98rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>Customer Support Desk</h4>
+            <p style={{ margin: '0.15rem 0 0 0', fontSize: '0.82rem', color: 'var(--color-text-muted)' }}>Customer inquiries, tickets, and direct chat messages are now managed in the dedicated Support Desk.</p>
+          </div>
         </div>
-        <SupportInboxClient 
-          initialConversations={initialConversations as any}
-          adminUserId={user.id}
-        />
+        <Link href="/admin/support" className="admin-btn admin-btn-primary" style={{ fontSize: '0.84rem', padding: '0.55rem 1rem', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
+          Open Support Desk →
+        </Link>
       </div>
 
       {/* RECENT LISTINGS PENDING APPROVAL */}

@@ -53,7 +53,7 @@ export function buildSupportContactInquiryEmail(data: SupportContactInquiryData)
     </div>
 
     <div style="text-align: center; margin: 32px 0;">
-      <a href="${siteUrl}/admin/notifications" style="background-color: #f59e0b; color: #ffffff; padding: 14px 32px; border-radius: 10px; font-size: 15px; font-weight: 700; text-decoration: none; display: inline-block; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);">
+      <a href="${siteUrl}/admin/support" style="background-color: #f59e0b; color: #ffffff; padding: 14px 32px; border-radius: 10px; font-size: 15px; font-weight: 700; text-decoration: none; display: inline-block; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);">
         Open Support Inbox & Reply
       </a>
     </div>
@@ -63,7 +63,7 @@ export function buildSupportContactInquiryEmail(data: SupportContactInquiryData)
     </p>
   `
 
-  const text = `New Support Inquiry from ${data.senderName} (${data.senderEmail}):\n\nSubject: ${data.subject}\n\nMessage:\n${data.message}\n\nReply in Admin Dashboard: ${siteUrl}/admin/notifications`
+  const text = `New Support Inquiry from ${data.senderName} (${data.senderEmail}):\n\nSubject: ${data.subject}\n\nMessage:\n${data.message}\n\nReply in Admin Dashboard: ${siteUrl}/admin/support`
 
   return {
     subject,

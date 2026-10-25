@@ -10,6 +10,7 @@ import { buildSupportReplyEmail } from '@/lib/email/templates'
 export async function suspendUser(userId: string, isSuspended: boolean) {
   try {
     await toggleUserSuspend(userId, isSuspended)
+    revalidatePath('/admin/support')
     revalidatePath('/admin/notifications')
     return { success: true }
   } catch (error: any) {
@@ -186,6 +187,7 @@ export async function getConversationMessages(userId: string) {
     .eq('recipient_id', adminUser.id)
     .eq('is_read', false)
 
+  revalidatePath('/admin/support')
   revalidatePath('/admin/notifications')
 
   return { messages: messages ?? [] }
@@ -264,6 +266,7 @@ export async function replyToUser(userId: string, content: string) {
     console.error('[replyToUser] Failed to send email to customer:', emailErr)
   }
 
+  revalidatePath('/admin/support')
   revalidatePath('/admin/notifications')
 
   return { success: true }
