@@ -1,4 +1,4 @@
-import { Keyboard } from 'grammy'
+import { Keyboard, InlineKeyboard } from 'grammy'
 import type { Bot } from 'grammy'
 import type { CustomerBotContext } from '../core/types'
 import { handleLinkPrompt, registerAuthFlow } from './flows/auth.flow'
@@ -225,6 +225,75 @@ export function registerCustomerHandlers(bot: Bot<CustomerBotContext>) {
     )
   })
 
+  // Customer commands to close/exit an open ticket and return to AI shopping assistant
+  bot.command(['close', 'exit', 'cancel'], async (ctx) => {
+    const chatId = ctx.chat?.id
+    if (!chatId) return
+
+    const admin = getTelegramSupabase()
+    const { data: activeSession } = await admin
+      .from('support_sessions')
+      .select('id, assigned_staff_tg_chat_id')
+      .eq('guest_id', chatId.toString())
+      .neq('status', 'closed')
+      .maybeSingle()
+
+    if (!activeSession) {
+      return ctx.reply('✅ You do not have an active support ticket. How can I help you today?', { reply_markup: mainMenu })
+    }
+
+    await admin
+      .from('support_sessions')
+      .update({ status: 'closed', updated_at: new Date().toISOString() })
+      .eq('id', activeSession.id)
+
+    if (activeSession.assigned_staff_tg_chat_id) {
+      const { bot: adminBot } = await import('../admin/bot')
+      await adminBot.api.sendMessage(
+        activeSession.assigned_staff_tg_chat_id,
+        `ℹ️ <b>Customer closed Ticket #${activeSession.id.slice(0, 8)}.</b>`,
+        { parse_mode: 'HTML' }
+      ).catch(() => {})
+    }
+
+    await ctx.reply(
+      `✅ <b>Ticket #${activeSession.id.slice(0, 8)} has been closed.</b>\n\nYou are now chatting with our AI Shopping Assistant! Feel free to ask about products, prices, or orders.`,
+      { parse_mode: 'HTML', reply_markup: mainMenu }
+    )
+  })
+
+  // Callback button to close ticket
+  bot.callbackQuery(/^close_ticket_(.+)$/, async (ctx) => {
+    const ticketId = ctx.match[1]
+    const admin = getTelegramSupabase()
+
+    const { data: session } = await admin
+      .from('support_sessions')
+      .select('id, assigned_staff_tg_chat_id')
+      .eq('id', ticketId)
+      .maybeSingle()
+
+    await admin
+      .from('support_sessions')
+      .update({ status: 'closed', updated_at: new Date().toISOString() })
+      .eq('id', ticketId)
+
+    if (session?.assigned_staff_tg_chat_id) {
+      const { bot: adminBot } = await import('../admin/bot')
+      await adminBot.api.sendMessage(
+        session.assigned_staff_tg_chat_id,
+        `ℹ️ <b>Customer closed Ticket #${ticketId.slice(0, 8)}.</b>`,
+        { parse_mode: 'HTML' }
+      ).catch(() => {})
+    }
+
+    await ctx.answerCallbackQuery({ text: 'Ticket closed!' })
+    await ctx.reply(
+      `✅ <b>Ticket #${ticketId.slice(0, 8)} closed.</b>\n\nYou are now back to our AI Shopping Assistant! How can I help you today?`,
+      { parse_mode: 'HTML', reply_markup: mainMenu }
+    )
+  })
+
   bot.on('message:text', async (ctx) => {
     const text = ctx.message.text.trim()
     if (text.startsWith('/')) return
@@ -259,7 +328,11 @@ export function registerCustomerHandlers(bot: Bot<CustomerBotContext>) {
           { parse_mode: 'HTML' }
         )
       } else {
-        await ctx.reply(`⏳ Your request is queued. An agent will claim it and reply shortly. (Ticket #${activeSession.id.slice(0, 8)})`, { parse_mode: 'HTML' })
+        const cancelBtn = new InlineKeyboard().text('❌ Close Ticket & Return to Shop', `close_ticket_${activeSession.id}`)
+        await ctx.reply(
+          `⏳ <b>Your request is queued.</b> An agent will claim it and reply shortly. (Ticket #${activeSession.id.slice(0, 8)})\n\n<i>To stop waiting and chat with our AI instead, tap below or type /close:</i>`,
+          { parse_mode: 'HTML', reply_markup: cancelBtn }
+        )
       }
       return
     }

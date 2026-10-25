@@ -239,6 +239,33 @@ async function getChatIdForSession(sessionId: string): Promise<number | null> {
   return null
 }
 
+async function findSupportSessionByIdPrefix(
+  supabase: ReturnType<typeof getTelegramSupabase>,
+  prefix: string
+): Promise<{ id: string; status: string; created_at: string; user_id: string | null; guest_id: string | null; assigned_staff_tg_chat_id: number | null } | null> {
+  const clean = prefix.trim().toLowerCase()
+  if (!clean) return null
+
+  // If already a full UUID
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clean)) {
+    const { data } = await supabase
+      .from('support_sessions')
+      .select('id, status, created_at, user_id, guest_id, assigned_staff_tg_chat_id')
+      .eq('id', clean)
+      .maybeSingle()
+    if (data) return data
+  }
+
+  // Otherwise check recent sessions to match prefix without SQL UUID type error
+  const { data } = await supabase
+    .from('support_sessions')
+    .select('id, status, created_at, user_id, guest_id, assigned_staff_tg_chat_id')
+    .order('created_at', { ascending: false })
+    .limit(100)
+
+  return data?.find((s) => s.id.toLowerCase().startsWith(clean)) ?? null
+}
+
   bot.command('tickets', async (ctx) => {
     if (!requireStaff(ctx, 'tickets')) return
     const supabase = getTelegramSupabase()
@@ -271,13 +298,9 @@ async function getChatIdForSession(sessionId: string): Promise<number | null> {
     }
 
     const supabase = getTelegramSupabase()
-    const { data: session, error: sessionErr } = await supabase
-      .from('support_sessions')
-      .select('id, status, created_at, user_id, guest_id')
-      .ilike('id', `${ticketIdPart}%`)
-      .maybeSingle()
+    const session = await findSupportSessionByIdPrefix(supabase, ticketIdPart)
 
-    if (sessionErr || !session) {
+    if (!session) {
       return ctx.reply('❌ Ticket not found.', { parse_mode: 'HTML' })
     }
 
@@ -316,13 +339,9 @@ async function getChatIdForSession(sessionId: string): Promise<number | null> {
     }
 
     const supabase = getTelegramSupabase()
-    const { data: session, error: sessionErr } = await supabase
-      .from('support_sessions')
-      .select('id, status')
-      .ilike('id', `${ticketIdPart}%`)
-      .maybeSingle()
+    const session = await findSupportSessionByIdPrefix(supabase, ticketIdPart)
 
-    if (sessionErr || !session) {
+    if (!session) {
       return ctx.reply('❌ Ticket not found.', { parse_mode: 'HTML' })
     }
 
@@ -364,13 +383,9 @@ async function getChatIdForSession(sessionId: string): Promise<number | null> {
     }
 
     const supabase = getTelegramSupabase()
-    const { data: session, error: sessionErr } = await supabase
-      .from('support_sessions')
-      .select('id')
-      .ilike('id', `${ticketIdPart}%`)
-      .maybeSingle()
+    const session = await findSupportSessionByIdPrefix(supabase, ticketIdPart)
 
-    if (sessionErr || !session) {
+    if (!session) {
       return ctx.reply('❌ Ticket not found.', { parse_mode: 'HTML' })
     }
 
@@ -383,7 +398,23 @@ async function getChatIdForSession(sessionId: string): Promise<number | null> {
       return ctx.reply('❌ Error closing ticket.', { parse_mode: 'HTML' })
     }
 
-    await ctx.reply(`✅ Ticket <code>${session.id.slice(0, 8)}</code> has been closed.`, { parse_mode: 'HTML' })
+    // Notify customer immediately on customer bot
+    const customerChatId = await getChatIdForSession(session.id)
+    if (customerChatId) {
+      try {
+        const { customerBot } = await import('../customer/bot')
+        const { mainMenu } = await import('../customer/register-handlers')
+        await customerBot.api.sendMessage(
+          customerChatId,
+          `🎫 <b>Your support session (Ticket #${session.id.slice(0, 8)}) has been closed by admin.</b>\n\nYou are now chatting with our AI Assistant! How can I help you today?`,
+          { parse_mode: 'HTML', reply_markup: mainMenu }
+        )
+      } catch (err) {
+        console.error('[Admin Close Ticket Notify Error]', err)
+      }
+    }
+
+    await ctx.reply(`✅ Ticket <code>${session.id.slice(0, 8)}</code> has been closed. Customer notified!`, { parse_mode: 'HTML' })
   })
 
   bot.command('search', async (ctx) => {
@@ -595,10 +626,11 @@ async function getChatIdForSession(sessionId: string): Promise<number | null> {
 
     if (customerChatId) {
       const { customerBot } = await import('../customer/bot')
+      const { mainMenu } = await import('../customer/register-handlers')
       await customerBot.api.sendMessage(
         customerChatId,
         `🎫 <b>Your support session (Ticket #${claimedSession.id.slice(0, 8)}) has been closed.</b>\n\nYou are now chatting with our AI Assistant!`,
-        { parse_mode: 'HTML' }
+        { parse_mode: 'HTML', reply_markup: mainMenu }
       )
     }
 

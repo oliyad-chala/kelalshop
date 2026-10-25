@@ -63,7 +63,7 @@ export function registerSupportFlow(bot: Bot<CustomerBotContext>) {
     })
 
     return ctx.reply(
-      `✅ <b>Ticket created!</b>\n\nID: <code>${truncateId(session.id)}</code>\nOur team will respond soon.`,
+      `✅ <b>Ticket created!</b>\n\nID: <code>${truncateId(session.id)}</code>\nOur team will respond soon.\n\n💡 <i>Type /close at any time to return to the AI shopping assistant.</i>`,
       { parse_mode: 'HTML' }
     )
   })
