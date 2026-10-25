@@ -4,6 +4,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { toggleUserSuspend } from '@/lib/actions/admin-users'
 import { revalidatePath } from 'next/cache'
+import { queueEmail } from '@/lib/email/queue'
+import { buildSupportReplyEmail } from '@/lib/email/templates'
 
 export async function suspendUser(userId: string, isSuspended: boolean) {
   try {
@@ -225,6 +227,42 @@ export async function replyToUser(userId: string, content: string) {
     message: preview,
     is_read: false,
   })
+
+  // Dispatch email directly to the customer's registered email
+  try {
+    const admin = createAdminClient()
+    const { data: authUserData } = await admin.auth.admin.getUserById(userId)
+    const customerEmail = authUserData?.user?.email
+
+    if (customerEmail) {
+      const { data: recipientProfile } = await admin
+        .from('profiles')
+        .select('full_name')
+        .eq('id', userId)
+        .single()
+
+      const customerName = recipientProfile?.full_name || authUserData.user.user_metadata?.full_name || 'Customer'
+
+      const emailData = buildSupportReplyEmail({
+        customerName,
+        adminName: name,
+        replyMessage: content.trim(),
+      })
+
+      await queueEmail(
+        'support-reply',
+        {
+          to: customerEmail,
+          subject: emailData.subject,
+          html: emailData.html,
+          text: emailData.text,
+        },
+        `support-reply-${userId}-${Date.now()}`
+      )
+    }
+  } catch (emailErr) {
+    console.error('[replyToUser] Failed to send email to customer:', emailErr)
+  }
 
   revalidatePath('/admin/notifications')
 

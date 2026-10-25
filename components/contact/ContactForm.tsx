@@ -13,13 +13,6 @@ export function ContactForm({ isLoggedIn }: ContactFormProps) {
   const router = useRouter()
   const [state, formAction, isPending] = useActionState(submitSupportMessage, null)
 
-  const handleUnauthenticatedClick = (e: React.MouseEvent) => {
-    if (!isLoggedIn) {
-      e.preventDefault()
-      router.push('/auth/signup?redirectTo=/contact')
-    }
-  }
-
   if (state?.success) {
     return (
       <div className="bg-emerald-50 border border-emerald-200 rounded-3xl p-8 sm:p-10 text-center">
@@ -117,7 +110,6 @@ export function ContactForm({ isLoggedIn }: ContactFormProps) {
 
         <button 
           type="submit" 
-          onClick={handleUnauthenticatedClick}
           disabled={isPending}
           className={`w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-4 rounded-xl shadow-lg shadow-amber-500/30 transition-all hover:shadow-amber-500/40 hover:-translate-y-0.5 flex items-center justify-center gap-2 ${isPending ? 'opacity-70 cursor-not-allowed' : ''}`}
         >

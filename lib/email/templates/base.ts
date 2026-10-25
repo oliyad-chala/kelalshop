@@ -5,7 +5,8 @@ export interface BaseEmailOptions {
 }
 
 export function buildBaseEmail(content: string, options: BaseEmailOptions = {}) {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://kelalshop.vercel.app'
+  const rawUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://kelalshop.com'
+  const siteUrl = (!rawUrl || rawUrl.includes('localhost')) ? 'https://kelalshop.com' : rawUrl
   const title = options.title ?? 'KelalShop'
   const preheader = options.preheader ? `<span style="display:none;font-size:0;max-height:0;line-height:0;mso-hide:all;">${options.preheader}</span>` : ''
   const unsubscribeSection = options.showUnsubscribe
