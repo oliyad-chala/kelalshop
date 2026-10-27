@@ -24,7 +24,7 @@ export default async function SupportDeskPage() {
   const initialConversations = 'conversations' in inboxRes ? inboxRes.conversations : []
 
   return (
-    <div className="fade-in" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', height: 'calc(100vh - 120px)' }}>
+    <div className="fade-in support-page-shell">
       {/* HEADER */}
       <div className="page-header" style={{ marginBottom: 0 }}>
         <div>

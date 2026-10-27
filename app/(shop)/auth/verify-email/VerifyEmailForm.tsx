@@ -1,11 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { verifyEmailOtp, resendEmailOtp } from '@/lib/actions/email-verification'
+import { redirectQueryString } from '@/lib/utils/auth-redirect'
 
 export default function VerifyEmailForm({ email }: { email: string }) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [otp, setOtp] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -46,8 +48,9 @@ export default function VerifyEmailForm({ email }: { email: string }) {
         setError(result.error)
       } else {
         setSuccess('Account verified successfully! Redirecting to login...')
+        const qs = redirectQueryString(searchParams)
         setTimeout(() => {
-          router.push(`/auth/login?verified=true&email=${encodeURIComponent(email)}`)
+          router.push(`/auth/login?verified=true&email=${encodeURIComponent(email)}${qs ? `&${qs.slice(1)}` : ''}`)
         }, 2000)
       }
     } catch (err: any) {

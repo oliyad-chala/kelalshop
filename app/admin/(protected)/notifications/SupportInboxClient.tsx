@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useTransition } from 'react'
 import { 
   MessageSquare, Send, Search, User, Mail, Phone, 
   MapPin, Calendar, Shield, ShoppingBag, Star, Ban, 
-  CheckCircle2, XCircle, AlertCircle, Loader2, ArrowRight
+  CheckCircle2, XCircle, AlertCircle, Loader2, ArrowRight, ArrowLeft
 } from 'lucide-react'
 import { 
   getUserDetailedSupportInfo, 
@@ -86,6 +86,7 @@ export default function SupportInboxClient({
   const [searchQuery, setSearchQuery] = useState('')
   const [messages, setMessages] = useState<Message[]>([])
   const [personInfo, setPersonInfo] = useState<PersonInfo | null>(null)
+  const [mobileTab, setMobileTab] = useState<'chat' | 'info'>('chat')
   
   // Loading states
   const [loadingMessages, setLoadingMessages] = useState(false)
@@ -114,6 +115,7 @@ export default function SupportInboxClient({
   // Fetch conversation messages and person info when a conversation is selected
   const handleSelectConversation = async (userId: string) => {
     setSelectedConvoId(userId)
+    setMobileTab('chat')
     setLoadingMessages(true)
     setLoadingPerson(true)
     setReplyError('')
@@ -243,27 +245,21 @@ export default function SupportInboxClient({
   const activeConvo = conversations.find(c => c.partner.id === selectedConvoId)
 
   return (
-    <div style={{
-      display: 'grid',
-      gridTemplateColumns: selectedConvoId ? '320px 1fr 340px' : '320px 1fr',
-      height: '100%',
-      minHeight: '650px',
-      background: 'var(--color-admin-surface)',
-      border: '1px solid var(--color-admin-border)',
-      borderRadius: '12px',
-      overflow: 'hidden',
-      boxShadow: 'var(--shadow-sm)',
-      transition: 'grid-template-columns 0.3s ease'
-    }}>
+    <div 
+      className={`support-inbox-shell ${selectedConvoId ? 'has-active' : ''} ${mobileTab === 'info' ? 'show-info' : 'show-chat'}`}
+    >
       
       {/* ── SIDEBAR: CONVERSATION LIST ── */}
-      <div style={{
-        borderRight: '1px solid var(--color-admin-border)',
-        display: 'flex',
-        flexDirection: 'column',
-        background: '#fcfcfd',
-        height: '100%'
-      }}>
+      <div 
+        className="support-sidebar-col"
+        style={{
+          borderRight: '1px solid var(--color-admin-border)',
+          display: 'flex',
+          flexDirection: 'column',
+          background: '#fcfcfd',
+          height: '100%'
+        }}
+      >
         {/* Search header */}
         <div style={{
           padding: '1.25rem 1rem',
@@ -442,14 +438,17 @@ export default function SupportInboxClient({
       </div>
 
       {/* ── CENTER: CHAT MESSAGE LOG & REPLY EDITOR ── */}
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100%',
-        minHeight: 0,
-        overflow: 'hidden',
-        background: '#fff'
-      }}>
+      <div 
+        className="support-chat-col"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+          minHeight: 0,
+          overflow: 'hidden',
+          background: '#fff'
+        }}
+      >
         {selectedConvoId === null ? (
           /* EMPTY STATE */
           <div style={{
@@ -487,14 +486,40 @@ export default function SupportInboxClient({
           <>
             {/* Chat Pane Header */}
             <div style={{
-              padding: '1rem 1.25rem',
+              padding: '0.85rem 1.25rem',
               borderBottom: '1px solid var(--color-admin-border)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'space-between',
-              background: '#fff'
+              background: '#fff',
+              flexShrink: 0
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', minWidth: 0 }}>
+                {/* Mobile Back Button */}
+                <button
+                  type="button"
+                  onClick={() => setSelectedConvoId(null)}
+                  className="support-mobile-back-btn"
+                  style={{
+                    display: 'none',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '34px',
+                    height: '34px',
+                    borderRadius: '8px',
+                    border: '1px solid var(--color-admin-border)',
+                    background: 'var(--color-admin-bg)',
+                    color: 'var(--color-text-primary)',
+                    cursor: 'pointer',
+                    padding: 0,
+                    flexShrink: 0
+                  }}
+                  aria-label="Back to conversations"
+                  title="Back to conversations"
+                >
+                  <ArrowLeft size={18} />
+                </button>
+
                 <div style={{
                   width: '36px',
                   height: '36px',
@@ -505,18 +530,53 @@ export default function SupportInboxClient({
                   alignItems: 'center',
                   justifyContent: 'center',
                   fontWeight: 700,
-                  fontSize: '0.85rem'
+                  fontSize: '0.85rem',
+                  flexShrink: 0
                 }}>
                   {activeConvo?.partner.full_name?.charAt(0).toUpperCase() || 'U'}
                 </div>
-                <div>
-                  <h4 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 600, color: 'var(--color-text-primary)' }}>
+                <div style={{ minWidth: 0 }}>
+                  <h4 style={{ 
+                    margin: 0, 
+                    fontSize: '0.9rem', 
+                    fontWeight: 600, 
+                    color: 'var(--color-text-primary)',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                  }}>
                     {activeConvo?.partner.full_name || 'Unnamed User'}
                   </h4>
                   <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', textTransform: 'capitalize' }}>
-                    Support desk ticket • {activeConvo?.partner.role}
+                    Support desk • {activeConvo?.partner.role}
                   </span>
                 </div>
+              </div>
+
+              {/* Mobile View Toggle: Info / Details */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
+                <button
+                  type="button"
+                  onClick={() => setMobileTab('info')}
+                  className="support-mobile-toggle-btn"
+                  style={{
+                    display: 'none',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    padding: '0.4rem 0.75rem',
+                    borderRadius: '8px',
+                    border: '1px solid var(--color-admin-border)',
+                    background: 'var(--color-admin-bg)',
+                    color: 'var(--color-text-primary)',
+                    fontSize: '0.78rem',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                  aria-label="View user profile"
+                >
+                  <User size={14} />
+                  <span>Info</span>
+                </button>
               </div>
             </div>
 
@@ -691,14 +751,53 @@ export default function SupportInboxClient({
 
       {/* ── RIGHT PANE: DETAILED PERSON INFORMATION ── */}
       {selectedConvoId !== null && (
-        <div style={{
-          borderLeft: '1px solid var(--color-admin-border)',
-          display: 'flex',
-          flexDirection: 'column',
-          background: '#fff',
-          height: '100%',
-          overflowY: 'auto'
-        }}>
+        <div 
+          className="support-profile-col"
+          style={{
+            borderLeft: '1px solid var(--color-admin-border)',
+            display: 'flex',
+            flexDirection: 'column',
+            background: '#fff',
+            height: '100%',
+            overflowY: 'auto'
+          }}
+        >
+          {/* Mobile Profile Header with Back to Chat */}
+          <div 
+            className="support-mobile-profile-header"
+            style={{
+              padding: '0.85rem 1rem',
+              borderBottom: '1px solid var(--color-admin-border)',
+              display: 'none',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              background: '#fff',
+              flexShrink: 0
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setMobileTab('chat')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                border: 'none',
+                background: 'transparent',
+                color: 'var(--color-accent-600)',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                padding: '0.2rem 0'
+              }}
+            >
+              <ArrowLeft size={16} />
+              <span>Back to Chat</span>
+            </button>
+            <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-muted)', textTransform: 'uppercase' }}>
+              Customer Details
+            </span>
+          </div>
           {loadingPerson ? (
             /* Loading view */
             <div style={{

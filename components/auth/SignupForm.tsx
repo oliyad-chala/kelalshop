@@ -155,9 +155,10 @@ export function SignupForm() {
 
   useEffect(() => {
     if (state?.success === 'confirm-otp' && state?.email) {
-      router.push(`/auth/verify-email?email=${encodeURIComponent(state.email)}`)
+      const qs = redirectQueryString(searchParams)
+      router.push(`/auth/verify-email?email=${encodeURIComponent(state.email)}${qs ? `&${qs.slice(1)}` : ''}`)
     }
-  }, [state, router])
+  }, [state, router, searchParams])
 
   // Show success screen when email confirmation is needed
   if (state?.success === 'confirm-email') {

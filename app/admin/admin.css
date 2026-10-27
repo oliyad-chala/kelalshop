@@ -774,3 +774,108 @@ body.admin-menu-open {
   background: #f8f9fc;
 }
 
+/* ── Support Desk Responsive Layout ──────────────────────── */
+.support-page-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  height: calc(100vh - 120px);
+}
+
+.support-inbox-shell {
+  display: grid;
+  height: 100%;
+  min-height: 600px;
+  background: var(--color-admin-surface);
+  border: 1px solid var(--color-admin-border);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+  transition: grid-template-columns 0.3s ease;
+}
+
+/* Desktop: 3-column when active, 2-column when idle */
+@media (min-width: 901px) {
+  .support-inbox-shell.has-active {
+    grid-template-columns: 320px 1fr 340px;
+  }
+  .support-inbox-shell:not(.has-active) {
+    grid-template-columns: 320px 1fr;
+  }
+  .support-mobile-back-btn,
+  .support-mobile-toggle-btn,
+  .support-mobile-profile-header {
+    display: none !important;
+  }
+}
+
+/* Mobile & Tablet (< 900px): Single view switching (List -> Chat -> Info) */
+@media (max-width: 900px) {
+  .support-page-shell {
+    height: calc(100dvh - 100px);
+    gap: 0.75rem;
+  }
+  
+  .support-page-shell .section-subtitle {
+    display: none; /* Conserve vertical space on mobile */
+  }
+
+  .support-inbox-shell {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    border-radius: 10px;
+  }
+
+  /* When no conversation selected: Show only customer list */
+  .support-inbox-shell:not(.has-active) .support-sidebar-col {
+    display: flex !important;
+    width: 100% !important;
+    height: 100% !important;
+    border-right: none !important;
+  }
+  .support-inbox-shell:not(.has-active) .support-chat-col,
+  .support-inbox-shell:not(.has-active) .support-profile-col {
+    display: none !important;
+  }
+
+  /* When conversation IS selected: Hide sidebar on mobile */
+  .support-inbox-shell.has-active .support-sidebar-col {
+    display: none !important;
+  }
+
+  /* If on Chat view: show full-width chat, hide profile */
+  .support-inbox-shell.has-active.show-chat .support-chat-col {
+    display: flex !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+  .support-inbox-shell.has-active.show-chat .support-profile-col {
+    display: none !important;
+  }
+
+  /* If on Info view: show full-width profile, hide chat */
+  .support-inbox-shell.has-active.show-info .support-profile-col {
+    display: flex !important;
+    width: 100% !important;
+    height: 100% !important;
+    border-left: none !important;
+  }
+  .support-inbox-shell.has-active.show-info .support-chat-col {
+    display: none !important;
+  }
+
+  /* Make mobile buttons visible */
+  .support-mobile-back-btn {
+    display: flex !important;
+  }
+  .support-mobile-toggle-btn {
+    display: flex !important;
+  }
+  .support-mobile-profile-header {
+    display: flex !important;
+  }
+}
+
+
