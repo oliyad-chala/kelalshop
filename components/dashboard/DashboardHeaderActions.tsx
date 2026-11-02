@@ -28,7 +28,7 @@ export function DashboardHeaderActions({
     <>
       <div className="flex flex-col sm:flex-row gap-3">
         {/* Create Product */}
-        <Link href="/dashboard/products/new">
+        <Link href="/dashboard/listings/new">
           <button className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-semibold px-5 py-2.5 text-sm shadow-md shadow-amber-500/20 transition-all duration-150">
             <Plus className="w-4 h-4 stroke-[3]" />
             <span>Create Product</span>
@@ -75,4 +75,3 @@ export function DashboardHeaderActions({
     </>
   )
 }
-
