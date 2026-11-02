@@ -546,6 +546,21 @@ export async function recordDirectSale(data: {
     data.notes ? `Note: ${data.notes.trim()}` : null,
   ].filter(Boolean).join(' | ')
 
+  let finalBuyerId = user.id
+  if (data.customerPhone) {
+    const rawClean = data.customerPhone.trim().replace(/[^0-9+]/g, '')
+    const localPhone = rawClean.startsWith('+251') ? '0' + rawClean.slice(4) : rawClean
+    const intlPhone = rawClean.startsWith('0') ? '+251' + rawClean.slice(1) : rawClean
+    const { data: matchedProfile } = await admin
+      .from('profiles')
+      .select('id')
+      .or(`phone.eq.${rawClean},phone.eq.${localPhone},phone.eq.${intlPhone}`)
+      .neq('id', user.id)
+      .limit(1)
+      .maybeSingle()
+    if (matchedProfile?.id) finalBuyerId = matchedProfile.id
+  }
+
   const saleNotes = `[Direct Sale] ${details}`
 
   // Insert into orders table
@@ -553,7 +568,7 @@ export async function recordDirectSale(data: {
     .from('orders')
     .insert({
       shopper_id: user.id,
-      buyer_id: user.id, // Self-recorded by seller
+      buyer_id: finalBuyerId, // Linked to registered customer or self-recorded
       product_id: finalProductId,
       amount: Number(data.amount),
       status: 'delivered', // Completed sale
@@ -593,9 +608,15 @@ export async function getSellerProductsForSale() {
 
   const { data: products } = await supabase
     .from('products')
-    .select('id, name, price, is_available')
+    .select('id, name, price, is_available, product_images(url, is_primary)')
     .eq('shopper_id', user.id)
     .order('created_at', { ascending: false })
 
-  return products || []
+  return (products || []).map((p: any) => ({
+    id: p.id,
+    name: p.name,
+    price: Number(p.price),
+    is_available: p.is_available,
+    image: p.product_images?.find((img: any) => img.is_primary)?.url || p.product_images?.[0]?.url || null,
+  }))
 }

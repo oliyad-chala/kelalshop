@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { formatPrice, formatDate, getOrderStatusColor, formatRelativeTime } from '@/lib/utils/formatters'
 import { RealtimeListener } from '@/components/dashboard/RealtimeListener'
 import { Avatar } from '@/components/ui/Avatar'
+import { DashboardHeaderActions } from '@/components/dashboard/DashboardHeaderActions'
+import { getSellerProductsForSale } from '@/lib/actions/orders'
 import { MessageSquare, ArrowRight } from 'lucide-react'
 
 export const metadata = {
@@ -37,6 +39,7 @@ export default async function DashboardPage() {
   let stats: { title: string; value: string; description: string; icon: string }[] = []
   let recentOrders: any[] = []
   let recentRequests: any[] = []
+  let sellerProducts: any[] = []
 
   if (isShopper) {
     const [
@@ -45,6 +48,7 @@ export default async function DashboardPage() {
       { count: listingsCount },
       { data: orders },
       { data: requests },
+      fetchedSellerProducts,
     ] = await Promise.all([
       supabase
         .from('orders')
@@ -73,6 +77,7 @@ export default async function DashboardPage() {
         .eq('status', 'open')
         .order('created_at', { ascending: false })
         .limit(5),
+      getSellerProductsForSale(),
     ])
 
     const gross = revenueRows?.reduce((sum, o) => sum + Number(o.amount), 0) ?? 0
@@ -81,6 +86,7 @@ export default async function DashboardPage() {
 
     recentOrders = orders ?? []
     recentRequests = requests ?? []
+    sellerProducts = fetchedSellerProducts || []
 
     stats = [
       {
@@ -321,40 +327,11 @@ export default async function DashboardPage() {
 
       {/* Quick Actions for Sellers */}
       {isShopper && (
-        <div className="grid grid-cols-2 gap-3 sm:flex sm:flex-row sm:gap-3">
-          <Link href="/dashboard/listings/new" className="col-span-2 sm:col-auto">
-            <button className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 hover:bg-amber-600 active:bg-amber-700 text-white font-semibold px-5 py-2.5 text-sm shadow-md shadow-amber-500/25 transition-all duration-150">
-              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-              Create Product
-            </button>
-          </Link>
-          <Link href="/dashboard/orders">
-            <button className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-semibold px-5 py-2.5 text-sm shadow-md shadow-emerald-600/20 transition-all duration-150">
-              <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-              Record Sale
-            </button>
-          </Link>
-          <Link href="/dashboard/billing">
-            <button className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 font-semibold px-5 py-2.5 text-sm border border-slate-200 shadow-sm hover:border-slate-300 transition-all duration-150">
-              <svg className="w-4 h-4 shrink-0 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-              </svg>
-              Billing
-            </button>
-          </Link>
-          <Link href="/dashboard/campaigns">
-            <button className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 font-semibold px-5 py-2.5 text-sm border border-slate-200 shadow-sm hover:border-slate-300 transition-all duration-150">
-              <svg className="w-4 h-4 shrink-0 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
-              </svg>
-              Campaigns
-            </button>
-          </Link>
-        </div>
+        <DashboardHeaderActions
+          products={sellerProducts}
+          shopperId={user.id}
+          shopperName={profile?.full_name || 'Shopper'}
+        />
       )}
 
       {/* Stats Grid */}

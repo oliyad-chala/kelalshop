@@ -1,12 +1,7 @@
-import Link from 'next/link'
 import { createClient } from '@/lib/supabase/server'
-import { Card } from '@/components/ui/Card'
-import { Badge } from '@/components/ui/Badge'
-import { getOrderStatusColor, formatPrice, formatDate } from '@/lib/utils/formatters'
-import { acceptOrder, markOrderShipped, confirmDelivery, cancelOrder, getSellerProductsForSale } from '@/lib/actions/orders'
+import { getSellerProductsForSale } from '@/lib/actions/orders'
 import { RealtimeListener } from '@/components/dashboard/RealtimeListener'
-import { RateSellerButton } from '@/components/orders/RateSellerButton'
-import { OrdersHeaderAndTabs } from '@/components/orders/OrdersHeaderAndTabs'
+import { OrdersManager } from '@/components/orders/OrdersManager'
 import type { OrderWithDetails } from '@/types/app.types'
 
 export const metadata = {
@@ -20,7 +15,7 @@ export default async function DashboardOrdersPage() {
 
   const { data: profile } = await supabase
     .from('profiles')
-    .select('role')
+    .select('role, full_name')
     .eq('id', user.id)
     .single()
 
@@ -28,7 +23,7 @@ export default async function DashboardOrdersPage() {
 
   let query = supabase
     .from('orders')
-    .select('*, products(name, price), buyer:buyer_id(full_name, phone, telegram_users(username)), shopper:shopper_id(full_name, phone, location, telegram_users(username))')
+    .select('*, products(name, price), buyer:buyer_id(id, full_name, phone, telegram_users(username)), shopper:shopper_id(id, full_name, phone, location, telegram_users(username))')
 
   if (isShopper) {
     query = query.eq('shopper_id', user.id)
@@ -43,253 +38,16 @@ export default async function DashboardOrdersPage() {
 
   const items = ordersRes.data as unknown as OrderWithDetails[] | null
 
-  const statusLabel: Record<string, string> = {
-    pending: 'Processing',
-    accepted: 'Accepted',
-    shipped: 'Shipped',
-    delivered: 'Delivered',
-    cancelled: 'Cancelled',
-    disputed: 'Disputed',
-  }
-
   return (
-    <div className="space-y-6 fade-in">
+    <div className="space-y-6 fade-in pb-12">
       <RealtimeListener userId={user.id} />
-      <OrdersHeaderAndTabs
+      <OrdersManager
         isShopper={isShopper}
-        ordersCount={items?.length ?? 0}
+        initialOrders={items || []}
         sellerProducts={sellerProducts as any}
-      >
-        <div className="space-y-6">
-
-      {/* Workflow legend */}
-      <div className="flex flex-wrap gap-2 items-center text-xs text-slate-500 mb-2">
-        <span className="font-medium text-slate-600">Workflow:</span>
-        {['Processing', 'Accepted', 'Shipped', 'Delivered'].map((s, i, arr) => (
-          <span key={s} className="flex items-center gap-1">
-            <span className="px-2 py-0.5 rounded-full bg-slate-100 font-medium">{s}</span>
-            {i < arr.length - 1 && <span>→</span>}
-          </span>
-        ))}
-      </div>
-
-      {!items || items.length === 0 ? (
-        <Card className="flex flex-col items-center justify-center py-16 text-center border-dashed">
-          <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center text-slate-400 mb-4">
-            <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-            </svg>
-          </div>
-          <h3 className="text-lg font-semibold text-navy-900 mb-2">No orders yet</h3>
-          <p className="text-slate-500 max-w-md text-sm">
-            When {isShopper ? 'a buyer purchases your item' : 'you purchase an item'}, it will appear here.
-          </p>
-        </Card>
-      ) : (
-        <div className="space-y-4">
-          {items.map((order) => (
-            <div
-              key={order.id}
-              className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden"
-            >
-              {/* Order header */}
-              <div className="flex flex-wrap items-center justify-between gap-3 px-6 py-4 border-b border-slate-100 bg-slate-50/50">
-                <div>
-                  <p className="font-semibold text-navy-900">{order.products?.name || 'Custom Request Order'}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    {isShopper ? `Buyer: ${order.buyer?.full_name}` : `Shopper: ${order.shopper?.full_name}`}
-                    {' · '}{formatDate(order.created_at)}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-lg font-bold text-navy-900">{formatPrice(order.amount)}</span>
-                  <Badge variant={getOrderStatusColor(order.status) as any} size="md" className="capitalize">
-                    {statusLabel[order.status] ?? order.status}
-                  </Badge>
-                </div>
-              </div>
-
-              {/* Direct Payment & Coordination info or Direct Sale Info */}
-              {order.notes?.includes('[Direct Sale]') ? (
-                <div className="px-6 py-4 border-b border-slate-100 bg-emerald-50/20 flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-emerald-800 uppercase tracking-wider">Direct Sale Log:</span>
-                    <span className="text-xs text-slate-700 font-medium">{order.notes.replace('[Direct Sale] ', '')}</span>
-                  </div>
-                  <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-                    Recorded Offline Sale
-                  </span>
-                </div>
-              ) : (
-                <div className="px-6 py-4 border-b border-slate-100 bg-slate-50/10 space-y-3">
-                  <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                    📞 Direct Coordination (Cash on Delivery / Mobile Money)
-                  </h4>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm text-navy-950">
-                  {isShopper ? (
-                    <>
-                      <div>
-                        <span className="text-slate-500 font-medium block text-xs">Buyer Name</span>
-                        <span className="font-semibold">{order.buyer?.full_name || 'Buyer'}</span>
-                      </div>
-                      {order.buyer?.phone && (
-                        <div>
-                          <span className="text-slate-500 font-medium block text-xs">Phone Number</span>
-                          <a href={`tel:${order.buyer.phone}`} className="font-semibold text-amber-600 hover:underline">
-                            {order.buyer.phone}
-                          </a>
-                        </div>
-                      )}
-                      {((order.buyer as any)?.telegram_users?.[0] || (order.buyer as any)?.telegram_users) && (
-                        <div>
-                          <span className="text-slate-500 font-medium block text-xs">Telegram Username</span>
-                          <a 
-                            href={`https://t.me/${(order.buyer as any).telegram_users?.[0]?.username || (order.buyer as any).telegram_users?.username}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            className="font-semibold text-sky-600 hover:underline"
-                          >
-                            @{(order.buyer as any).telegram_users?.[0]?.username || (order.buyer as any).telegram_users?.username}
-                          </a>
-                        </div>
-                      )}
-                    </>
-                  ) : (
-                    <>
-                      <div>
-                        <span className="text-slate-500 font-medium block text-xs">Shopper Name</span>
-                        <span className="font-semibold">{order.shopper?.full_name || 'Verified Shopper'}</span>
-                      </div>
-                      {order.shopper?.phone && (
-                        <div>
-                          <span className="text-slate-500 font-medium block text-xs">Phone Number</span>
-                          <a href={`tel:${order.shopper.phone}`} className="font-semibold text-amber-600 hover:underline">
-                            {order.shopper.phone}
-                          </a>
-                        </div>
-                      )}
-                      {order.shopper?.location && (
-                        <div>
-                          <span className="text-slate-500 font-medium block text-xs">Shopper Location</span>
-                          <span className="font-semibold">{order.shopper.location}</span>
-                        </div>
-                      )}
-                      {((order.shopper as any)?.telegram_users?.[0] || (order.shopper as any)?.telegram_users) && (
-                        <div>
-                          <span className="text-slate-500 font-medium block text-xs">Telegram Username</span>
-                          <a 
-                            href={`https://t.me/${(order.shopper as any).telegram_users?.[0]?.username || (order.shopper as any).telegram_users?.username}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            className="font-semibold text-sky-600 hover:underline"
-                          >
-                            @{(order.shopper as any).telegram_users?.[0]?.username || (order.shopper as any).telegram_users?.username}
-                          </a>
-                        </div>
-                      )}
-                    </>
-                  )}
-                </div>
-                
-                <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 flex items-start gap-2">
-                  <span className="text-base leading-none">💡</span>
-                  <p className="text-[11px] text-amber-800 leading-relaxed">
-                    {isShopper 
-                      ? 'Reach out to the buyer directly to coordinate delivery and receive your cash/transfer. Confirm delivery once settled.' 
-                      : 'Coordinate payment directly with the shopper using Telebirr, CBE, or Hand-to-Cash. Always request proof of shipment.'}
-                  </p>
-                </div>
-              </div>
-              )}
-
-              {/* Actions */}
-              <div className="px-6 py-4 flex flex-wrap gap-3 items-center justify-end">
-                {/* Chat Action */}
-                <Link 
-                  href={`/dashboard/chat/${order.id}`}
-                  className="px-4 py-2 bg-slate-100 text-slate-700 rounded-xl text-sm font-semibold hover:bg-slate-200 transition-colors flex justify-center items-center gap-2 w-full sm:w-auto"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                  </svg>
-                  {isShopper ? 'Message Buyer' : 'Message Seller'}
-                </Link>
-
-                {/* Shopper actions */}
-                {isShopper && order.status === 'pending' && (
-                  <form action={async () => { 'use server'; await acceptOrder(order.id) }} className="w-full sm:w-auto">
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 transition-colors w-full sm:w-auto"
-                    >
-                      Accept Order
-                    </button>
-                  </form>
-                )}
-                {isShopper && (order.status === 'accepted' || order.status === 'pending') && (
-                  <form action={async () => { 'use server'; await markOrderShipped(order.id) }} className="w-full sm:w-auto">
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-amber-500 text-white rounded-xl text-sm font-semibold hover:bg-amber-600 transition-colors w-full sm:w-auto"
-                    >
-                      Mark as Shipped
-                    </button>
-                  </form>
-                )}
-
-                {/* Buyer actions */}
-                {!isShopper && order.status === 'pending' && (
-                  <form action={async () => { 'use server'; await cancelOrder(order.id) }} className="w-full sm:w-auto">
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm font-semibold hover:bg-red-100 transition-colors w-full sm:w-auto"
-                    >
-                      Cancel Order
-                    </button>
-                  </form>
-                )}
-                {!isShopper && order.status === 'shipped' && (
-                  <form action={async () => { 'use server'; await confirmDelivery(order.id) }} className="w-full sm:w-auto">
-                    <button
-                      type="submit"
-                      className="px-4 py-2 bg-green-600 text-white rounded-xl text-sm font-semibold hover:bg-green-700 transition-colors w-full sm:w-auto"
-                    >
-                      ✓ I Received the Item
-                    </button>
-                  </form>
-                )}
-
-                {order.notes?.includes('[Direct Sale]') && (
-                  <div className="flex items-center gap-2 text-xs font-bold text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-xl border border-emerald-100">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                    <span>Completed & Revenue Counted</span>
-                  </div>
-                )}
-
-                {order.status === 'delivered' && !order.notes?.includes('[Direct Sale]') && (
-                  <div className="flex items-center gap-4 w-full sm:w-auto">
-                    <span className="text-sm text-green-600 font-medium flex items-center gap-1">
-                      <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      Completed
-                    </span>
-                    {!isShopper && (
-                      <RateSellerButton 
-                        shopperName={order.shopper?.full_name || 'Seller'} 
-                        orderId={order.id}
-                        shopperId={order.shopper_id as string}
-                      />
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-        </div>
-      </OrdersHeaderAndTabs>
+        currentUserId={user.id}
+        shopperName={profile?.full_name}
+      />
     </div>
   )
 }

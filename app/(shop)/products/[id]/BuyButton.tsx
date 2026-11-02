@@ -2,11 +2,12 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Phone } from 'lucide-react'
+import { Phone, Star } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useCart } from '@/lib/context/CartContext'
 import type { CartItem } from '@/lib/context/CartContext'
 import { ContactSellerModal } from '@/components/products/ContactSellerModal'
+import { ReviewShopperModal } from '@/components/reviews/ReviewShopperModal'
 import { createClient } from '@/lib/supabase/client'
 
 interface BuyButtonProps {
@@ -27,6 +28,7 @@ export function BuyButton({ product, seller, currentUserId }: BuyButtonProps) {
   const { addItem, openCart } = useCart()
   const [loadingCart, setLoadingCart] = useState(false)
   const [isContactOpen, setIsContactOpen] = useState(false)
+  const [isReviewOpen, setIsReviewOpen] = useState(false)
   const [userId, setUserId] = useState<string | null>(currentUserId ?? null)
 
   useEffect(() => {
@@ -61,6 +63,13 @@ export function BuyButton({ product, seller, currentUserId }: BuyButtonProps) {
         }
       })
     }
+
+    if (params.get('rate') === 'open') {
+      setIsReviewOpen(true)
+      const url = new URL(window.location.href)
+      url.searchParams.delete('rate')
+      window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''))
+    }
   }, [])
 
   const handleAddToCart = async () => {
@@ -94,6 +103,7 @@ export function BuyButton({ product, seller, currentUserId }: BuyButtonProps) {
   }
 
   const isSold = product.is_available === false
+  const sellerId = seller?.id || product.shopperId
 
   return (
     <>
@@ -120,6 +130,25 @@ export function BuyButton({ product, seller, currentUserId }: BuyButtonProps) {
         </Button>
       </div>
 
+      {/* Direct Deal Rating Button */}
+      {sellerId && sellerId !== 'mock' && sellerId !== userId && (
+        <button
+          type="button"
+          onClick={() => {
+            if (!userId) {
+              const returnUrl = `/products/${product.id}`
+              window.location.href = `/auth/login?redirectTo=${encodeURIComponent(returnUrl)}`
+              return
+            }
+            setIsReviewOpen(true)
+          }}
+          className="w-full mt-2.5 py-2 px-3 rounded-xl bg-amber-50/70 hover:bg-amber-100/80 text-amber-900 border border-amber-200/70 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+        >
+          <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+          <span>Bought via call or chat? <strong>Rate this Shopper</strong></span>
+        </button>
+      )}
+
       <ContactSellerModal
         isOpen={isContactOpen}
         onClose={() => setIsContactOpen(false)}
@@ -137,6 +166,25 @@ export function BuyButton({ product, seller, currentUserId }: BuyButtonProps) {
         isSold={isSold}
         currentUserId={currentUserId}
       />
+
+      {sellerId && sellerId !== 'mock' && (
+        <ReviewShopperModal
+          isOpen={isReviewOpen}
+          onClose={() => setIsReviewOpen(false)}
+          shopper={{
+            id: sellerId,
+            name: seller?.name || product.shopperName || 'Shopper',
+          }}
+          product={{
+            id: product.id,
+            name: product.name,
+          }}
+          defaultChannel="phone"
+          onSuccess={() => {
+            if (typeof window !== 'undefined') window.location.reload()
+          }}
+        />
+      )}
     </>
   )
 }

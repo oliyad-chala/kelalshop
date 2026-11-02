@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { Avatar } from '@/components/ui/Avatar'
 import { Badge } from '@/components/ui/Badge'
 import { DirectChatWindow } from '@/components/chat/DirectChatWindow'
+import { RateChatPartnerButton } from '@/components/chat/RateChatPartnerButton'
 import { markDirectMessagesRead } from '@/lib/actions/messages'
 
 export async function generateMetadata({ params }: { params: Promise<{ userId: string }> }) {
@@ -77,7 +78,13 @@ export default async function DirectMessagePage({ params }: { params: Promise<{ 
           </div>
         </div>
 
-        <div className="shrink-0 flex items-center gap-1 text-xs text-slate-400">
+        {partner.role === 'shopper' && (
+          <RateChatPartnerButton
+            shopper={{ id: partner.id, name: partner.full_name || 'Shopper' }}
+          />
+        )}
+
+        <div className="shrink-0 hidden sm:flex items-center gap-1 text-xs text-slate-400">
           <svg className="w-3.5 h-3.5 text-green-400" fill="currentColor" viewBox="0 0 24 24">
             <circle cx="12" cy="12" r="6" />
           </svg>

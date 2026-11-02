@@ -9,6 +9,8 @@ import { ProductCard } from '@/components/products/ProductCard'
 import { ShopperBadge } from '@/components/shoppers/ShopperBadge'
 import { getRatingStars, formatRating } from '@/lib/utils/formatters'
 import { ProfileJsonLd } from '@/components/seo/ProfileJsonLd'
+import { getShopperReviews } from '@/lib/actions/reviews'
+import { ShopperReviewsList } from '@/components/reviews/ShopperReviewsList'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -62,6 +64,9 @@ export default async function ShopperDetailPage({ params }: { params: Promise<{ 
     ? profile.shopper_profiles[0] 
     : profile.shopper_profiles
   if (!shopperData) notFound()
+
+  // Fetch shopper's reviews (direct sales + app orders)
+  const reviews = await getShopperReviews(id, 20)
 
   // Fetch shopper's products (both available and sold)
   const admin = createAdminClient()
@@ -204,6 +209,13 @@ export default async function ShopperDetailPage({ params }: { params: Promise<{ 
                      </div>
                   )}
                </div>
+
+               {/* Buyer Ratings & Reviews */}
+               <ShopperReviewsList
+                  shopper={{ id, name: profile.full_name, trustScore: shopperData.trust_score }}
+                  reviews={reviews}
+                  currentUserId={user?.id}
+               />
             </div>
 
          </div>
