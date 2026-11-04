@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/server'
 import { uploadWatermarkedProductImages } from '@/lib/utils/product-image-storage'
 import { logUserAction } from '@/lib/actions/activity-log'
 import { emitTelegramEvent } from '@/lib/telegram/notifications/templates'
+import { buildAdminProductPendingEmail } from '@/lib/email/templates'
+import { sendAdminNotificationEmail } from '@/lib/email/admin'
 import type { ActionState } from '@/types/app.types'
 
 export async function createProduct(
@@ -19,7 +21,7 @@ export async function createProduct(
   // Guard: shopper must be verified
   const { data: shopperProfile } = await supabase
     .from('shopper_profiles')
-    .select('verification_status, subscription_plan, subscription_expires_at')
+    .select('verification_status, subscription_plan, subscription_expires_at, business_name')
     .eq('id', user.id)
     .single()
 
@@ -110,12 +112,46 @@ export async function createProduct(
     idempotencyKey: `product-pending-${product.id}`,
   })
 
+  // 1b. Send Admin Email Notification
+  try {
+    let categoryName: string | undefined = undefined
+    if (category_id) {
+      const { data: cat } = await supabase
+        .from('categories')
+        .select('name')
+        .eq('id', category_id)
+        .maybeSingle()
+      if (cat?.name) categoryName = cat.name
+    }
+
+    const emailData = buildAdminProductPendingEmail({
+      productId: product.id,
+      productName: name,
+      price,
+      stock,
+      categoryName,
+      location: location?.trim() || null,
+      sellerName: shopperProfile?.business_name || user.email || 'Seller',
+      sellerEmail: user.email,
+    })
+
+    await sendAdminNotificationEmail({
+      type: 'admin-product-pending',
+      subject: emailData.subject,
+      html: emailData.html,
+      text: emailData.text,
+      idempotencyPrefix: `admin-product-pending-${product.id}`,
+    })
+  } catch (emailErr) {
+    console.error('[Admin Product Pending Email] Error sending notification:', emailErr)
+  }
+
   // 2. Upload images
   await uploadWatermarkedProductImages(supabase, product.id, validImages)
 
   await logUserAction({
     userId: user.id,
-    userName: shopperProfile?.full_name ?? user.email ?? 'Seller',
+    userName: shopperProfile?.business_name ?? user.email ?? 'Seller',
     actionType: 'create_product',
     entityType: 'product',
     entityId: product.id,

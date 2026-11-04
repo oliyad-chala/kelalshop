@@ -8,7 +8,8 @@ import { emitTelegramEvent } from '@/lib/telegram/notifications/templates'
 
 import { getPlatformSettings } from '@/lib/actions/admin-settings'
 import { queueEmail } from '@/lib/email/queue'
-import { buildSellerVerificationEmail } from '@/lib/email/templates'
+import { buildSellerVerificationEmail, buildAdminVerificationPendingEmail } from '@/lib/email/templates'
+import { sendAdminNotificationEmail } from '@/lib/email/admin'
 
 export async function submitVerification(
   formData: FormData
@@ -95,6 +96,33 @@ export async function submitVerification(
     emitTelegramEvent('admin', 'NEW_SELLER', {
       storeName: store?.business_name ?? 'New Seller',
     }, { idempotencyKey: `seller-pending-${user.id}` })
+
+    // Send Admin Email Notification
+    try {
+      const { data: userProfile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      const emailData = buildAdminVerificationPendingEmail({
+        shopperId: user.id,
+        sellerName: userProfile?.full_name ?? null,
+        businessName: store?.business_name ?? null,
+        phone,
+        email: user.email,
+      })
+
+      await sendAdminNotificationEmail({
+        type: 'admin-verification-pending',
+        subject: emailData.subject,
+        html: emailData.html,
+        text: emailData.text,
+        idempotencyPrefix: `admin-verification-${user.id}-${new Date().toISOString().slice(0, 10)}`,
+      })
+    } catch (emailErr) {
+      console.error('[Admin Verification Pending Email] Failed:', emailErr)
+    }
   }
 
   revalidatePath('/dashboard/verification')
