@@ -80,7 +80,10 @@ export const metadata: Metadata = {
     },
   },
   verification: {
-    google: 't3VdTZrAuUp7s1yI_wScxm4JagcBM790GU_1VvJI1LQ',
+    google: [
+      '3RqPcFIazi-bi2psBcm9xcYMnyFU-6iIeiE-n2qjfuY',
+      't3VdTZrAuUp7s1yI_wScxm4JagcBM790GU_1VvJI1LQ',
+    ],
   },
 }
 
