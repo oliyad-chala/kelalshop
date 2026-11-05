@@ -140,7 +140,16 @@ export function SignupForm() {
   const searchParams = useSearchParams()
   const loginHref = `/auth/login${redirectQueryString(searchParams)}`
   const [state, formAction, pending] = useActionState(signUp, initialState)
-  const [role, setRole] = useState<'buyer' | 'shopper'>('buyer')
+  const safeRedirect = getSafeRedirectPath(searchParams) ?? ''
+  const isSellerRedirect = safeRedirect.includes('/listings') || safeRedirect.includes('/dashboard/products')
+  const initialRole =
+    searchParams.get('role') === 'shopper' ||
+    searchParams.get('type') === 'seller' ||
+    searchParams.get('seller') === 'true' ||
+    isSellerRedirect
+      ? 'shopper'
+      : 'buyer'
+  const [role, setRole] = useState<'buyer' | 'shopper'>(initialRole)
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -152,6 +161,15 @@ export function SignupForm() {
   const currentStrength = getStrength(password)
   const isWeakPassword = password.length > 0 && currentStrength < 2
   const confirmMismatch = confirm.length > 0 && password !== confirm
+
+  useEffect(() => {
+    const r = searchParams.get('role') || searchParams.get('type')
+    if (r === 'shopper' || r === 'seller') {
+      setRole('shopper')
+    } else if (r === 'buyer') {
+      setRole('buyer')
+    }
+  }, [searchParams])
 
   useEffect(() => {
     if (state?.success === 'confirm-otp' && state?.email) {
@@ -191,7 +209,7 @@ export function SignupForm() {
     setGoogleError('')
     try {
       const redirectTo = getSafeRedirectPath(searchParams) ?? '/dashboard'
-      const result = await signInWithGoogle(redirectTo)
+      const result = await signInWithGoogle(redirectTo, role)
       if ('error' in result) {
         setGoogleError(result.error)
         setGoogleLoading(false)
@@ -218,6 +236,62 @@ export function SignupForm() {
         </div>
       )}
 
+      {/* Role selector at the top so it applies to both Google and Email signups */}
+      <div className="space-y-2">
+        <label className="block text-xs font-semibold text-slate-600 uppercase tracking-wider">
+          How do you want to use KelalShop?
+        </label>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => setRole('buyer')}
+            className={clsx(
+              'flex flex-col items-center gap-2 p-3.5 rounded-xl border-2 transition-all text-center',
+              role === 'buyer'
+                ? 'border-amber-500 bg-amber-50 text-amber-900 shadow-sm ring-1 ring-amber-500/20'
+                : 'border-slate-200 hover:border-slate-300 bg-white text-slate-600'
+            )}
+          >
+            <div className={clsx(
+              "w-9 h-9 rounded-full flex items-center justify-center transition-colors",
+              role === 'buyer' ? "bg-amber-100 text-amber-600" : "bg-slate-100 text-slate-400"
+            )}>
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
+            </div>
+            <div>
+              <div className="font-bold text-sm">I want to buy</div>
+              <div className="text-xs opacity-75">Order products &amp; request items</div>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setRole('shopper')}
+            className={clsx(
+              'flex flex-col items-center gap-2 p-3.5 rounded-xl border-2 transition-all text-center',
+              role === 'shopper'
+                ? 'border-amber-500 bg-amber-50 text-amber-900 shadow-sm ring-1 ring-amber-500/20'
+                : 'border-slate-200 hover:border-slate-300 bg-white text-slate-600'
+            )}
+          >
+            <div className={clsx(
+              "w-9 h-9 rounded-full flex items-center justify-center transition-colors",
+              role === 'shopper' ? "bg-amber-100 text-amber-600" : "bg-slate-100 text-slate-400"
+            )}>
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <div className="font-bold text-sm">I want to sell</div>
+              <div className="text-xs opacity-75">List products &amp; fulfill requests</div>
+            </div>
+          </button>
+        </div>
+      </div>
+
       {/* Google Sign-Up */}
       <button
         id="google-signup-btn"
@@ -234,7 +308,11 @@ export function SignupForm() {
         ) : (
           <GoogleIcon />
         )}
-        {googleLoading ? 'Redirecting…' : 'Sign up with Google'}
+        {googleLoading
+          ? 'Redirecting…'
+          : role === 'shopper'
+          ? 'Sign up with Google as Seller'
+          : 'Sign up with Google as Buyer'}
       </button>
 
       {/* Divider */}
@@ -246,6 +324,9 @@ export function SignupForm() {
 
       {/* Email form */}
       <form action={formAction} className="space-y-4">
+        {/* Hidden role input for email signup */}
+        <input type="hidden" name="role" value={role} />
+
         {/* Full Name */}
         <div>
           <Input
@@ -341,58 +422,7 @@ export function SignupForm() {
           />
         </div>
 
-        {/* Role selector */}
-        <div className="space-y-3">
-          <label className="block text-sm font-medium text-navy-900">
-            How do you want to use KelalShop?
-          </label>
-          <input type="hidden" name="role" value={role} />
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => setRole('buyer')}
-              className={clsx(
-                'flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all text-center',
-                role === 'buyer'
-                  ? 'border-amber-500 bg-amber-50 text-amber-900'
-                  : 'border-slate-200 hover:border-slate-300 text-slate-600'
-              )}
-            >
-              <div className={clsx(
-                "w-10 h-10 rounded-full flex items-center justify-center",
-                role === 'buyer' ? "bg-amber-100 text-amber-600" : "bg-slate-100 text-slate-400"
-              )}>
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-                </svg>
-              </div>
-              <div className="font-semibold text-sm">I want to buy</div>
-              <div className="text-xs opacity-75">Order products &amp; request items</div>
-            </button>
 
-            <button
-              type="button"
-              onClick={() => setRole('shopper')}
-              className={clsx(
-                'flex flex-col items-center gap-2 p-4 rounded-xl border-2 transition-all text-center',
-                role === 'shopper'
-                  ? 'border-amber-500 bg-amber-50 text-amber-900'
-                  : 'border-slate-200 hover:border-slate-300 text-slate-600'
-              )}
-            >
-              <div className={clsx(
-                "w-10 h-10 rounded-full flex items-center justify-center",
-                role === 'shopper' ? "bg-amber-100 text-amber-600" : "bg-slate-100 text-slate-400"
-              )}>
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              </div>
-              <div className="font-semibold text-sm">I want to sell</div>
-              <div className="text-xs opacity-75">List products &amp; fulfill requests</div>
-            </button>
-          </div>
-        </div>
 
         <Button
           type="submit"

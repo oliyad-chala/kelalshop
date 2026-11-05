@@ -17,7 +17,8 @@ import { buildWelcomeEmail, buildPasswordChangedEmail, buildOtpEmail, buildForgo
 // ── Google OAuth ─────────────────────────────────────────────────────────────
 
 export async function signInWithGoogle(
-  redirectTo?: string
+  redirectTo?: string,
+  role?: 'buyer' | 'shopper'
 ): Promise<{ url: string } | { error: string }> {
   const supabase = await createClient()
 
@@ -30,7 +31,29 @@ export async function signInWithGoogle(
       ? redirectTo
       : '/dashboard'
 
-  const callbackUrl = `${siteUrl}/auth/callback?next=${encodeURIComponent(safePath)}`
+  // If a signup role is specified, persist in a secure short-lived cookie as fallback
+  if (role) {
+    try {
+      const cookieStore = await cookies()
+      cookieStore.set('kelal_signup_role', role, {
+        maxAge: 600, // 10 minutes
+        path: '/',
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+      })
+    } catch (err) {
+      console.warn('[signInWithGoogle] Could not set role cookie:', err)
+    }
+  }
+
+  const queryParams = new URLSearchParams()
+  queryParams.set('next', safePath)
+  if (role) {
+    queryParams.set('role', role)
+  }
+
+  const callbackUrl = `${siteUrl}/auth/callback?${queryParams.toString()}`
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',

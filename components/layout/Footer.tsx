@@ -94,8 +94,8 @@ export function Footer() {
           <div>
             <h4 className="text-sm font-bold text-white mb-5 uppercase tracking-wider">Account</h4>
             <ul className="space-y-3 text-sm">
-              <li><Link href="/auth/signup" className="hover:text-amber-500 hover:translate-x-1 inline-block transition-all">Join as Buyer</Link></li>
-              <li><Link href="/auth/signup" className="hover:text-amber-500 hover:translate-x-1 inline-block transition-all">Become a Shopper</Link></li>
+              <li><Link href="/auth/signup?role=buyer" className="hover:text-amber-500 hover:translate-x-1 inline-block transition-all">Join as Buyer</Link></li>
+              <li><Link href="/auth/signup?role=shopper" className="hover:text-amber-500 hover:translate-x-1 inline-block transition-all">Become a Shopper</Link></li>
               <li><Link href="/dashboard" className="hover:text-amber-500 hover:translate-x-1 inline-block transition-all">Dashboard</Link></li>
               <li><Link href="/auth/login" className="hover:text-amber-500 hover:translate-x-1 inline-block transition-all">Sign In</Link></li>
             </ul>
