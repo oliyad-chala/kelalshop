@@ -34,7 +34,7 @@ export async function submitSupportMessage(prevState: any, formData: FormData) {
 
   if (user) {
     senderUserId = user.id
-    const { data: userProfile } = await supabase
+    const { data: userProfile } = await admin
       .from('profiles')
       .select('full_name')
       .eq('id', user.id)

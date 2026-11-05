@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import Image from 'next/image'
-import { Download, X, Share, PlusSquare, Smartphone, Check } from 'lucide-react'
+import { usePathname } from 'next/navigation'
+import { Download, X, Share, PlusSquare, Smartphone } from 'lucide-react'
 
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
@@ -10,18 +11,27 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 const DISMISS_KEY = 'kelalshop_pwa_dismissed_at'
-const DISMISS_DAYS = 5
+const SESSION_DISMISS_KEY = 'kelalshop_pwa_session_dismissed'
+const DISMISS_DAYS = 30 // Keep dismissed for 30 days once closed
 
 export function PwaInstallPrompt() {
+  const pathname = usePathname()
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [isIos, setIsIos] = useState(false)
   const [isStandalone, setIsStandalone] = useState(false)
   const [isVisible, setIsVisible] = useState(false)
   const [showIosGuide, setShowIosGuide] = useState(false)
-  const [isInstalled, setIsInstalled] = useState(false)
+  const [, setIsInstalled] = useState(false)
+
+  // 1. Never show on dashboard, admin, or auth screens (seller/admin management areas)
+  const isExcludedRoute =
+    !pathname ||
+    pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/auth')
 
   useEffect(() => {
-    // 1. Register Service Worker
+    // Register Service Worker in background
     if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
       navigator.serviceWorker
         .register('/sw.js')
@@ -33,7 +43,10 @@ export function PwaInstallPrompt() {
         })
     }
 
-    // 2. Check if already installed & running in standalone mode
+    // Do not trigger prompt checks if running in standalone PWA or on an excluded route
+    if (isExcludedRoute) return
+
+    // Check if already running standalone
     const isRunningStandalone =
       window.matchMedia('(display-mode: standalone)').matches ||
       (window.navigator as unknown as { standalone?: boolean }).standalone === true
@@ -43,46 +56,69 @@ export function PwaInstallPrompt() {
       return
     }
 
-    // 3. Check dismissal history
-    const dismissedAt = localStorage.getItem(DISMISS_KEY)
-    if (dismissedAt) {
-      const daysSinceDismiss = (Date.now() - parseInt(dismissedAt, 10)) / (1000 * 60 * 60 * 24)
-      if (daysSinceDismiss < DISMISS_DAYS) {
+    // Check session dismissal (if user closed it during this browsing session)
+    try {
+      if (sessionStorage.getItem(SESSION_DISMISS_KEY) === 'true') {
         return
       }
+    } catch {
+      // Ignore storage error
     }
 
-    // 4. Detect iOS Safari
+    // Check long-term dismissal history (30 days)
+    try {
+      const dismissedAt = localStorage.getItem(DISMISS_KEY)
+      if (dismissedAt) {
+        const daysSinceDismiss = (Date.now() - parseInt(dismissedAt, 10)) / (1000 * 60 * 60 * 24)
+        if (daysSinceDismiss < DISMISS_DAYS) {
+          return
+        }
+      }
+    } catch {
+      // Ignore storage error
+    }
+
+    // Detect mobile device
     const ua = window.navigator.userAgent.toLowerCase()
+    const isMobileDevice = /iphone|ipad|ipod|android|mobile/.test(ua)
     const isIosDevice = /iphone|ipad|ipod/.test(ua)
     const isSafari = /safari/.test(ua) && !/chrome|crios|fxios|android/.test(ua)
 
+    // On desktop, don't show the mobile install prompt
+    if (!isMobileDevice && window.innerWidth >= 768) {
+      return
+    }
+
     if (isIosDevice) {
       setIsIos(true)
-      // On iOS Safari, show prompt after a short delay so user has a chance to see the page first
+      // On iOS Safari, show politely after 12 seconds
       if (isSafari) {
         const timer = setTimeout(() => {
           setIsVisible(true)
-        }, 3500)
+        }, 12000)
         return () => clearTimeout(timer)
       }
     }
 
-    // 5. Handle Android / Chromium `beforeinstallprompt`
+    // Handle Android / Chromium `beforeinstallprompt`
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault()
       setDeferredPrompt(e as BeforeInstallPromptEvent)
-      // Slight delay for a smoother user experience
+      // Professional delay: 12 seconds so the user can browse comfortably first
       setTimeout(() => {
         setIsVisible(true)
-      }, 2000)
+      }, 12000)
     }
 
     const handleAppInstalled = () => {
       setIsInstalled(true)
       setIsVisible(false)
       setDeferredPrompt(null)
-      localStorage.setItem('kelalshop_pwa_installed', 'true')
+      try {
+        localStorage.setItem('kelalshop_pwa_installed', 'true')
+      } catch {
+        // Ignore storage error
+      }
     }
 
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
@@ -92,7 +128,7 @@ export function PwaInstallPrompt() {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt)
       window.removeEventListener('appinstalled', handleAppInstalled)
     }
-  }, [])
+  }, [isExcludedRoute])
 
   const handleInstallClick = async () => {
     if (isIos) {
@@ -118,25 +154,51 @@ export function PwaInstallPrompt() {
   const handleDismiss = () => {
     setIsVisible(false)
     setShowIosGuide(false)
-    localStorage.setItem(DISMISS_KEY, Date.now().toString())
+    try {
+      // Remember dismissal for 30 days & across this entire browser session
+      localStorage.setItem(DISMISS_KEY, Date.now().toString())
+      sessionStorage.setItem(SESSION_DISMISS_KEY, 'true')
+    } catch (err) {
+      console.warn('[PWA] Storage access failed on dismiss:', err)
+    }
   }
 
-  if (isStandalone || !isVisible) {
+  // Hide if standalone, excluded page, or not yet visible
+  if (isExcludedRoute || isStandalone || !isVisible) {
     return null
   }
 
   return (
     <>
-      {/* Floating Bottom App Install Banner */}
-      <div className="fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-md animate-in fade-in slide-in-from-bottom-5 duration-300">
-        <div className="relative flex items-center justify-between gap-3 rounded-2xl bg-slate-900/95 p-3.5 text-white shadow-2xl backdrop-blur-md ring-1 ring-white/10 sm:p-4">
+      {/* 
+        Non-blocking Floating Bottom App Install Banner:
+        - `pointer-events-none` on outer wrapper so touches/clicks pass directly to the page
+        - `pointer-events-auto` on the card only
+        - `touchAction: pan-y` so vertical swipe gestures to scroll are NEVER blocked
+        - `md:hidden` hides it on desktop browsers
+      */}
+      <aside
+        aria-label="App installation notification"
+        className="fixed bottom-4 left-0 right-0 z-40 flex justify-center px-4 pointer-events-none md:hidden"
+        style={{
+          position: 'fixed',
+          bottom: '1rem',
+          left: 0,
+          right: 0,
+          zIndex: 40,
+        }}
+      >
+        <div
+          className="pointer-events-auto relative flex w-full max-w-md items-center justify-between gap-3 rounded-2xl bg-slate-900/95 p-3 text-white shadow-2xl backdrop-blur-md ring-1 ring-white/10"
+          style={{ touchAction: 'pan-y' }}
+        >
           {/* Kelalshop Logo */}
-          <div className="relative h-12 w-12 flex-shrink-0 overflow-hidden rounded-xl border border-white/15 bg-white/5 p-1 shadow-inner">
+          <div className="relative h-11 w-11 flex-shrink-0 overflow-hidden rounded-xl border border-white/15 bg-white/5 p-1 shadow-inner">
             <Image
               src="/icons/icon-192.png"
               alt="Kelalshop App"
-              width={48}
-              height={48}
+              width={44}
+              height={44}
               className="h-full w-full object-contain"
             />
           </div>
@@ -144,21 +206,21 @@ export function PwaInstallPrompt() {
           {/* Text Description */}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-1.5">
-              <p className="truncate text-sm font-bold text-white">KelalShop App</p>
-              <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-semibold tracking-wide text-amber-400">
+              <p className="truncate text-xs font-bold text-white">KelalShop App</p>
+              <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-amber-400">
                 FAST & FREE
               </span>
             </div>
-            <p className="truncate text-xs text-slate-300">
-              Install to your phone for faster shopping & deals
+            <p className="truncate text-[11px] text-slate-300">
+              Install to your phone for faster shopping
             </p>
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={handleInstallClick}
-              className="flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-3.5 py-2 text-xs font-bold text-white shadow-md shadow-orange-500/30 transition hover:from-amber-600 hover:to-orange-600 active:scale-95"
+              className="flex items-center gap-1 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-3 py-1.5 text-xs font-bold text-white shadow-md shadow-orange-500/30 transition hover:from-amber-600 hover:to-orange-600 active:scale-95"
             >
               <Download className="h-3.5 w-3.5" />
               <span>Install</span>
@@ -166,14 +228,14 @@ export function PwaInstallPrompt() {
 
             <button
               onClick={handleDismiss}
-              aria-label="Dismiss app install banner"
+              aria-label="Close install prompt"
               className="rounded-lg p-1.5 text-slate-400 transition hover:bg-white/10 hover:text-white"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
         </div>
-      </div>
+      </aside>
 
       {/* iOS Safari Guided Modal */}
       {showIosGuide && (
