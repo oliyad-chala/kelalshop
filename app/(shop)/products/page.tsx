@@ -5,6 +5,7 @@ import { ProductCard } from '@/components/products/ProductCard'
 import { ProductsFilter } from '@/components/products/ProductsFilter'
 import { ProductControls } from '@/components/products/ProductControls'
 import type { ProductWithDetails } from '@/types/app.types'
+import { buildPostgrestProductSearchOr } from '@/lib/utils/product-search'
 
 export const metadata = {
    title: 'Discover Products | KelalShop',
@@ -27,7 +28,10 @@ export default async function ProductsFeedPage({
       .eq('approval_status', 'approved')
 
    if (params.q) {
-      query = query.ilike('name', `%${params.q}%`)
+      const orFilter = buildPostgrestProductSearchOr(params.q)
+      if (orFilter) {
+         query = query.or(orFilter)
+      }
    }
 
    if (params.category) {

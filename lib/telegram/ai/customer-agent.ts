@@ -1,28 +1,30 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { emitTelegramEvent } from '../notifications/templates'
 import { generateAIContentWithFallback } from './client-wrapper'
-import { InlineKeyboard } from 'grammy'
-import { formatEtb } from '../core/telegram-format'
+import { sendTelegramProductCards } from '../core/telegram-format'
+import { searchCatalogProducts } from '@/lib/utils/product-search'
 
 const SYSTEM_INSTRUCTION = `
 You are the official KelalShop AI Shopping & Support Assistant.
 KelalShop is an Ethiopian peer-to-peer e-commerce platform.
 
 CRITICAL SEARCH & TOOLS RULES:
-- Whenever a customer asks about products, prices, lists, availability, or recommendations (e.g. "Ok give me best price phone list", "show me cheap phones", "do you have shoes?"), you MUST query the database first by calling the "search_products" tool.
-- NEVER make up, guess, or hallucinate product names, prices, or specifications. Only recommend products that are actually returned by the "search_products" tool.
-- If no products are found in the database, tell the user that no matching products are currently listed on the marketplace.
-- CRITICAL: Only present up to 3 product options to the user. Inform the user that they can click the "🛒 Open Checkout Mini App" button or use the menu to explore more options and place an order.
+- Whenever a customer asks about products, prices, lists, availability, or recommendations (e.g. "CAN I GET PHONE", "give me phone", "Ok give me best price phone list", "show me cheap phones", "do you have shoes?", "what do you sell?"), you MUST query the database first by calling the "search_products" tool.
+- If the customer says "give me this", "order this", or refers to an item from a replied-to message, extract the product name or keywords from the [Replying to] context or recent conversation and call "search_products" (or "add_to_cart" if you already have the exact productId UUID). If you aren't sure what "this" refers to, politely ask which product they want and offer to search.
+- NEVER make up, guess, or hallucinate product names, prices, or specifications. Only recommend products returned in the "available" array from "search_products".
+- If "available" is empty and "soldOutMatches" has items, let the user know matching items are currently sold out and invite them to click the "🛒 Open Checkout Mini App" button below to browse other items or post a request on KelalShop.
+- If both "available" and "soldOutMatches" are empty, tell the user no matching products are currently listed and suggest tapping "🛒 Open Checkout Mini App" below.
+- CRITICAL: Present up to 3 available product options cleanly. Product photo cards with direct View/Shop links are sent right after your message, so keep your summary short and friendly.
+- If a cart or order tool returns "linked_account_required", never mention internal error codes — let them know they can buy directly using the "🛒 View" or "🛒 Open Checkout Mini App" buttons below, or link their account anytime using /link.
 
 CRITICAL LANGUAGE RULE:
 - You must respond ONLY in clean, friendly English. Do NOT respond in Amharic under any circumstances. If the user greets or queries you in Amharic (or any language other than English), politely reply and assist them strictly in English.
 
+- Prices on KelalShop are ALWAYS in ETB (Ethiopian Birr), never USD ($) or INR (₹). Always format prices like "50,000 ETB".
+
 IMPORTANT FORMATTING RULES:
-- Respond in clean HTML format. Use <b>, <i>, <code>, <a> tags for formatting.
-- CRITICAL: Never output markdown like asterisks (e.g. **, *), underscores (_), or markdown code blocks (e.g. \`\`\`\`). Telegram's HTML parser will crash or display errors if you output markdown. Output ONLY valid HTML tags or plain text.
-- CRITICAL: Never output line breaks as HTML tags (like <br> or <p>). Use standard newlines instead.
-- If you want to make text bold, use <b>text</b> instead of **text**.
-- Keep responses concise and scannable.
+- Respond ONLY with plain text and Telegram-supported inline HTML tags: <b>, <i>, <code>, <a>.
+- NEVER output <!DOCTYPE>, <html>, <head>, <body>, <h1>, <p>, <br>, <ul>, <li>, <button>, markdown asterisks (**), or markdown code blocks (\`\`\`). Use standard newlines instead.
 
 KELALSHOP KNOWLEDGE BASE FAQ:
 1. What is KelalShop? It is a marketplace connecting buyers with local shoppers/sellers in Ethiopia.
@@ -30,7 +32,7 @@ KELALSHOP KNOWLEDGE BASE FAQ:
 3. Payment: Payments are settled peer-to-peer (P2P) directly between buyer and shopper. You can pay via Telebirr, CBE transfer, or cash on delivery once terms are agreed. KelalShop does NOT process payments on the site.
 4. Delivery: Coordinated directly between buyer and shopper. Usually local delivery is arranged via ride/motorcycle.
 5. Seller Commission: KelalShop charges a small commission (8%) to sellers on completed orders.
-6. Seller Registration: Sellers must register on the website (kelalshop.com) by clicking "Become a Seller" and entering their details including phone number.
+6. Seller Registration: Sellers must register on the website (kelalshop.com) by clicking "Become a Shopper" and entering their details including phone number.
 7. Support: If a customer has an issue and wants to talk to a human support agent/staff member, politely instruct them to click the "💬 Support Ticket" button in the menu below.
 
 If the query is completely unrelated to shopping or KelalShop (e.g. general trivia), politely reply that you are a shopping assistant and guide them back to KelalShop.
@@ -44,6 +46,19 @@ function getSessionHistory(chatId: number): any[] {
     sessionHistory.set(chatId, [])
   }
   return sessionHistory.get(chatId)!
+}
+
+/** Ensures history never begins mid-tool-call when trimming old messages. */
+function trimSessionHistory(history: any[], maxLength = 20): void {
+  if (history.length <= maxLength) return
+  let dropCount = history.length - maxLength
+  while (dropCount < history.length) {
+    const turn = history[dropCount]
+    const isPlainUserText = turn?.role === 'user' && Array.isArray(turn?.parts) && turn.parts.some((p: any) => typeof p.text === 'string')
+    if (isPlainUserText) break
+    dropCount++
+  }
+  history.splice(0, dropCount)
 }
 
 export async function handleCustomerAIQuery(ctx: any): Promise<void> {
@@ -65,15 +80,18 @@ export async function handleCustomerAIQuery(ctx: any): Promise<void> {
 
   const profileId = (tgUser?.is_verified && tgUser?.profile_id) ? tgUser.profile_id : null
 
-  // 2. Fetch or initialize conversation history
+  // 2. Fetch and safely trim conversation history
   const history = getSessionHistory(chatId)
-  
-  // Keep history size in check
-  if (history.length > 20) {
-    history.splice(0, 4)
-  }
+  trimSessionHistory(history, 20)
 
-  history.push({ role: 'user', parts: [{ text }] })
+  const replyTo = ctx.message?.reply_to_message
+  const replyContext = (replyTo?.caption || replyTo?.text || '').trim()
+  const enrichedUserText = replyContext
+    ? `[Replying to message: "${replyContext.slice(0, 400)}"]\n\nCustomer says: ${text}`
+    : text
+
+  const turnStartIndex = history.length
+  history.push({ role: 'user', parts: [{ text: enrichedUserText }] })
 
   try {
     // Call AI with fallback
@@ -141,34 +159,33 @@ export async function handleCustomerAIQuery(ctx: any): Promise<void> {
     if (functionCalls && functionCalls.length > 0) {
       // Process function calls
       const toolParts: any[] = []
-      const replyButtons: any[] = []
-
+      let showMiniAppButton = false
       let foundProducts: any[] = []
+
       for (const call of functionCalls) {
         const { name, args } = call
         let result: any = null
 
         if (name === 'search_products') {
-          const sArgs = args as any
-          const products = await searchProductsTool(sArgs, profileId)
-          result = products
-          foundProducts = products
-          
-          // Formulate checkout quick actions if products were returned
-          if (products.length > 0) {
-            replyButtons.push({ text: '🛒 Open Checkout Mini App', web_app: { url: `${BASE_URL}/telegram/checkout` } })
+          const sArgs = (args || {}) as any
+          const searchResult = await searchProductsTool(sArgs, profileId)
+          result = searchResult
+          if (searchResult.available.length > 0) {
+            foundProducts = searchResult.available
           }
+          // Always show Mini App button on product search turns (whether results found or empty)
+          showMiniAppButton = true
         } else if (name === 'get_cart') {
           result = await getCartTool(profileId)
-          replyButtons.push({ text: '🛒 Open Checkout Mini App', web_app: { url: `${BASE_URL}/telegram/checkout` } })
+          showMiniAppButton = true
         } else if (name === 'add_to_cart') {
-          const aArgs = args as any
-          result = await addToCartTool(aArgs.productId, aArgs.quantity, profileId)
-          if (result.success) {
-            replyButtons.push({ text: '🛒 Open Checkout Mini App', web_app: { url: `${BASE_URL}/telegram/checkout` } })
+          const aArgs = (args || {}) as any
+          result = await addToCartTool(aArgs.productId, aArgs.quantity ?? 1, profileId)
+          if (result.success || result.error === 'linked_account_required') {
+            showMiniAppButton = true
           }
         } else if (name === 'remove_from_cart') {
-          const rArgs = args as any
+          const rArgs = (args || {}) as any
           result = await removeFromCartTool(rArgs.productId, profileId)
         } else if (name === 'get_orders') {
           result = await getOrdersTool(profileId)
@@ -206,44 +223,29 @@ export async function handleCustomerAIQuery(ctx: any): Promise<void> {
         systemInstruction: SYSTEM_INSTRUCTION
       })
 
-      let finalMessage = secondResponse.text || "I've processed your request."
-      finalMessage = sanitizeHtmlFormatting(finalMessage)
-      
+      let finalMessage = sanitizeHtmlFormatting(secondResponse.text || '')
+      if (!finalMessage) {
+        finalMessage = foundProducts.length > 0
+          ? 'Here are the matching products I found on KelalShop:'
+          : 'Check out the Mini App below to explore available products on KelalShop!'
+      }
+
       // Save final model response
       history.push({ role: 'model', parts: [{ text: finalMessage }] })
 
-      // Send to user
+      // Send summary message with Checkout Mini App button
+      const replyButtons = showMiniAppButton
+        ? [{ text: '🛒 Open Checkout Mini App', web_app: { url: `${BASE_URL}/telegram/checkout` } }]
+        : []
       const keyboard = replyButtons.length > 0 ? { inline_keyboard: [replyButtons] } : undefined
       await safeReply(ctx, finalMessage, { reply_markup: keyboard })
 
-      // Send product details with images if available
-      if (foundProducts && foundProducts.length > 0) {
-        for (const product of foundProducts) {
-          const productKeyboard = new InlineKeyboard()
-            .url('🛒 View', `${BASE_URL}/products/${product.id}`)
-            .url('🛍️ Shop', `${BASE_URL}/products`)
-
-          if (product.image) {
-            try {
-              await safeReplyWithPhoto(ctx, product.image, {
-                caption: `📦 <b>${product.name}</b>\n💰 ${formatEtb(product.price)}`,
-                reply_markup: productKeyboard
-              })
-            } catch (err) {
-              await safeReply(ctx, `📦 <b>${product.name}</b>\n💰 ${formatEtb(product.price)}`, {
-                reply_markup: productKeyboard
-              })
-            }
-          } else {
-            await safeReply(ctx, `📦 <b>${product.name}</b>\n💰 ${formatEtb(product.price)}`, {
-              reply_markup: productKeyboard
-            })
-          }
-        }
+      // Send product cards with images and Buy/View links
+      if (foundProducts.length > 0) {
+        await sendTelegramProductCards(ctx, foundProducts, BASE_URL)
       }
     } else {
-      let finalMessage = response.text || "Sorry, I didn't catch that."
-      finalMessage = sanitizeHtmlFormatting(finalMessage)
+      let finalMessage = sanitizeHtmlFormatting(response.text || '') || "Sorry, I didn't catch that."
 
       // Save model response
       history.push({ role: 'model', parts: [{ text: finalMessage }] })
@@ -251,6 +253,8 @@ export async function handleCustomerAIQuery(ctx: any): Promise<void> {
       await safeReply(ctx, finalMessage)
     }
   } catch (err: any) {
+    // Roll back incomplete turn so conversation history never stays corrupted
+    history.length = turnStartIndex
     console.error('[handleCustomerAIQuery] Gemini error:', err)
     await safeReply(ctx, '🤖 Sorry, I experienced an error processing your query. Please try again.')
   }
@@ -270,25 +274,19 @@ async function safeReply(ctx: any, text: string, options: any = {}) {
   }
 }
 
-async function safeReplyWithPhoto(ctx: any, photo: string, options: any = {}) {
-  try {
-    return await ctx.replyWithPhoto(photo, { ...options, parse_mode: 'HTML' })
-  } catch (err: any) {
-    const errMsg = err.message || err.description || ''
-    if (errMsg.includes("can't parse entities") || errMsg.includes("parse_mode")) {
-      console.warn('[safeReplyWithPhoto] HTML parsing failed, falling back to plain text. Original caption:', options.caption, 'Error:', errMsg)
-      const plainCaption = options.caption ? options.caption.replace(/<[^>]*>/g, '') : undefined
-      return await ctx.replyWithPhoto(photo, { ...options, caption: plainCaption, parse_mode: undefined })
-    }
-    throw err
-  }
-}
-
 function sanitizeHtmlFormatting(text: string): string {
   if (!text) return ''
 
+  // Strip document/boilerplate wrapper blocks if an LLM emits full HTML pages
+  let cleaned = text
+    .replace(/<!DOCTYPE[^>]*>/gi, '')
+    .replace(/<head\b[^>]*>[\s\S]*?<\/head>/gi, '')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<title\b[^>]*>[\s\S]*?<\/title>/gi, '')
+
   // 1. Convert any variant of <br> to newline
-  let cleaned = text.replace(/<br\s*\/?>/gi, '\n')
+  cleaned = cleaned.replace(/<br\s*\/?>/gi, '\n')
 
   // 2. Convert <li> to list bullets and </li> to newlines
   cleaned = cleaned.replace(/<li>/gi, '• ').replace(/<\/li>/gi, '\n')
@@ -343,53 +341,35 @@ function sanitizeHtmlFormatting(text: string): string {
 
 // --- Tool Implementations ---
 
-async function searchProductsTool(args: { query: string; category?: string; minPrice?: number; maxPrice?: number; sortBy?: 'price_asc' | 'price_desc' | 'newest' }, profileId: string | null) {
+async function searchProductsTool(
+  args: { query?: string; category?: string; minPrice?: number; maxPrice?: number; sortBy?: 'price_asc' | 'price_desc' | 'newest' },
+  profileId: string | null
+) {
   const admin = createAdminClient()
-  let dbQuery = admin
-    .from('products')
-    .select('*, product_images(*)')
-    .eq('is_available', true)
-    .ilike('name', `%${args.query}%`)
-
-  if (args.category) {
-    dbQuery = dbQuery.ilike('category', `%${args.category}%`)
-  }
-  if (args.minPrice) {
-    dbQuery = dbQuery.gte('price', args.minPrice)
-  }
-  if (args.maxPrice) {
-    dbQuery = dbQuery.lte('price', args.maxPrice)
-  }
-
-  if (args.sortBy === 'price_asc') {
-    dbQuery = dbQuery.order('price', { ascending: true })
-  } else if (args.sortBy === 'price_desc') {
-    dbQuery = dbQuery.order('price', { ascending: false })
-  } else if (args.sortBy === 'newest') {
-    dbQuery = dbQuery.order('created_at', { ascending: false })
-  }
-
-  const { data, error } = await dbQuery.limit(3)
-  const results = data || []
-
-  // Log in search_logs
-  await admin.from('search_logs').insert({
-    query: args.query,
-    results_count: results.length,
-    user_id: profileId,
+  const { available, soldOut } = await searchCatalogProducts(admin, {
+    query: args?.query ?? '',
+    category: args?.category,
+    minPrice: args?.minPrice,
+    maxPrice: args?.maxPrice,
+    sortBy: args?.sortBy,
+    limit: 3,
   })
 
-  return results.map((p: any) => {
-    const images = p.product_images || []
-    const primaryImg = images.find((i: any) => i.is_primary)?.url || images[0]?.url || null
-    return {
-      id: p.id,
-      name: p.name,
-      price: Number(p.price),
-      description: p.description,
-      image: primaryImg,
-    }
-  })
+  // Log in search_logs cleanly so analytics issues never block product search
+  try {
+    await admin.from('search_logs').insert({
+      query: (args?.query || args?.category || 'browse').slice(0, 200),
+      results_count: available.length,
+      user_id: profileId,
+    })
+  } catch (err) {
+    console.warn('[searchProductsTool] Failed to write search_logs:', err)
+  }
+
+  return {
+    available,
+    soldOutMatches: soldOut,
+  }
 }
 
 async function getCartTool(profileId: string | null) {

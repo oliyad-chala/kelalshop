@@ -1,7 +1,8 @@
-import { InlineKeyboard, Bot } from 'grammy'
+import { Bot } from 'grammy'
 import type { CustomerBotContext } from '../../core/types'
 import { getTelegramSupabase } from '../../core/supabase-admin'
-import { formatEtb } from '../../core/telegram-format'
+import { sendTelegramProductCards } from '../../core/telegram-format'
+import { searchCatalogProducts } from '@/lib/utils/product-search'
 import { extractShoppingIntent, answerCustomerFAQ } from '../../../gemini/shopping-assistant'
 
 const BUTTON_TEXTS = new Set([
@@ -48,59 +49,40 @@ export function registerSearchFlow(bot: Bot<CustomerBotContext>) {
     }
 
     const intent = await extractShoppingIntent(text)
-    let query = getTelegramSupabase()
-      .from('products')
-      .select('id, name, price, product_images(*)')
-      .eq('is_available', true)
-      .eq('approval_status', 'approved')
-
-    if (intent.keywords?.length) {
-      query = query.ilike('name', `%${intent.keywords.join('%')}%`)
+    let available
+    let soldOut
+    try {
+      const result = await searchCatalogProducts(getTelegramSupabase(), {
+        query: intent.keywords?.length ? intent.keywords.join(' ') : text,
+        category: intent.category,
+        minPrice: intent.minPrice,
+        maxPrice: intent.maxPrice,
+        sortBy: intent.sortBy,
+        limit: 3,
+      })
+      available = result.available
+      soldOut = result.soldOut
+    } catch {
+      return ctx.reply('❌ Search error. Try again.')
     }
-    if (intent.minPrice) query = query.gte('price', intent.minPrice)
-    if (intent.maxPrice) query = query.lte('price', intent.maxPrice)
 
-    if (intent.sortBy === 'price_asc') query = query.order('price', { ascending: true })
-    else if (intent.sortBy === 'price_desc') query = query.order('price', { ascending: false })
-    else query = query.order('created_at', { ascending: false })
-
-    const { data: products, error } = await query.limit(3)
-    if (error) return ctx.reply('❌ Search error. Try again.')
-    if (!products?.length) {
+    if (!available.length) {
+      if (soldOut.length > 0) {
+        const soldOutNames = soldOut
+          .slice(0, 3)
+          .map((p) => p.name.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'))
+          .join(', ')
+        return ctx.reply(
+          `😕 Matching item(s) (<b>${soldOutNames}</b>) are currently sold out. Try /deals or different keywords.`,
+          { parse_mode: 'HTML' }
+        )
+      }
       return ctx.reply('😕 No products found. Try /deals or different keywords.', { parse_mode: 'HTML' })
     }
 
-    await ctx.reply(`🔍 <b>Found ${products.length} product(s)</b>`, { parse_mode: 'HTML' })
+    await ctx.reply(`🔍 <b>Found ${available.length} product(s)</b>`, { parse_mode: 'HTML' })
 
     const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://kelalshop.com'
-    for (const product of products) {
-      const keyboard = new InlineKeyboard()
-        .url('🛒 View', `${BASE_URL}/products/${product.id}`)
-        .url('🛍️ Shop', `${BASE_URL}/products`)
-
-      const images = product.product_images || []
-      const imageUrl = images.find((i: any) => i.is_primary)?.url || images[0]?.url || null
-
-      if (imageUrl) {
-        try {
-          await ctx.replyWithPhoto(imageUrl, {
-            caption: `📦 <b>${product.name}</b>\n💰 ${formatEtb(Number(product.price))}`,
-            parse_mode: 'HTML',
-            reply_markup: keyboard,
-          })
-        } catch (err) {
-          // Fallback to text if image fails to load
-          await ctx.reply(`📦 <b>${product.name}</b>\n💰 ${formatEtb(Number(product.price))}`, {
-            parse_mode: 'HTML',
-            reply_markup: keyboard,
-          })
-        }
-      } else {
-        await ctx.reply(`📦 <b>${product.name}</b>\n💰 ${formatEtb(Number(product.price))}`, {
-          parse_mode: 'HTML',
-          reply_markup: keyboard,
-        })
-      }
-    }
+    await sendTelegramProductCards(ctx, available, BASE_URL)
   })
 }

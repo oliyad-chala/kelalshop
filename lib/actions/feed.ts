@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { ProductWithDetails } from '@/types/app.types'
+import { buildPostgrestProductSearchOr } from '@/lib/utils/product-search'
 
 export async function loadMoreProducts(
   offset: number,
@@ -17,7 +18,10 @@ export async function loadMoreProducts(
     .eq('approval_status', 'approved')
 
   if (params.q) {
-    query = query.ilike('name', `%${params.q}%`)
+    const orFilter = buildPostgrestProductSearchOr(params.q)
+    if (orFilter) {
+      query = query.or(orFilter)
+    }
   }
 
   if (params.category) {

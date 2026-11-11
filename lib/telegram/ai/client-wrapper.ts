@@ -69,48 +69,76 @@ function translateHistoryToOpenAI(history: any[], systemInstruction: string): an
     messages.push({ role: 'system', content: systemInstruction })
   }
 
+  // Track pending tool call IDs by function name so multi-call turns correlate accurately
+  const pendingCallIds = new Map<string, string[]>()
+  let callCounter = 0
+
   for (const item of history) {
     const role = item.role === 'model' ? 'assistant' : item.role
+    const parts = item.parts || []
 
-    // Process parts
-    for (const part of item.parts || []) {
+    const textParts: string[] = []
+    const toolCalls: any[] = []
+    const toolResponses: any[] = []
+
+    for (const part of parts) {
       if (part.text !== undefined) {
-        messages.push({ role, content: part.text })
+        textParts.push(part.text)
       } else if (part.functionCall) {
-        messages.push({
-          role: 'assistant',
-          content: null,
-          tool_calls: [{
-            id: `call_${part.functionCall.name}_0`,
-            type: 'function',
-            function: {
-              name: part.functionCall.name,
-              arguments: JSON.stringify(part.functionCall.args || {})
-            }
-          }]
+        const id = `call_${callCounter++}`
+        const queue = pendingCallIds.get(part.functionCall.name) || []
+        queue.push(id)
+        pendingCallIds.set(part.functionCall.name, queue)
+
+        toolCalls.push({
+          id,
+          type: 'function',
+          function: {
+            name: part.functionCall.name,
+            arguments: JSON.stringify(part.functionCall.args || {})
+          }
         })
       } else if (part.functionCalls) {
-        messages.push({
-          role: 'assistant',
-          content: null,
-          tool_calls: part.functionCalls.map((fc: any, index: number) => ({
-            id: `call_${fc.name}_${index}`,
+        for (const fc of part.functionCalls) {
+          const id = `call_${callCounter++}`
+          const queue = pendingCallIds.get(fc.name) || []
+          queue.push(id)
+          pendingCallIds.set(fc.name, queue)
+
+          toolCalls.push({
+            id,
             type: 'function',
             function: {
               name: fc.name,
               arguments: JSON.stringify(fc.args || {})
             }
-          }))
-        })
+          })
+        }
       } else if (part.functionResponse) {
         const name = part.functionResponse.name
-        messages.push({
+        const queue = pendingCallIds.get(name)
+        const matchedId = queue?.shift() || `call_${name}_${callCounter++}`
+        toolResponses.push({
           role: 'tool',
           name,
-          tool_call_id: `call_${name}_0`, // simplified correlation
+          tool_call_id: matchedId,
           content: JSON.stringify(part.functionResponse.response ?? {})
         })
       }
+    }
+
+    if (toolCalls.length > 0) {
+      messages.push({
+        role: 'assistant',
+        content: textParts.length > 0 ? textParts.join('\n') : null,
+        tool_calls: toolCalls
+      })
+    } else if (textParts.length > 0 && toolResponses.length === 0) {
+      messages.push({ role, content: textParts.join('\n') })
+    }
+
+    for (const tr of toolResponses) {
+      messages.push(tr)
     }
   }
   return messages
@@ -131,6 +159,15 @@ function translateToolsToOpenAI(geminiTools?: any[]): any[] | undefined {
   }))
 }
 
+function safeParseToolArgs(rawArgs?: string): Record<string, any> {
+  if (!rawArgs) return {}
+  try {
+    return JSON.parse(rawArgs)
+  } catch {
+    return {}
+  }
+}
+
 function translateOpenAIResponse(data: any): FallbackAIResponse {
   const choice = data.choices?.[0]
   if (!choice) return { text: 'No response generated.' }
@@ -139,7 +176,7 @@ function translateOpenAIResponse(data: any): FallbackAIResponse {
   if (message.tool_calls && message.tool_calls.length > 0) {
     const functionCalls = message.tool_calls.map((tc: any) => ({
       name: tc.function.name,
-      args: JSON.parse(tc.function.arguments || '{}')
+      args: safeParseToolArgs(tc.function.arguments)
     }))
     return {
       text: null,
@@ -165,7 +202,7 @@ export async function generateAIContentWithFallback(params: {
   if (aiGemini) {
     try {
       console.log('[AI Fallback Wrapper] Attempting Gemini...')
-      const response = await withTimeout(async (signal) => {
+      const response = await withTimeout(async () => {
         // Native Google GenAI SDK doesn't natively accept AbortSignal directly, so we just wrap in withTimeout
         const geminiPromise = aiGemini.models.generateContent({
           model: 'gemini-2.5-flash',
@@ -179,9 +216,13 @@ export async function generateAIContentWithFallback(params: {
       }, GEMINI_TIMEOUT, 'Gemini')
 
       if (response) {
+        const calls = response.functionCalls
+          ?.filter((c) => Boolean(c.name))
+          .map((c) => ({ name: c.name as string, args: c.args ?? {} }))
+        const hasCalls = Boolean(calls && calls.length > 0)
         return {
-          text: response.text || '',
-          functionCalls: response.functionCalls
+          text: hasCalls ? null : (response.text || ''),
+          functionCalls: hasCalls ? calls : null
         }
       }
     } catch (err: any) {
@@ -201,10 +242,10 @@ export async function generateAIContentWithFallback(params: {
 
   const openAITools = translateToolsToOpenAI(params.tools)
 
-  // 2. Try Groq
+  // 2. Try Groq (use active tool-capable model)
   if (GROQ_API_KEY) {
     try {
-      console.log('[AI Fallback Wrapper] Attempting Groq (groq/compound-mini)...')
+      console.log('[AI Fallback Wrapper] Attempting Groq (openai/gpt-oss-120b)...')
       const response = await withTimeout(async (signal) => {
         const fetchRes = await fetch('https://api.groq.com/openai/v1/chat/completions', {
           method: 'POST',
@@ -213,7 +254,7 @@ export async function generateAIContentWithFallback(params: {
             'Content-Type': 'application/json'
           },
           body: JSON.stringify({
-            model: 'groq/compound-mini',
+            model: 'openai/gpt-oss-120b',
             messages: openAIMessages,
             ...(openAITools ? { tools: openAITools } : {}),
             temperature: 0.5,
@@ -232,6 +273,7 @@ export async function generateAIContentWithFallback(params: {
       if (response) {
         return translateOpenAIResponse(response)
       }
+      throw new Error('All AI providers returned empty response.')
     } catch (err: any) {
       console.warn(`[AI Fallback Wrapper] Groq failed: ${err.message}. Trying OpenRouter...`)
     }
@@ -272,6 +314,7 @@ export async function generateAIContentWithFallback(params: {
       if (response) {
         return translateOpenAIResponse(response)
       }
+      throw new Error('All AI providers returned empty response.')
     } catch (err: any) {
       console.error(`[AI Fallback Wrapper] OpenRouter failed: ${err.message}`)
       throw new Error(`All AI providers failed: ${err.message}`)
