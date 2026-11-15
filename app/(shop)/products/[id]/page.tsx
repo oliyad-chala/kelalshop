@@ -63,16 +63,21 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
 
   let product: any = null
   let relatedProducts: any[] = []
+  let isStrictCategoryMatch = false
 
   if (id.startsWith('mock')) {
     // ── Handle Mock Product ──
     const foundMock = MOCK_PRODUCTS.find((p) => p.id === id)
     if (!foundMock) notFound()
     product = foundMock
-    // Find related mock products (excluding current one, maybe from same category if categories match)
-    relatedProducts = MOCK_PRODUCTS.filter(p => p.id !== id && p.categories?.id === foundMock.categories?.id).slice(0, 5)
-    if (relatedProducts.length === 0) {
+    // Find related mock products (excluding current one, strictly from same category if any exist)
+    const sameCatMocks = MOCK_PRODUCTS.filter(p => p.id !== id && p.categories?.id === foundMock.categories?.id).slice(0, 5)
+    if (sameCatMocks.length > 0) {
+      relatedProducts = sameCatMocks
+      isStrictCategoryMatch = true
+    } else {
       relatedProducts = MOCK_PRODUCTS.filter(p => p.id !== id).slice(0, 5)
+      isStrictCategoryMatch = false
     }
   } else {
     // ── Handle Real DB Product ──
@@ -109,43 +114,39 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
       trackProductView(product.id)
     }
 
-    // Fetch intelligent recommendations via RPC
-    const { data: relatedResult } = await supabase
-      .rpc('get_product_recommendations', {
-        p_current_product_id: product.id,
-        p_user_id: user?.id || null,
-        p_limit: 5
-      })
-
-    if (relatedResult && relatedResult.length > 0) {
-      // The RPC returns basic product info, but HomeProductCard needs product_images and profiles
-      // Since it's a lightweight card, we can fetch the full details for these IDs
-      const recommendedIds = relatedResult.map((r: any) => r.id)
-      
-      const { data: fullRelated } = await supabase
+    // 1. Strict category matching: only items from the same category qualify as "Similar Products"
+    if (product.category_id) {
+      const { data: sameCatData } = await admin
         .from('products')
         .select('*, product_images(*), categories(*), profiles:shopper_id(*, shopper_profiles(verification_status))')
-        .in('id', recommendedIds)
-      
-      if (fullRelated) {
-        // Sort them to match the RPC's relevance score order
-        relatedProducts = fullRelated.sort((a, b) => 
-          recommendedIds.indexOf(a.id) - recommendedIds.indexOf(b.id)
-        )
+        .eq('category_id', product.category_id)
+        .eq('is_available', true)
+        .eq('approval_status', 'approved')
+        .neq('id', product.id)
+        .order('created_at', { ascending: false })
+        .limit(5)
+
+      if (sameCatData && sameCatData.length > 0) {
+        relatedProducts = sameCatData
+        isStrictCategoryMatch = true
       }
-    } else {
-      // Fallback if RPC is empty or not created yet
-      if (product.category_id) {
-        const { data: fallbackResult } = await supabase
-          .from('products')
-          .select('*, product_images(*), categories(*), profiles:shopper_id(*), shopper_profiles:shopper_id(*)')
-          .eq('category_id', product.category_id)
-          .eq('is_available', true)
-          .eq('approval_status' as any, 'approved')
-          .neq('id', product.id)
-          .limit(5)
-        
-        relatedProducts = fallbackResult || []
+    }
+
+    // 2. Exploration fallback: if no other items exist in this category, don't mislabel unrelated items as "similar".
+    // Instead show recent available marketplace items under "More to Explore".
+    if (relatedProducts.length === 0) {
+      const { data: exploreData } = await admin
+        .from('products')
+        .select('*, product_images(*), categories(*), profiles:shopper_id(*, shopper_profiles(verification_status))')
+        .eq('is_available', true)
+        .eq('approval_status', 'approved')
+        .neq('id', product.id)
+        .order('created_at', { ascending: false })
+        .limit(5)
+
+      if (exploreData && exploreData.length > 0) {
+        relatedProducts = exploreData
+        isStrictCategoryMatch = false
       }
     }
   }
@@ -350,12 +351,69 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
         {/* Related Products Section */}
         {relatedProducts.length > 0 && (
           <section className="mt-16">
-            <h2 className="text-xl font-bold text-navy-900 mb-6">Similar Products</h2>
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-2 mb-6">
+              <div>
+                <h2 className="text-xl font-bold text-navy-900">
+                  {isStrictCategoryMatch
+                    ? `Similar in ${product.categories?.name || 'this Category'}`
+                    : 'More to Explore on KelalShop'}
+                </h2>
+                <p className="text-sm text-slate-500 mt-1">
+                  {isStrictCategoryMatch
+                    ? `Other available items in ${product.categories?.name || 'this category'} curated by verified shoppers`
+                    : 'Discover other popular items and recent arrivals across our marketplace'}
+                </p>
+              </div>
+              <Link
+                href={
+                  isStrictCategoryMatch
+                    ? `/products?category=${product.categories?.id || product.category_id}`
+                    : '/products'
+                }
+                className="text-sm font-semibold text-amber-600 hover:text-amber-700 transition-colors inline-flex items-center gap-1 shrink-0"
+              >
+                {isStrictCategoryMatch ? 'View Category' : 'Browse All'}
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+            </div>
+
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
               {relatedProducts.map((p) => (
                 <HomeProductCard key={p.id} product={p as unknown as ProductWithDetails} />
               ))}
             </div>
+
+            {/* Custom Sourcing Request prompt when no other items in category */}
+            {!isStrictCategoryMatch && (
+              <div className="mt-6 flex flex-col sm:flex-row items-center justify-between gap-4 rounded-2xl border border-amber-200/80 bg-gradient-to-r from-amber-50/70 via-orange-50/40 to-white p-5">
+                <div className="flex items-start gap-3.5">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 text-amber-600">
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-semibold text-navy-900">
+                      Looking for more {product.categories?.name ? product.categories.name.toLowerCase() : 'specific'} products?
+                    </h4>
+                    <p className="text-xs text-slate-500 mt-0.5 max-w-xl">
+                      Can&apos;t find the exact gear or item you need? Post a custom sourcing request and our verified global shoppers will import it for you from AliExpress, Amazon, or Shein.
+                    </p>
+                  </div>
+                </div>
+                <Link
+                  href={`/requests/new?category=${encodeURIComponent(product.categories?.name || '')}`}
+                  className="shrink-0 inline-flex items-center gap-1.5 rounded-xl bg-navy-900 hover:bg-navy-800 text-white px-4 py-2.5 text-xs font-semibold shadow-sm transition-colors"
+                >
+                  Request Custom Item
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+              </div>
+            )}
           </section>
         )}
       </div>
