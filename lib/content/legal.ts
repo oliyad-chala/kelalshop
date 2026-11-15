@@ -182,7 +182,54 @@ export const termsOfService: LegalSection[] = [
   {
     title: 'Contact',
     paragraphs: [
-      `Questions about these Terms? Contact us on Telegram: ${SUPPORT_TELEGRAM_HANDLE} (${SUPPORT_TELEGRAM}).`,
+      `Questions about these Terms? Contact us on Telegram: ${SUPPORT_TELEGRAM_HANDLE} (${SUPPORT_TELEGRAM}) or email us at kelalshopp@gmail.com.`,
+    ],
+  },
+]
+
+export const refundPolicy: LegalSection[] = [
+  {
+    title: 'Overview & Marketplace Model',
+    paragraphs: [
+      'KelalShop connects buyers in Ethiopia with verified local shoppers and international importers (from AliExpress, Amazon, Shein, UAE, Turkey, and China).',
+      'Because many items are imported specifically upon buyer request, clear rules on inspection, returns, and dispute resolution ensure both buyers and sellers are treated fairly.',
+    ],
+  },
+  {
+    title: 'Inspection Upon Delivery',
+    paragraphs: [
+      'We strongly encourage all buyers to inspect items at the moment of delivery or in-person handover before confirming completion.',
+      'Check that the product matches the listing/order description, size, color, specifications, and is in working physical condition.',
+    ],
+  },
+  {
+    title: 'Eligible Return & Refund Scenarios',
+    paragraphs: [
+      'Buyers are entitled to request a replacement, exchange, or refund under the following circumstances:',
+    ],
+    list: [
+      'Damaged or Defective Goods: The item arrived broken, torn, non-functional, or significantly damaged during transit.',
+      'Incorrect Item Received: The shopper delivered a different model, brand, color, or size than what was agreed upon in the order.',
+      'Counterfeit or Misrepresented Item: The item was advertised as original/authentic but is demonstrably counterfeit or materially divergent from the photos and description.',
+      'Non-Delivery: The shopper failed to deliver the item within the agreed timeline, and cannot provide valid tracking or clearance updates.',
+    ],
+  },
+  {
+    title: 'Non-Refundable Circumstances',
+    paragraphs: ['Refunds or returns cannot be approved in the following cases:'],
+    list: [
+      'Change of mind after accepting, opening, or using custom-imported or perishable items.',
+      'Damage resulting from buyer misuse, mishandling, dropping, or improper voltage/electrical connection.',
+      'Intimate apparel, cosmetics, or hygiene products once the protective seal has been broken.',
+      'Failure to report issues within 48 hours of physical delivery.',
+    ],
+  },
+  {
+    title: 'Dispute & Mediation Process',
+    paragraphs: [
+      'If you encounter an issue with your delivery, first contact your shopper through the order chat to attempt a direct resolution.',
+      'If you cannot reach an agreement, click the "Report Issue" button on your order in the KelalShop Dashboard (/dashboard/orders), or reach our support team immediately.',
+      `Contact our support desk on Telegram: ${SUPPORT_TELEGRAM_HANDLE} (${SUPPORT_TELEGRAM}) or email us at kelalshopp@gmail.com with photos/video evidence and your order number. Our admin mediation team will review the evidence and issue a binding resolution.`,
     ],
   },
 ]

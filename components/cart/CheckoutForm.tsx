@@ -3,11 +3,12 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { useCart } from '@/lib/context/CartContext'
-import { createOrder } from '@/lib/actions/orders'
+import { createOrder, type DeliveryDetails } from '@/lib/actions/orders'
 import { clearCart } from '@/lib/actions/cart'
 import { formatPrice } from '@/lib/utils/formatters'
 import Image from 'next/image'
 import Link from 'next/link'
+import { MapPin, Phone, User, FileText } from 'lucide-react'
 
 export type CheckoutShippingInfo = {
   baseFee: number
@@ -17,17 +18,46 @@ export type CheckoutShippingInfo = {
   promotionName: string | null
 }
 
+const ETHIOPIA_CITIES = [
+  'Addis Ababa - Bole / Bole Mikael',
+  'Addis Ababa - CMC / Ayat / Summit',
+  'Addis Ababa - Sarbet / Old Airport / Bisrate Gabriel',
+  'Addis Ababa - Piassa / Arat Kilo / Sidist Kilo',
+  'Addis Ababa - Mexico / Kazanchis / Bambis',
+  'Addis Ababa - Megenagna / Gerji / Hayahulet',
+  'Addis Ababa - Lebu / Jemo / Bethel',
+  'Addis Ababa - Other Sub-City',
+  'Adama / Nazret',
+  'Hawassa',
+  'Bahir Dar',
+  'Dire Dawa',
+  'Gondar',
+  'Jimma',
+  'Other City (Specify in address)',
+]
+
 type CheckoutFormProps = {
   shipping?: CheckoutShippingInfo
+  userProfile?: {
+    fullName?: string
+    phone?: string
+  }
 }
 
-export function CheckoutForm({ shipping }: CheckoutFormProps) {
+export function CheckoutForm({ shipping, userProfile }: CheckoutFormProps) {
   const { state, subtotal, emptyCart } = useCart()
   const { items } = state
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [error, setError] = useState<string | null>(null)
   const [placing, setPlacing] = useState(false)
+
+  // Delivery Details State
+  const [fullName, setFullName] = useState(userProfile?.fullName || '')
+  const [phone, setPhone] = useState(userProfile?.phone || '')
+  const [city, setCity] = useState(ETHIOPIA_CITIES[0])
+  const [address, setAddress] = useState('')
+  const [notes, setNotes] = useState('')
 
   const shippingFee = shipping?.fee ?? 0
   const shippingBase = shipping?.baseFee ?? 0
@@ -38,13 +68,32 @@ export function CheckoutForm({ shipping }: CheckoutFormProps) {
   const handlePlaceOrder = () => {
     if (items.length === 0) return
     setError(null)
+
+    // Validation
+    if (!phone.trim()) {
+      setError('Please provide your phone number so the shopper can call you for delivery.')
+      return
+    }
+    if (!address.trim()) {
+      setError('Please provide your delivery address or nearest landmark.')
+      return
+    }
+
     setPlacing(true)
     startTransition(async () => {
       try {
         const promoId = shipping?.promotionId ?? null
+        const deliveryPayload: DeliveryDetails = {
+          fullName: fullName.trim(),
+          phone: phone.trim(),
+          city: city.trim(),
+          address: address.trim(),
+          notes: notes.trim() || undefined,
+        }
+
         for (let i = 0; i < items.length; i++) {
           const item = items[i]
-          await createOrder(item.product.id, i === 0 ? promoId : null)
+          await createOrder(item.product.id, i === 0 ? promoId : null, deliveryPayload)
         }
         await clearCart()
         emptyCart()
@@ -105,6 +154,94 @@ export function CheckoutForm({ shipping }: CheckoutFormProps) {
             </li>
           ))}
         </ul>
+      </div>
+
+      {/* Delivery Destination & Contact Details */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center text-amber-600">
+              <MapPin className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="font-bold text-navy-900 text-sm">Delivery Destination & Contact</h3>
+              <p className="text-[11px] text-slate-400">Where the shopper will deliver your items</p>
+            </div>
+          </div>
+          <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-0.5 rounded-full">
+            Local Delivery
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1">
+          <div>
+            <label className="block text-xs font-semibold text-navy-900 mb-1.5 flex items-center gap-1.5">
+              <User className="w-3.5 h-3.5 text-slate-400" /> Full Name
+            </label>
+            <input
+              type="text"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              placeholder="Your Name"
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-navy-900 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-navy-900 mb-1.5 flex items-center gap-1.5">
+              <Phone className="w-3.5 h-3.5 text-slate-400" /> Phone Number <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="0911... or +251 9..."
+              className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-navy-900 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
+            />
+            <span className="text-[10px] text-slate-400 mt-0.5 block">Shopper will call you on this number</span>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-navy-900 mb-1.5 flex items-center gap-1.5">
+            <MapPin className="w-3.5 h-3.5 text-slate-400" /> City / Sub-City Area <span className="text-red-500">*</span>
+          </label>
+          <select
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-navy-900 bg-white focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
+          >
+            {ETHIOPIA_CITIES.map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-navy-900 mb-1.5 flex items-center gap-1.5">
+            <MapPin className="w-3.5 h-3.5 text-slate-400" /> Street Address / Nearest Landmark <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            placeholder="e.g. Bole Mikael, Behind Church, House #124"
+            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-navy-900 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-slate-600 mb-1.5 flex items-center gap-1.5">
+            <FileText className="w-3.5 h-3.5 text-slate-400" /> Delivery Notes (Optional)
+          </label>
+          <input
+            type="text"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="e.g. Call 30 mins before arrival, deliver after 2:30 local"
+            className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs text-navy-900 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none"
+          />
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-3">

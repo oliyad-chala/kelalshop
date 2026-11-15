@@ -16,6 +16,7 @@ import {
   CheckCircle2,
   Package,
   Sparkles,
+  AlertTriangle,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/Badge'
 import { Card } from '@/components/ui/Card'
@@ -24,6 +25,7 @@ import { acceptOrder, markOrderShipped, confirmDelivery, cancelOrder } from '@/l
 import { RecordSaleModal } from './RecordSaleModal'
 import { RateSellerButton } from './RateSellerButton'
 import { ContactedItemsList } from './ContactedItemsList'
+import { ReportIssueModal } from './ReportIssueModal'
 
 interface OrdersManagerProps {
   isShopper: boolean
@@ -53,6 +55,7 @@ export function OrdersManager({
   const [orders, setOrders] = useState<any[]>(initialOrders)
   const [copiedOrderId, setCopiedOrderId] = useState<string | null>(null)
   const [processingId, setProcessingId] = useState<string | null>(null)
+  const [disputeModalOrder, setDisputeModalOrder] = useState<any | null>(null)
 
   const statusLabel: Record<string, string> = {
     pending: 'Processing',
@@ -480,23 +483,52 @@ export function OrdersManager({
                       </button>
                     )}
 
+                    {order.status === 'disputed' && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-50 border border-red-200 text-red-700 text-xs font-bold">
+                        <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+                        <span>Under Admin Mediation</span>
+                      </span>
+                    )}
+
                     {!isShopper && order.status === 'shipped' && (
-                      <button
-                        type="button"
-                        disabled={processingId === order.id}
-                        onClick={() => handleAction(order.id, confirmDelivery, 'delivered')}
-                        className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
-                      >
-                        ✓ I Received the Item
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={processingId === order.id}
+                          onClick={() => handleAction(order.id, confirmDelivery, 'delivered')}
+                          className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-colors disabled:opacity-50"
+                        >
+                          ✓ I Received the Item
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setDisputeModalOrder(order)}
+                          className="px-3 py-1.5 bg-white hover:bg-red-50 text-red-600 border border-red-200 rounded-xl text-xs font-semibold transition-colors flex items-center gap-1"
+                          title="Report missing or damaged item to admin"
+                        >
+                          <AlertTriangle className="w-3 h-3" />
+                          <span>Report Issue</span>
+                        </button>
+                      </div>
                     )}
 
                     {!isShopper && order.status === 'delivered' && (
-                      <RateSellerButton
-                        shopperName={order.shopper?.full_name || 'Seller'}
-                        orderId={order.id}
-                        shopperId={order.shopper_id as string}
-                      />
+                      <div className="flex items-center gap-2">
+                        <RateSellerButton
+                          shopperName={order.shopper?.full_name || 'Seller'}
+                          orderId={order.id}
+                          shopperId={order.shopper_id as string}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setDisputeModalOrder(order)}
+                          className="px-2.5 py-1.5 bg-white hover:bg-red-50 text-slate-500 hover:text-red-600 border border-slate-200 hover:border-red-200 rounded-xl text-xs font-medium transition-colors flex items-center gap-1"
+                          title="Report issue with delivered item"
+                        >
+                          <AlertTriangle className="w-3 h-3" />
+                          <span>Dispute</span>
+                        </button>
+                      </div>
                     )}
                   </div>
                 </div>
@@ -516,6 +548,22 @@ export function OrdersManager({
           shopperName={shopperName}
           onSuccess={() => {
             if (typeof window !== 'undefined') window.location.reload()
+          }}
+        />
+      )}
+
+      {/* Report Issue / Dispute Modal */}
+      {disputeModalOrder && (
+        <ReportIssueModal
+          isOpen={!!disputeModalOrder}
+          onClose={() => setDisputeModalOrder(null)}
+          orderId={disputeModalOrder.id}
+          productName={disputeModalOrder.product?.name || 'Order Item'}
+          orderAmount={Number(disputeModalOrder.amount)}
+          onSuccess={() => {
+            setOrders((prev) =>
+              prev.map((o) => (o.id === disputeModalOrder.id ? { ...o, status: 'disputed' } : o))
+            )
           }}
         />
       )}

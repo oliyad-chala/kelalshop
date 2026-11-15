@@ -17,6 +17,12 @@ export default async function CheckoutPage() {
     redirect('/auth/login?redirectTo=/checkout')
   }
 
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('full_name, phone')
+    .eq('id', user.id)
+    .single()
+
   const location = await getUserLocation()
   const shippingResult = await resolveCheckoutShipping(supabase, location)
   const shipping = {
@@ -41,7 +47,13 @@ export default async function CheckoutPage() {
           Checkout
         </h1>
 
-        <CheckoutForm shipping={shipping} />
+        <CheckoutForm
+          shipping={shipping}
+          userProfile={{
+            fullName: profile?.full_name || '',
+            phone: profile?.phone || '',
+          }}
+        />
       </div>
     </main>
   )

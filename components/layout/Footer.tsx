@@ -118,6 +118,7 @@ export function Footer() {
                   Support (Telegram)
                 </a>
               </li>
+              <li><Link href="/refund" className="hover:text-amber-500 hover:translate-x-1 inline-block transition-all">Return & Refund Policy</Link></li>
               <li><Link href="/privacy" className="hover:text-amber-500 hover:translate-x-1 inline-block transition-all">Privacy Policy</Link></li>
               <li><Link href="/terms" className="hover:text-amber-500 hover:translate-x-1 inline-block transition-all">Terms of Service</Link></li>
             </ul>
@@ -142,6 +143,7 @@ export function Footer() {
         <div className="border-t border-white/10 pt-8 mt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-navy-500">
           <p>© {new Date().getFullYear()} KelalShop. All rights reserved.</p>
           <div className="flex gap-4">
+            <Link href="/refund" className="hover:text-amber-500 transition-colors">Return Policy</Link>
             <Link href="/privacy" className="hover:text-amber-500 transition-colors">Privacy Policy</Link>
             <Link href="/terms" className="hover:text-amber-500 transition-colors">Terms of Service</Link>
           </div>

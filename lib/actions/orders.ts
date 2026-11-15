@@ -280,19 +280,44 @@ export async function cancelOrder(orderId: string) {
   revalidatePath('/dashboard')
 }
 
+export type DeliveryDetails = {
+  fullName?: string
+  phone?: string
+  city?: string
+  address?: string
+  notes?: string
+}
+
 /**
  * Buyer places an order
  * Pass shippingPromotionId only once per checkout (first cart line) to apply platform shipping deal.
  */
 export async function createOrder(
   productId: string,
-  shippingPromotionId?: string | null
+  shippingPromotionId?: string | null,
+  deliveryDetails?: DeliveryDetails
 ) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) throw new Error('Unauthorized')
 
   let finalProductId = productId
+
+  // Format delivery note for shopper visibility
+  let formattedNotes: string | null = null
+  if (deliveryDetails) {
+    const parts: string[] = []
+    if (deliveryDetails.fullName?.trim()) parts.push(`Customer: ${deliveryDetails.fullName.trim()}`)
+    if (deliveryDetails.phone?.trim()) parts.push(`Phone: ${deliveryDetails.phone.trim()}`)
+    if (deliveryDetails.city?.trim() || deliveryDetails.address?.trim()) {
+      const loc = [deliveryDetails.city?.trim(), deliveryDetails.address?.trim()].filter(Boolean).join(' - ')
+      parts.push(`Delivery: ${loc}`)
+    }
+    if (deliveryDetails.notes?.trim()) parts.push(`Notes: ${deliveryDetails.notes.trim()}`)
+    if (parts.length > 0) {
+      formattedNotes = parts.join(' | ')
+    }
+  }
 
   // Bypass for mock products so the user can test the workflow
   if (productId.startsWith('mock')) {
@@ -330,7 +355,7 @@ export async function createOrder(
     const location = await getUserLocation()
     const promotion = await getActiveShippingPromotion(supabase, location)
     if (promotion && promotion.id === shippingPromotionId) {
-      const shipping = computeShippingFee(DEFAULT_SHIPPING_FEE_ETB, promotion)
+      const shipping = computeShippingFee(DEFAULT_SHIPPING_FEE_ETB, promotion as any)
       shippingFee = shipping.fee
       shippingDiscount = shipping.discount
       appliedPromotionId = promotion.id
@@ -359,11 +384,16 @@ export async function createOrder(
         shipping_fee: shippingFee,
         shipping_discount: shippingDiscount,
         shipping_promotion_id: appliedPromotionId,
+        notes: formattedNotes,
       } as any)
       .select('id')
       .single()
 
     if (insertError) throw new Error(insertError.message)
+
+    if (deliveryDetails?.phone) {
+      await supabase.from('profiles').update({ phone: deliveryDetails.phone }).eq('id', user.id).is('phone', null)
+    }
 
     emitTelegramEvent('admin', 'NEW_ORDER', { orderId: order.id, amount }, { idempotencyKey: `order-${order.id}` })
     emitTelegramEvent('customer', 'ORDER_PLACED', { orderId: order.id, amount }, {
@@ -404,6 +434,13 @@ export async function createOrder(
   
   const orderId = data as string
 
+  if (formattedNotes) {
+    await supabase.from('orders').update({ notes: formattedNotes } as any).eq('id', orderId)
+  }
+  if (deliveryDetails?.phone) {
+    await supabase.from('profiles').update({ phone: deliveryDetails.phone }).eq('id', user.id).is('phone', null)
+  }
+
   emitTelegramEvent('admin', 'NEW_ORDER', { orderId, amount }, { idempotencyKey: `order-${orderId}` })
   emitTelegramEvent('customer', 'ORDER_PLACED', { orderId, amount }, {
     targetProfileId: user.id,
@@ -440,6 +477,86 @@ export async function createOrder(
   revalidatePath('/dashboard')
 
   return data
+}
+
+/**
+ * Buyer opens a dispute on an order.
+ * Workflow: shipped/delivered/accepted → disputed
+ */
+export async function disputeOrder(orderId: string, reason: string) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) throw new Error('Unauthorized')
+
+  if (!reason || reason.trim().length < 5) {
+    throw new Error('Please provide an explanation for the dispute (at least 5 characters).')
+  }
+
+  // Verify the user is the buyer
+  const { data: order, error: fetchError } = await supabase
+    .from('orders')
+    .select('id, buyer_id, shopper_id, status, notes, amount')
+    .eq('id', orderId)
+    .single()
+
+  if (fetchError || !order) {
+    throw new Error('Order not found.')
+  }
+
+  if (order.buyer_id !== user.id) {
+    throw new Error('Only the buyer of this order can open a dispute.')
+  }
+
+  if (order.status === 'disputed') {
+    throw new Error('This order is already under dispute.')
+  }
+
+  if (order.status === 'cancelled') {
+    throw new Error('Cancelled orders cannot be disputed.')
+  }
+
+  const disputeNote = `[Disputed by Buyer]: ${reason.trim()}`
+  const updatedNotes = order.notes ? `${order.notes}\n${disputeNote}` : disputeNote
+
+  const { error: updateError } = await supabase
+    .from('orders')
+    .update({
+      status: 'disputed' as any,
+      notes: updatedNotes,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', orderId)
+
+  if (updateError) {
+    throw new Error(updateError.message)
+  }
+
+  // Notify admin and shopper via Telegram
+  emitTelegramEvent('admin', 'SUPPORT_TICKET', {
+    ticketId: orderId,
+    subject: `Dispute on order ${orderId.slice(0, 8)}: ${reason.trim().slice(0, 50)}`
+  }, {
+    idempotencyKey: `dispute-${orderId}`
+  })
+  emitTelegramEvent('customer', 'ORDER_CANCELLED', { orderId }, {
+    targetProfileId: order.shopper_id,
+    idempotencyKey: `dispute-shopper-${orderId}`
+  })
+
+  const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', user.id).single()
+  await logUserAction({
+    userId: user.id,
+    userName: profile?.full_name ?? user.email ?? 'Buyer',
+    actionType: 'update_order_status',
+    entityType: 'order',
+    entityId: orderId,
+    description: `Opened dispute for order ${orderId}: ${reason.trim()}`
+  })
+
+  revalidatePath('/dashboard/orders')
+  revalidatePath('/dashboard')
+  revalidatePath('/admin/disputes')
+  return { success: true }
 }
 
 /**

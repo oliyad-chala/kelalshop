@@ -12,6 +12,7 @@ import { BuyButton } from './BuyButton'
 import { MOCK_PRODUCTS } from '@/lib/constants/mock-data'
 import { ProductGallery } from '@/components/products/ProductGallery'
 import { HomeProductCard } from '@/components/products/HomeProductCard'
+import { ProductShareBar } from '@/components/products/ProductShareBar'
 import { trackProductView } from '@/lib/actions/tracking'
 import type { ProductWithDetails } from '@/types/app.types'
 import { getActiveCampaignOffer, resolveDisplayPrice } from '@/lib/utils/campaign-pricing'
@@ -344,6 +345,8 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                 </svg>
                 Message Shopper
               </Link>
+
+              <ProductShareBar productName={product.name} productId={product.id} />
             </div>
           </div>
         </div>
