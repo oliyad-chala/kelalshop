@@ -3,6 +3,8 @@ import { customerBot } from '../customer/bot'
 import { generateAIContentWithFallback } from '../ai/client-wrapper'
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://kelalshop.com'
+const IS_HTTPS = typeof BASE_URL === 'string' && BASE_URL.startsWith('https://')
+const SAFE_WEB_URL = !BASE_URL || BASE_URL.includes('localhost') ? 'https://kelalshop.com' : BASE_URL
 
 /**
  * 1. New User First-Order Reminder
@@ -63,7 +65,7 @@ export async function sendNewUserFirstOrderReminders(): Promise<number> {
     const keyboard = {
       inline_keyboard: [
         [
-          { text: '🛍️ Open Shop Mini App', web_app: { url: `${BASE_URL}/telegram/checkout` } }
+          { text: '🛍️ Open Shop on Website', url: `${SAFE_WEB_URL}/products` }
         ],
         [
           { text: '⚡ Flash Deals', callback_data: 'nav_deals' },
@@ -161,7 +163,7 @@ export async function sendCartAbandonmentReminders(): Promise<number> {
     const keyboard = {
       inline_keyboard: [
         [
-          { text: '💳 Secure Checkout Mini App', web_app: { url: `${BASE_URL}/telegram/checkout` } }
+          { text: '💳 Checkout on Website', url: `${SAFE_WEB_URL}/cart` }
         ],
         [
           { text: '⏰ Remind Me Tomorrow', callback_data: 'remind_cart_tomorrow' }
@@ -255,7 +257,7 @@ export async function sendPendingOrderReminders(): Promise<number> {
     const keyboard = {
       inline_keyboard: [
         [
-          { text: '💳 Upload Receipt / View Order', web_app: { url: `${BASE_URL}/telegram/checkout` } }
+          { text: '💳 View Order on Website', url: `${SAFE_WEB_URL}/dashboard/buyer/orders` }
         ],
         [
           { text: '💬 Chat with Support', callback_data: 'nav_support' }

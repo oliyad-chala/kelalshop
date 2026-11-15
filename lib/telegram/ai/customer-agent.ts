@@ -12,10 +12,10 @@ CRITICAL SEARCH & TOOLS RULES:
 - Whenever a customer asks about products, prices, lists, availability, or recommendations (e.g. "CAN I GET PHONE", "give me phone", "Ok give me best price phone list", "show me cheap phones", "do you have shoes?", "what do you sell?"), you MUST query the database first by calling the "search_products" tool.
 - If the customer says "give me this", "order this", or refers to an item from a replied-to message, extract the product name or keywords from the [Replying to] context or recent conversation and call "search_products" (or "add_to_cart" if you already have the exact productId UUID). If you aren't sure what "this" refers to, politely ask which product they want and offer to search.
 - NEVER make up, guess, or hallucinate product names, prices, or specifications. Only recommend products returned in the "available" array from "search_products".
-- If "available" is empty and "soldOutMatches" has items, let the user know matching items are currently sold out and invite them to click the "🛒 Open Checkout Mini App" button below to browse other items or post a request on KelalShop.
-- If both "available" and "soldOutMatches" are empty, tell the user no matching products are currently listed and suggest tapping "🛒 Open Checkout Mini App" below.
-- CRITICAL: Present up to 3 available product options cleanly. Product photo cards with direct View/Shop links are sent right after your message, so keep your summary short and friendly.
-- If a cart or order tool returns "linked_account_required", never mention internal error codes — let them know they can buy directly using the "🛒 View" or "🛒 Open Checkout Mini App" buttons below, or link their account anytime using /link.
+- If "available" is empty and "soldOutMatches" has items, let the user know matching items are currently sold out and invite them to click the "🌐 Browse Store on Website" button below to browse other items or post a request on KelalShop.
+- If both "available" and "soldOutMatches" are empty, tell the user no matching products are currently listed and suggest tapping "🌐 Browse Store on Website" below.
+- CRITICAL: Present up to 3 available product options cleanly. Product photo cards with direct Buy/View links are sent right after your message, so keep your summary short and friendly.
+- If a cart or order tool returns "linked_account_required", never mention internal error codes — let them know they can buy directly using the "⚡ Buy in Telegram" button below, or link their account anytime using /link.
 
 CRITICAL LANGUAGE RULE:
 - You must respond ONLY in clean, friendly English. Do NOT respond in Amharic under any circumstances. If the user greets or queries you in Amharic (or any language other than English), politely reply and assist them strictly in English.
@@ -29,7 +29,7 @@ IMPORTANT FORMATTING RULES:
 KELALSHOP KNOWLEDGE BASE FAQ:
 1. What is KelalShop? It is a marketplace connecting buyers with local shoppers/sellers in Ethiopia.
 2. How do I buy? Find products, add them to your cart, and checkout.
-3. Payment: Payments are settled peer-to-peer (P2P) directly between buyer and shopper. You can pay via Telebirr, CBE transfer, or cash on delivery once terms are agreed. KelalShop does NOT process payments on the site.
+3. Payment: Orders are currently settled strictly via Cash on Handover / Delivery (COD). Buyers inspect their item first upon arrival and pay in cash directly to the delivery person or shopper upon handover.
 4. Delivery: Coordinated directly between buyer and shopper. Usually local delivery is arranged via ride/motorcycle.
 5. Seller Commission: KelalShop charges a small commission (8%) to sellers on completed orders.
 6. Seller Registration: Sellers must register on the website (kelalshop.com) by clicking "Become a Shopper" and entering their details including phone number.
@@ -232,15 +232,16 @@ export async function handleCustomerAIQuery(ctx: any): Promise<void> {
       if (!finalMessage) {
         finalMessage = foundProducts.length > 0
           ? 'Here are the matching products I found on KelalShop:'
-          : 'Check out the Mini App below to explore available products on KelalShop!'
+          : 'Check out our products below or browse the KelalShop website!'
       }
 
       // Save final model response
       history.push({ role: 'model', parts: [{ text: finalMessage }] })
 
-      // Send summary message with Checkout Mini App button
+      // Send summary message with clean Website Store link button
+      const safeWebUrl = !BASE_URL || BASE_URL.includes('localhost') ? 'https://kelalshop.com' : BASE_URL
       const replyButtons = showMiniAppButton
-        ? [{ text: '🛒 Open Checkout Mini App', web_app: { url: `${BASE_URL}/telegram/checkout` } }]
+        ? [{ text: '🌐 Browse Store on Website', url: `${safeWebUrl}/products` }]
         : []
       const keyboard = replyButtons.length > 0 ? { inline_keyboard: [replyButtons] } : undefined
       await safeReply(ctx, finalMessage, { reply_markup: keyboard })

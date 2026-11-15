@@ -6,6 +6,7 @@ import { handleSupportPrompt, registerSupportFlow } from './flows/support.flow'
 import { handleOrders, registerOrdersFlow } from './flows/orders.flow'
 import { handleDeals, registerDealsFlow } from './flows/deals.flow'
 import { registerSearchFlow } from './flows/search.flow'
+import { registerCheckoutFlow, startInChatCheckout } from './flows/checkout.flow'
 import { getTelegramSupabase } from '../core/supabase-admin'
 
 export const mainMenu = new Keyboard()
@@ -65,6 +66,14 @@ export function registerCustomerHandlers(bot: Bot<CustomerBotContext>) {
   registerSupportFlow(bot)
   registerOrdersFlow(bot)
   registerDealsFlow(bot)
+  registerCheckoutFlow(bot, mainMenu)
+
+  // Direct In-Chat Buy Button Callback
+  bot.callbackQuery(/^buy_prod_(.*)$/, async (ctx) => {
+    const productId = ctx.match[1]
+    await ctx.answerCallbackQuery()
+    await startInChatCheckout(ctx, productId)
+  })
 
   bot.hears('🔍 Search Products', async (ctx) => {
     await ctx.reply(
@@ -115,10 +124,11 @@ export function registerCustomerHandlers(bot: Bot<CustomerBotContext>) {
     text += `Subtotal: <b>${subtotal} ETB</b>`
 
     const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://kelalshop.com'
+    const safeWebUrl = !BASE_URL || BASE_URL.includes('localhost') ? 'https://kelalshop.com' : BASE_URL
     const keyboard = {
       inline_keyboard: [
         [
-          { text: '💳 Secure Checkout Mini App', web_app: { url: `${BASE_URL}/telegram/checkout` } }
+          { text: '💳 Checkout on Website', url: `${safeWebUrl}/cart` }
         ],
         [
           { text: '⏰ Remind Me Tomorrow', callback_data: 'remind_cart_tomorrow' }
@@ -168,10 +178,11 @@ export function registerCustomerHandlers(bot: Bot<CustomerBotContext>) {
     }
 
     const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://kelalshop.com'
+    const safeWebUrl = !BASE_URL || BASE_URL.includes('localhost') ? 'https://kelalshop.com' : BASE_URL
     const keyboard = {
       inline_keyboard: [
         [
-          { text: '🛍️ Open Shop', web_app: { url: `${BASE_URL}/telegram/checkout` } },
+          { text: '🛍️ Browse Products', url: `${safeWebUrl}/products` },
           { text: '⚡ Flash Deals', callback_data: 'nav_deals' }
         ]
       ]

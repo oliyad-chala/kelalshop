@@ -21,12 +21,19 @@ export async function sendTelegramProductCards(
   products: Array<{ id: string; name: string; price: number; image?: string | null }>,
   baseUrl: string
 ): Promise<void> {
+  const safeWebUrl = !baseUrl || baseUrl.includes('localhost') ? 'https://kelalshop.com' : baseUrl
+
   for (const product of products) {
     const productKeyboard = new InlineKeyboard()
-      .url('🛒 View & Buy', `${baseUrl}/products/${product.id}`)
-      .url('🛍️ Shop All', `${baseUrl}/products`)
+      .text('⚡ Buy in Telegram', `buy_prod_${product.id}`)
+      .row()
+      .url('🌐 View on Website', `${safeWebUrl}/products/${product.id}`)
+      .url('📦 More Qty / Bulk', `${safeWebUrl}/products/${product.id}`)
 
-    const caption = `📦 <b>${escapeHtml(product.name)}</b>\n💰 ${formatEtb(Number(product.price))}`
+    const caption =
+      `🛍️ <b>${escapeHtml(product.name)}</b>\n` +
+      `💰 Price: <b>${formatEtb(Number(product.price))}</b>\n` +
+      `✨ <i>Verified &amp; Available on KelalShop</i>`
 
     if (product.image) {
       try {
@@ -47,7 +54,7 @@ export async function sendTelegramProductCards(
         reply_markup: productKeyboard,
       })
     } catch {
-      await ctx.reply(`📦 ${product.name}\n💰 ${formatEtb(Number(product.price))}`, {
+      await ctx.reply(`🛍️ ${product.name}\n💰 ${formatEtb(Number(product.price))}`, {
         reply_markup: productKeyboard,
       })
     }
