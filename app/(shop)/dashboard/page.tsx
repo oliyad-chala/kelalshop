@@ -8,7 +8,7 @@ import { RealtimeListener } from '@/components/dashboard/RealtimeListener'
 import { Avatar } from '@/components/ui/Avatar'
 import { DashboardHeaderActions } from '@/components/dashboard/DashboardHeaderActions'
 import { getSellerProductsForSale } from '@/lib/actions/orders'
-import { MessageSquare, ArrowRight } from 'lucide-react'
+import { MessageSquare, ArrowRight, ExternalLink } from 'lucide-react'
 
 export const metadata = {
   title: 'Dashboard | KelalShop',
@@ -73,7 +73,7 @@ export default async function DashboardPage() {
         .limit(5),
       supabase
         .from('requests')
-        .select('*, categories(name), profiles:buyer_id(full_name)')
+        .select('*, categories(name), profiles:buyer_id(full_name, avatar_url)')
         .eq('status', 'open')
         .order('created_at', { ascending: false })
         .limit(5),
@@ -146,7 +146,7 @@ export default async function DashboardPage() {
         .limit(5),
       supabase
         .from('requests')
-        .select('*, categories(name)')
+        .select('*, categories(name), profiles:buyer_id(full_name, avatar_url)')
         .eq('buyer_id', user.id)
         .order('created_at', { ascending: false })
         .limit(5),
@@ -224,8 +224,8 @@ export default async function DashboardPage() {
 
   const directMap = new Map<string, any>()
   if (directMsgsRes.data) {
-    for (const msg of directMsgsRes.data) {
-      const partner = msg.sender_id === user.id ? msg.recipient : msg.sender
+    for (const msg of (directMsgsRes.data as any[])) {
+      const partner = (msg.sender_id === user.id ? msg.recipient : msg.sender) as any
       if (!partner || !partner.id) continue
       if (!directMap.has(partner.id)) {
         directMap.set(partner.id, {
@@ -372,10 +372,10 @@ export default async function DashboardPage() {
               {recentOrders.map((order: any) => {
                 const isDirectSale = order.delivery_address?.startsWith('Direct Sale') || order.delivery_address?.startsWith('Direct sale')
                 return (
-                  <div key={order.id} className="flex items-center justify-between px-6 py-3.5 hover:bg-slate-50/60 transition-colors">
+                  <Link key={order.id} href="/dashboard/orders" className="flex items-center justify-between px-6 py-3.5 hover:bg-slate-50/60 transition-colors group">
                     <div className="min-w-0 flex-1 pr-2">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <p className="text-sm font-medium text-navy-900 truncate">{order.products?.name || 'Custom Request Order'}</p>
+                        <p className="text-sm font-medium text-navy-900 truncate group-hover:text-amber-600 transition-colors">{order.products?.name || 'Custom Request Order'}</p>
                         {isDirectSale && (
                           <span className="text-[10px] bg-emerald-50 text-emerald-700 font-semibold px-1.5 py-0.5 rounded border border-emerald-200">
                             Direct Sale
@@ -390,7 +390,7 @@ export default async function DashboardPage() {
                       <span className="text-sm font-semibold text-navy-900">{formatPrice(order.amount)}</span>
                       <Badge variant={getOrderStatusColor(order.status) as any} size="sm" className="capitalize">{order.status}</Badge>
                     </div>
-                  </div>
+                  </Link>
                 )
               })}
             </div>
@@ -401,14 +401,23 @@ export default async function DashboardPage() {
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
           <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
             <div>
-              <h2 className="font-semibold text-navy-900">
-                {isShopper ? 'Find Requests' : 'Your Requests'}
-              </h2>
+              <div className="flex items-center gap-2">
+                <h2 className="font-semibold text-navy-900">
+                  {isShopper ? 'Find Requests' : 'Your Requests'}
+                </h2>
+                {recentRequests.length > 0 && isShopper && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 text-[10px] font-bold border border-amber-200/60">
+                    {recentRequests.length} Open
+                  </span>
+                )}
+              </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                {isShopper ? 'Buyer requests to respond' : 'Items asked shoppers to find'}
+                {isShopper ? 'Buyer requests to respond — view & make an offer' : 'Items asked shoppers to find'}
               </p>
             </div>
-            <Link href="/dashboard/requests" className="text-xs font-semibold text-amber-600 hover:underline">View all →</Link>
+            <Link href="/dashboard/requests" className="text-xs font-semibold text-amber-600 hover:underline flex items-center gap-1">
+              View all <ArrowRight size={12} />
+            </Link>
           </div>
           {recentRequests.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-slate-400 text-sm gap-2 flex-1">
@@ -421,24 +430,78 @@ export default async function DashboardPage() {
               )}
             </div>
           ) : (
-            <div className="divide-y divide-slate-50 flex-1">
-              {recentRequests.map((req: any) => (
-                <Link key={req.id} href="/dashboard/requests" className="flex items-center justify-between px-6 py-3.5 hover:bg-slate-50/60 transition-colors group">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-medium text-navy-900 truncate group-hover:text-amber-600 transition-colors">{req.title}</p>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {isShopper ? req.profiles?.full_name : req.categories?.name ?? 'Uncategorised'} · {formatDate(req.created_at)}
-                    </p>
-                  </div>
-                  <div className="ml-4 shrink-0">
-                    {req.budget ? (
-                      <span className="text-sm font-semibold text-navy-900">{formatPrice(req.budget)}</span>
-                    ) : (
-                      <span className="text-xs text-slate-400">No budget</span>
-                    )}
-                  </div>
-                </Link>
-              ))}
+            <div className="divide-y divide-slate-100 flex-1">
+              {recentRequests.map((req: any) => {
+                const buyerName = req.profiles?.full_name || 'Buyer'
+                const buyerAvatar = req.profiles?.avatar_url
+                const categoryName = req.categories?.name
+                const hasLink = Boolean(req.source_url)
+
+                return (
+                  <Link 
+                    key={req.id} 
+                    href={`/requests/${req.id}`} 
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-6 py-4 hover:bg-amber-50/40 transition-all group border-l-2 border-transparent hover:border-amber-500"
+                  >
+                    <div className="min-w-0 flex-1 space-y-1.5">
+                      {/* Top Badges & Meta */}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {categoryName && (
+                          <span className="text-[10px] font-semibold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">
+                            {categoryName}
+                          </span>
+                        )}
+                        {hasLink && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-medium text-blue-700 bg-blue-50 border border-blue-200/60 px-1.5 py-0.5 rounded">
+                            <ExternalLink size={10} />
+                            Store Link
+                          </span>
+                        )}
+                        <span className="text-[11px] text-slate-400">
+                          {formatRelativeTime(req.created_at)}
+                        </span>
+                      </div>
+
+                      {/* Request Title */}
+                      <h3 className="text-sm font-semibold text-navy-900 group-hover:text-amber-600 transition-colors line-clamp-1">
+                        {req.title}
+                      </h3>
+
+                      {/* Buyer Details */}
+                      <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                        {isShopper ? (
+                          <>
+                            <Avatar size="xs" src={buyerAvatar} name={buyerName} />
+                            <span className="font-medium text-slate-700 truncate max-w-[140px]">{buyerName}</span>
+                          </>
+                        ) : (
+                          <span>{req.status === 'open' ? 'Waiting for shoppers' : `Status: ${req.status}`}</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Right Side: Budget & Action */}
+                    <div className="flex items-center sm:flex-col sm:items-end justify-between sm:justify-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+                      <div>
+                        {req.budget ? (
+                          <div className="text-right">
+                            <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Budget</span>
+                            <span className="text-sm font-bold text-amber-600">{formatPrice(req.budget)}</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs font-medium text-slate-400 bg-slate-50 px-2 py-1 rounded-md border border-slate-100">
+                            Open Budget
+                          </span>
+                        )}
+                      </div>
+
+                      <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-600 group-hover:text-amber-700 group-hover:translate-x-0.5 transition-all">
+                        {isShopper ? 'View & Offer' : 'View Details'} <ArrowRight size={13} />
+                      </span>
+                    </div>
+                  </Link>
+                )
+              })}
             </div>
           )}
         </div>
