@@ -257,7 +257,9 @@ export default function SupportInboxClient({
           display: 'flex',
           flexDirection: 'column',
           background: '#fcfcfd',
-          height: '100%'
+          height: '100%',
+          minHeight: 0,
+          overflow: 'hidden'
         }}
       >
         {/* Search header */}
@@ -266,7 +268,8 @@ export default function SupportInboxClient({
           borderBottom: '1px solid var(--color-admin-border)',
           display: 'flex',
           flexDirection: 'column',
-          gap: '0.75rem'
+          gap: '0.75rem',
+          flexShrink: 0
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--color-text-primary)' }}>Customers</span>
@@ -308,7 +311,10 @@ export default function SupportInboxClient({
         </div>
 
         {/* Scrollable list */}
-        <div style={{ flex: 1, overflowY: 'auto' }}>
+        <div 
+          className="support-sidebar-list"
+          style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}
+        >
           {filteredConversations.length === 0 ? (
             <div style={{
               padding: '3rem 1.5rem',
@@ -759,6 +765,7 @@ export default function SupportInboxClient({
             flexDirection: 'column',
             background: '#fff',
             height: '100%',
+            minHeight: 0,
             overflowY: 'auto'
           }}
         >

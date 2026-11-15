@@ -39,7 +39,7 @@ export default async function SupportDeskPage() {
       </div>
 
       {/* SUPPORT INBOX DESK */}
-      <div style={{ flex: 1, minHeight: 0 }}>
+      <div style={{ flex: 1, minHeight: 0, height: '100%', display: 'flex', flexDirection: 'column' }}>
         <SupportInboxClient 
           initialConversations={initialConversations as any}
           adminUserId={user.id}

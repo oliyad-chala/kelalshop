@@ -778,14 +778,16 @@ body.admin-menu-open {
 .support-page-shell {
   display: flex;
   flex-direction: column;
-  gap: 1.25rem;
-  height: calc(100vh - 120px);
+  gap: 1rem;
+  height: calc(100vh - 135px);
+  min-height: 0;
 }
 
 .support-inbox-shell {
   display: grid;
+  grid-template-rows: 100%;
   height: 100%;
-  min-height: 600px;
+  min-height: 0;
   background: var(--color-admin-surface);
   border: 1px solid var(--color-admin-border);
   border-radius: 12px;
@@ -794,13 +796,43 @@ body.admin-menu-open {
   transition: grid-template-columns 0.3s ease;
 }
 
+.support-sidebar-col,
+.support-chat-col,
+.support-profile-col {
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.support-sidebar-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+  -webkit-overflow-scrolling: touch;
+}
+
+.support-sidebar-list::-webkit-scrollbar {
+  width: 6px;
+}
+.support-sidebar-list::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+.support-sidebar-list::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
 /* Desktop: 3-column when active, 2-column when idle */
 @media (min-width: 901px) {
   .support-inbox-shell.has-active {
     grid-template-columns: 320px 1fr 340px;
+    grid-template-rows: 100%;
   }
   .support-inbox-shell:not(.has-active) {
     grid-template-columns: 320px 1fr;
+    grid-template-rows: 100%;
   }
   .support-mobile-back-btn,
   .support-mobile-toggle-btn,
@@ -833,6 +865,7 @@ body.admin-menu-open {
     display: flex !important;
     width: 100% !important;
     height: 100% !important;
+    min-height: 0 !important;
     border-right: none !important;
   }
   .support-inbox-shell:not(.has-active) .support-chat-col,
@@ -850,6 +883,7 @@ body.admin-menu-open {
     display: flex !important;
     width: 100% !important;
     height: 100% !important;
+    min-height: 0 !important;
   }
   .support-inbox-shell.has-active.show-chat .support-profile-col {
     display: none !important;
@@ -860,6 +894,7 @@ body.admin-menu-open {
     display: flex !important;
     width: 100% !important;
     height: 100% !important;
+    min-height: 0 !important;
     border-left: none !important;
   }
   .support-inbox-shell.has-active.show-info .support-chat-col {
