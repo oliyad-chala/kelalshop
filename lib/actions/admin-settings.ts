@@ -21,7 +21,7 @@ export async function getPlatformSettings() {
   return {
     maintenanceMode: data?.maintenance_mode ?? false,
     platformName: data?.platform_name ?? 'KelalShop',
-    supportEmail: data?.support_email ?? 'support@kelalshop.com',
+    supportEmail: data?.support_email ?? 'kelalshopp@gmail.com',
     autoVerify: data?.auto_verify_sellers ?? false
   }
 }

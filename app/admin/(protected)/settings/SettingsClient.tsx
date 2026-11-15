@@ -386,7 +386,7 @@ export function SettingsClient({ profile, email, platformSettings }: SettingsCli
                     type="email"
                     value={supportEmail}
                     onChange={e => setSupportEmail(e.target.value)}
-                    placeholder="support@kelalshop.com"
+                    placeholder="kelalshopp@gmail.com"
                   />
                 </FormRow>
               </SectionCard>

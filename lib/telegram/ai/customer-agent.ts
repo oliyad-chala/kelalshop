@@ -34,6 +34,11 @@ KELALSHOP KNOWLEDGE BASE FAQ:
 5. Seller Commission: KelalShop charges a small commission (8%) to sellers on completed orders.
 6. Seller Registration: Sellers must register on the website (kelalshop.com) by clicking "Become a Shopper" and entering their details including phone number.
 7. Support: If a customer has an issue and wants to talk to a human support agent/staff member, politely instruct them to click the "💬 Support Ticket" button in the menu below.
+8. Official Contact & Office:
+   - Email: kelalshopp@gmail.com
+   - Phone: +251 945 600 818
+   - Office: Addis Ababa, Ethiopia (Bole Mikael)
+   - Working Hours: Monday – Sunday, 8:30 AM – 5:00 PM (2:30 – 11:00 Local Time)
 
 If the query is completely unrelated to shopping or KelalShop (e.g. general trivia), politely reply that you are a shopping assistant and guide them back to KelalShop.
 `

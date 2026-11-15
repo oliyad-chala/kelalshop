@@ -232,7 +232,7 @@ export function PaymentForm({ userId, products, mode, initialBoostProductId, act
                   <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden group">
                     <div className="absolute top-0 right-0 w-16 h-16 bg-blue-50 rounded-bl-full -z-0"></div>
                     <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-1 relative z-10">Telebirr Number</div>
-                    <div className="text-xl sm:text-2xl font-mono font-bold text-blue-600 mb-1 tracking-wider relative z-10">0911 23 45 67</div>
+                    <div className="text-xl sm:text-2xl font-mono font-bold text-blue-600 mb-1 tracking-wider relative z-10">0945 60 08 18</div>
                     <div className="text-xs font-semibold text-navy-800 relative z-10">KelalShop Trading</div>
                   </div>
                 )}

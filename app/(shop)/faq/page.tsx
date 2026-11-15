@@ -97,7 +97,7 @@ const FAQ_CATEGORIES = [
       },
       {
         q: 'What happens if my item does not arrive?',
-        a: 'If your item does not arrive within the agreed timeframe, contact your shopper through our chat system immediately. You can also reach our support team at support@kelalshop.com and we will assist in resolving the issue.',
+        a: 'If your item does not arrive within the agreed timeframe, contact your shopper through our chat system immediately. You can also reach our support team at kelalshopp@gmail.com and we will assist in resolving the issue.',
       },
       {
         q: 'Do you deliver to cities outside Addis Ababa?',
@@ -141,7 +141,7 @@ const FAQ_CATEGORIES = [
       },
       {
         q: 'What if I have a dispute with a shopper?',
-        a: 'Contact our support team at support@kelalshop.com or via Telegram. We mediate disputes between buyers and shoppers and work to ensure a fair resolution for both parties.',
+        a: 'Contact our support team at kelalshopp@gmail.com or via Telegram. We mediate disputes between buyers and shoppers and work to ensure a fair resolution for both parties.',
       },
       {
         q: 'Is my personal data safe with KelalShop?',

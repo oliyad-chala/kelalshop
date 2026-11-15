@@ -41,7 +41,9 @@ export default async function ContactPage() {
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Email</h3>
-                    <p className="text-base font-semibold text-navy-900">support@kelalshop.com</p>
+                    <a href="mailto:kelalshopp@gmail.com" className="text-base font-semibold text-navy-900 hover:text-amber-600 transition-colors">
+                      kelalshopp@gmail.com
+                    </a>
                     <p className="text-sm text-slate-500 mt-1">We aim to reply within 24 hours.</p>
                   </div>
                 </div>
@@ -52,8 +54,10 @@ export default async function ContactPage() {
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Phone</h3>
-                    <p className="text-base font-semibold text-navy-900">+251 911 23 45 67</p>
-                    <p className="text-sm text-slate-500 mt-1">Mon-Fri from 9am to 6pm (EAT)</p>
+                    <a href="tel:+251945600818" className="text-base font-semibold text-navy-900 hover:text-amber-600 transition-colors">
+                      +251 945 600 818
+                    </a>
+                    <p className="text-sm text-slate-500 mt-1">Mon–Sun from 8:30am to 5:00pm (2:30–11:00 Local)</p>
                   </div>
                 </div>
 
@@ -64,7 +68,7 @@ export default async function ContactPage() {
                   <div>
                     <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Office</h3>
                     <p className="text-base font-semibold text-navy-900">Addis Ababa, Ethiopia</p>
-                    <p className="text-sm text-slate-500 mt-1">Bole Road, Dembel City Center</p>
+                    <p className="text-sm text-slate-500 mt-1">Bole Mikael</p>
                   </div>
                 </div>
                 
@@ -74,8 +78,10 @@ export default async function ContactPage() {
                   </div>
                   <div>
                     <h3 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-1">Working Hours</h3>
-                    <p className="text-base font-semibold text-navy-900">9:00 AM - 6:00 PM</p>
-                    <p className="text-sm text-slate-500 mt-1">Monday through Friday</p>
+                    <p className="text-base font-semibold text-navy-900">
+                      8:30 AM – 5:00 PM <span className="text-xs font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full ml-1">2:30 – 11:00 Local</span>
+                    </p>
+                    <p className="text-sm text-slate-500 mt-1">Monday through Sunday (Open Daily)</p>
                   </div>
                 </div>
               </div>
