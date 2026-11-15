@@ -341,68 +341,15 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      {/* Dashboard Content Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Dashboard Content Grid: 2/3 Primary Requests Feed + 1/3 Stacked Operations (Shopify / Stripe Style) */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
 
-        {/* Recent Orders */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-            <div>
-              <h2 className="font-semibold text-navy-900">Recent Orders</h2>
-              <p className="text-xs text-slate-500 mt-0.5">Your latest transactions</p>
-            </div>
-            <Link href="/dashboard/orders" className="text-xs font-semibold text-amber-600 hover:underline">View all →</Link>
-          </div>
-          {recentOrders.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 px-4 text-center text-slate-400 text-sm gap-2 flex-1">
-              <svg className="w-10 h-10 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
-              <span>{isShopper ? 'No direct sales or orders recorded yet.' : 'No orders placed yet.'}</span>
-              {!isShopper ? (
-                <Link href="/dashboard/orders" className="text-xs font-semibold text-amber-600 hover:text-amber-700 hover:underline mt-1 inline-flex items-center gap-1">
-                  View Contacted Sellers & Items →
-                </Link>
-              ) : (
-                <Link href="/dashboard/orders" className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 hover:underline mt-1 inline-flex items-center gap-1">
-                  + Record a Direct Sale →
-                </Link>
-              )}
-            </div>
-          ) : (
-            <div className="divide-y divide-slate-50 flex-1">
-              {recentOrders.map((order: any) => {
-                const isDirectSale = order.delivery_address?.startsWith('Direct Sale') || order.delivery_address?.startsWith('Direct sale')
-                return (
-                  <Link key={order.id} href="/dashboard/orders" className="flex items-center justify-between px-6 py-3.5 hover:bg-slate-50/60 transition-colors group">
-                    <div className="min-w-0 flex-1 pr-2">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <p className="text-sm font-medium text-navy-900 truncate group-hover:text-amber-600 transition-colors">{order.products?.name || 'Custom Request Order'}</p>
-                        {isDirectSale && (
-                          <span className="text-[10px] bg-emerald-50 text-emerald-700 font-semibold px-1.5 py-0.5 rounded border border-emerald-200">
-                            Direct Sale
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-500 mt-0.5">
-                        {isShopper ? (order.buyer?.full_name || 'Direct Customer') : (order.shopper?.full_name || 'Seller')} · {formatDate(order.created_at)}
-                      </p>
-                    </div>
-                    <div className="ml-2 flex flex-col items-end gap-1 shrink-0">
-                      <span className="text-sm font-semibold text-navy-900">{formatPrice(order.amount)}</span>
-                      <Badge variant={getOrderStatusColor(order.status) as any} size="sm" className="capitalize">{order.status}</Badge>
-                    </div>
-                  </Link>
-                )
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Recent Requests */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+        {/* ── LEFT: 2 Columns Wide — Primary Buyer Opportunities Feed ── */}
+        <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-white">
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="font-semibold text-navy-900">
+                <h2 className="font-semibold text-navy-900 text-base">
                   {isShopper ? 'Find Requests' : 'Your Requests'}
                 </h2>
                 {recentRequests.length > 0 && isShopper && (
@@ -412,7 +359,7 @@ export default async function DashboardPage() {
                 )}
               </div>
               <p className="text-xs text-slate-500 mt-0.5">
-                {isShopper ? 'Buyer requests to respond — view & make an offer' : 'Items asked shoppers to find'}
+                {isShopper ? 'Active buyer sourcing requests — view details & submit your offer' : 'Items you asked verified shoppers to find'}
               </p>
             </div>
             <Link href="/dashboard/requests" className="text-xs font-semibold text-amber-600 hover:underline flex items-center gap-1">
@@ -420,11 +367,11 @@ export default async function DashboardPage() {
             </Link>
           </div>
           {recentRequests.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-slate-400 text-sm gap-2 flex-1">
-              <svg className="w-10 h-10 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
-              {isShopper ? 'No open buyer requests right now.' : "You haven't posted any requests yet."}
+            <div className="flex flex-col items-center justify-center py-16 text-slate-400 text-sm gap-2 flex-1">
+              <svg className="w-12 h-12 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg>
+              <span>{isShopper ? 'No open buyer requests right now.' : "You haven't posted any requests yet."}</span>
               {!isShopper && (
-                <Link href="/dashboard/requests/new" className="mt-1">
+                <Link href="/dashboard/requests/new" className="mt-2">
                   <Button variant="outline" size="sm">Create Request</Button>
                 </Link>
               )}
@@ -441,7 +388,7 @@ export default async function DashboardPage() {
                   <Link 
                     key={req.id} 
                     href={`/requests/${req.id}`} 
-                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 px-6 py-4 hover:bg-amber-50/40 transition-all group border-l-2 border-transparent hover:border-amber-500"
+                    className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-6 py-4 hover:bg-amber-50/40 transition-all group border-l-2 border-transparent hover:border-amber-500"
                   >
                     <div className="min-w-0 flex-1 space-y-1.5">
                       {/* Top Badges & Meta */}
@@ -458,7 +405,7 @@ export default async function DashboardPage() {
                           </span>
                         )}
                         <span className="text-[11px] text-slate-400">
-                          {formatRelativeTime(req.created_at)}
+                          • Posted {formatRelativeTime(req.created_at)}
                         </span>
                       </div>
 
@@ -472,7 +419,9 @@ export default async function DashboardPage() {
                         {isShopper ? (
                           <>
                             <Avatar size="xs" src={buyerAvatar} name={buyerName} />
-                            <span className="font-medium text-slate-700 truncate max-w-[140px]">{buyerName}</span>
+                            <span className="font-medium text-slate-700 truncate max-w-[180px]">{buyerName}</span>
+                            <span className="text-slate-300">•</span>
+                            <span className="text-emerald-600 font-medium">Looking for shopper</span>
                           </>
                         ) : (
                           <span>{req.status === 'open' ? 'Waiting for shoppers' : `Status: ${req.status}`}</span>
@@ -504,71 +453,151 @@ export default async function DashboardPage() {
               })}
             </div>
           )}
-        </div>
-
-        {/* Active Conversations & Inquiries */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-          <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <h2 className="font-semibold text-navy-900">Active Chats</h2>
-              {totalUnreadConversations > 0 && (
-                <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-red-500 text-white text-[10px] font-bold">
-                  {totalUnreadConversations} new
-                </span>
-              )}
-            </div>
-            <Link href="/dashboard/chat" className="text-xs font-semibold text-amber-600 hover:underline flex items-center gap-1">
-              Inbox <ArrowRight size={12} />
-            </Link>
-          </div>
-          {recentConversations.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-slate-400 text-sm gap-2 flex-1">
-              <MessageSquare className="w-10 h-10 opacity-20" />
-              <span>No active conversations yet.</span>
-              <p className="text-xs text-slate-400 text-center max-w-[200px]">
-                Messages from buyers and orders will appear here.
-              </p>
-            </div>
-          ) : (
-            <div className="divide-y divide-slate-50 flex-1">
-              {recentConversations.map((chat: any) => (
-                <Link
-                  key={chat.id}
-                  href={chat.href}
-                  className="flex items-center gap-3 px-6 py-3.5 hover:bg-slate-50/60 transition-colors group"
-                >
-                  <div className="relative shrink-0">
-                    <Avatar
-                      src={chat.otherParty?.avatar_url}
-                      name={chat.otherParty?.full_name}
-                      size="sm"
-                    />
-                    {chat.unreadCount > 0 && (
-                      <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 border-2 border-white rounded-full" />
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-1 mb-0.5">
-                      <p className={`text-sm truncate transition-colors group-hover:text-amber-600 ${chat.unreadCount > 0 ? 'font-bold text-navy-900' : 'font-medium text-slate-800'}`}>
-                        {chat.otherParty?.full_name || 'User'}
-                      </p>
-                      <span className="text-[11px] text-slate-400 shrink-0">
-                        {formatRelativeTime(chat.timestamp)}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between gap-2">
-                      <p className={`text-xs truncate ${chat.unreadCount > 0 ? 'text-navy-900 font-semibold' : 'text-slate-500'}`}>
-                        {chat.lastMessage?.content || <span className="italic text-slate-400">Photo / Attachment</span>}
-                      </p>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 font-medium shrink-0">
-                        {chat.isDirect ? 'DM' : 'Order'}
-                      </span>
-                    </div>
-                  </div>
-                </Link>
-              ))}
+          {recentRequests.length > 0 && isShopper && (
+            <div className="px-6 py-3 bg-slate-50/70 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+              <span>Have access to international stores? Submit an offer to earn commission.</span>
+              <Link href="/dashboard/requests" className="font-semibold text-amber-600 hover:text-amber-700 hover:underline shrink-0">
+                Browse All Requests →
+              </Link>
             </div>
           )}
+        </div>
+
+        {/* ── RIGHT: 1 Column Wide — Operational Stack (Recent Orders & Active Chats) ── */}
+        <div className="lg:col-span-1 space-y-6">
+
+          {/* Recent Orders */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h2 className="font-semibold text-navy-900">Recent Orders</h2>
+                <p className="text-xs text-slate-500 mt-0.5">Your latest transactions</p>
+              </div>
+              <Link href="/dashboard/orders" className="text-xs font-semibold text-amber-600 hover:underline">View all →</Link>
+            </div>
+            {recentOrders.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 px-4 text-center text-slate-400 text-sm gap-2 flex-1">
+                <svg className="w-9 h-9 opacity-20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" /></svg>
+                <span>{isShopper ? 'No direct sales or orders recorded yet.' : 'No orders placed yet.'}</span>
+                {!isShopper ? (
+                  <Link href="/dashboard/orders" className="text-xs font-semibold text-amber-600 hover:text-amber-700 hover:underline mt-1 inline-flex items-center gap-1">
+                    View Contacted Sellers & Items →
+                  </Link>
+                ) : (
+                  <Link href="/dashboard/orders" className="text-xs font-semibold text-emerald-600 hover:text-emerald-700 hover:underline mt-1 inline-flex items-center gap-1">
+                    + Record a Direct Sale →
+                  </Link>
+                )}
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-50 flex-1">
+                {recentOrders.map((order: any) => {
+                  const isDirectSale = order.delivery_address?.startsWith('Direct Sale') || order.delivery_address?.startsWith('Direct sale')
+                  return (
+                    <Link key={order.id} href="/dashboard/orders" className="flex items-center justify-between px-5 py-3 hover:bg-slate-50/60 transition-colors group">
+                      <div className="min-w-0 flex-1 pr-2">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="text-sm font-medium text-navy-900 truncate group-hover:text-amber-600 transition-colors">{order.products?.name || 'Custom Request Order'}</p>
+                          {isDirectSale && (
+                            <span className="text-[10px] bg-emerald-50 text-emerald-700 font-semibold px-1.5 py-0.5 rounded border border-emerald-200">
+                              Direct Sale
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500 mt-0.5">
+                          {isShopper ? (order.buyer?.full_name || 'Direct Customer') : (order.shopper?.full_name || 'Seller')} · {formatDate(order.created_at)}
+                        </p>
+                      </div>
+                      <div className="ml-2 flex flex-col items-end gap-1 shrink-0">
+                        <span className="text-sm font-semibold text-navy-900">{formatPrice(order.amount)}</span>
+                        <Badge variant={getOrderStatusColor(order.status) as any} size="sm" className="capitalize">{order.status}</Badge>
+                      </div>
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
+            {isShopper && recentOrders.length > 0 && recentOrders.length < 3 && (
+              <div className="px-5 py-2.5 bg-slate-50/70 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                <span>Sold items offline?</span>
+                <Link href="/dashboard/orders" className="font-semibold text-emerald-600 hover:text-emerald-700 hover:underline">
+                  + Record Direct Sale
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* Active Conversations & Inquiries */}
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <h2 className="font-semibold text-navy-900">Active Chats</h2>
+                {totalUnreadConversations > 0 && (
+                  <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full bg-red-500 text-white text-[10px] font-bold">
+                    {totalUnreadConversations} new
+                  </span>
+                )}
+              </div>
+              <Link href="/dashboard/chat" className="text-xs font-semibold text-amber-600 hover:underline flex items-center gap-1">
+                Inbox <ArrowRight size={12} />
+              </Link>
+            </div>
+            {recentConversations.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-slate-400 text-sm gap-2 flex-1">
+                <MessageSquare className="w-9 h-9 opacity-20" />
+                <span>No active conversations yet.</span>
+                <p className="text-xs text-slate-400 text-center max-w-[200px]">
+                  Messages from buyers and orders will appear here.
+                </p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-50 flex-1">
+                {recentConversations.map((chat: any) => (
+                  <Link
+                    key={chat.id}
+                    href={chat.href}
+                    className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50/60 transition-colors group"
+                  >
+                    <div className="relative shrink-0">
+                      <Avatar
+                        src={chat.otherParty?.avatar_url}
+                        name={chat.otherParty?.full_name}
+                        size="sm"
+                      />
+                      {chat.unreadCount > 0 && (
+                        <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 border-2 border-white rounded-full" />
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-1 mb-0.5">
+                        <p className={`text-sm truncate transition-colors group-hover:text-amber-600 ${chat.unreadCount > 0 ? 'font-bold text-navy-900' : 'font-medium text-slate-800'}`}>
+                          {chat.otherParty?.full_name || 'User'}
+                        </p>
+                        <span className="text-[11px] text-slate-400 shrink-0">
+                          {formatRelativeTime(chat.timestamp)}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className={`text-xs truncate ${chat.unreadCount > 0 ? 'text-navy-900 font-semibold' : 'text-slate-500'}`}>
+                          {chat.lastMessage?.content || <span className="italic text-slate-400">Photo / Attachment</span>}
+                        </p>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 font-medium shrink-0">
+                          {chat.isDirect ? 'DM' : 'Order'}
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+            )}
+            <div className="px-5 py-2.5 bg-slate-50/70 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+              <span>Customer inquiries</span>
+              <Link href="/dashboard/chat" className="font-semibold text-amber-600 hover:text-amber-700 hover:underline">
+                Open Full Inbox →
+              </Link>
+            </div>
+          </div>
+
         </div>
 
       </div>
