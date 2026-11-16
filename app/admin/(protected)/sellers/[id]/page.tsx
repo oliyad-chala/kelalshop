@@ -3,9 +3,25 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLeft, Package, DollarSign, Star, Calendar, CheckCircle, XCircle, Store } from 'lucide-react'
+import { SellerDocumentViewer } from '@/components/admin/sellers/SellerDocumentViewer'
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
   return { title: 'Seller Details' }
+}
+
+/** Extract the storage path from a full public or signed URL, or return the string if it's already a path */
+function extractStoragePath(url: string | null): string | null {
+  if (!url) return null
+  if (!url.startsWith('http')) return url // Already a storage path
+
+  try {
+    const u = new URL(url)
+    // Path format: /storage/v1/object/(public|sign)/BUCKET/PATH
+    const match = u.pathname.match(/\/storage\/v1\/object\/(?:public|sign)\/[^/]+\/(.+)/)
+    return match ? decodeURIComponent(match[1]) : null
+  } catch {
+    return url
+  }
 }
 
 export default async function SellerDetailsPage({ params }: { params: Promise<{ id: string }> }) {
@@ -17,14 +33,16 @@ export default async function SellerDetailsPage({ params }: { params: Promise<{ 
   const resolvedParams = await params
   const sellerId = resolvedParams.id
 
-  const { data: seller } = await admin
+  const { data: rawSeller } = await (admin
     .from('shopper_profiles')
     .select(`
       *,
-      profiles!inner(full_name, trust_score, phone, location, role)
+      profiles(full_name, trust_score, phone, location, role)
     `)
     .eq('id', sellerId)
-    .single()
+    .single() as any)
+
+  const seller = rawSeller as any
 
   if (!seller) {
     return (
@@ -35,6 +53,29 @@ export default async function SellerDetailsPage({ params }: { params: Promise<{ 
         </Link>
       </div>
     )
+  }
+
+  const profile = Array.isArray(seller.profiles) ? seller.profiles[0] : seller.profiles
+
+  // Generate 1-hour signed URLs for private id-documents bucket
+  const frontPath = extractStoragePath(seller.id_document_url)
+  const backPath = extractStoragePath(seller.id_document_back_url)
+
+  let signedFrontUrl: string | null = null
+  let signedBackUrl: string | null = null
+
+  if (frontPath) {
+    const { data } = await admin.storage
+      .from('id-documents')
+      .createSignedUrl(frontPath, 3600)
+    signedFrontUrl = data?.signedUrl ?? null
+  }
+
+  if (backPath) {
+    const { data } = await admin.storage
+      .from('id-documents')
+      .createSignedUrl(backPath, 3600)
+    signedBackUrl = data?.signedUrl ?? null
   }
 
   // Get products count
@@ -64,7 +105,7 @@ export default async function SellerDetailsPage({ params }: { params: Promise<{ 
             {seller.business_name || 'Unnamed Business'}
             {seller.verification_status === 'verified' && <CheckCircle size={20} color="var(--color-primary)" />}
           </h1>
-          <p className="section-subtitle">Owned by {seller.profiles.full_name}</p>
+          <p className="section-subtitle">Owned by {profile?.full_name || 'Seller'}</p>
         </div>
         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           {seller.subscription_plan === 'pro' && <span className="admin-badge badge-verified">Pro Plan</span>}
@@ -111,7 +152,7 @@ export default async function SellerDetailsPage({ params }: { params: Promise<{ 
           </div>
           <div>
             <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', margin: 0 }}>Trust Score</p>
-            <h3 style={{ margin: '0.2rem 0 0 0', fontSize: '1.4rem' }}>{seller.profiles.trust_score}%</h3>
+            <h3 style={{ margin: '0.2rem 0 0 0', fontSize: '1.4rem' }}>{profile?.trust_score ?? 0}%</h3>
           </div>
         </div>
       </div>
@@ -127,15 +168,15 @@ export default async function SellerDetailsPage({ params }: { params: Promise<{ 
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '1rem', borderBottom: '1px solid var(--color-border)' }}>
               <span style={{ color: 'var(--color-text-muted)' }}>Owner Name</span>
-              <span style={{ fontWeight: 500 }}>{seller.profiles.full_name}</span>
+              <span style={{ fontWeight: 500 }}>{profile?.full_name || '—'}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '1rem', borderBottom: '1px solid var(--color-border)' }}>
               <span style={{ color: 'var(--color-text-muted)' }}>Phone Number</span>
-              <span style={{ fontWeight: 500 }}>{seller.profiles.phone || 'N/A'}</span>
+              <span style={{ fontWeight: 500 }}>{profile?.phone || 'N/A'}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '1rem', borderBottom: '1px solid var(--color-border)' }}>
               <span style={{ color: 'var(--color-text-muted)' }}>Location</span>
-              <span style={{ fontWeight: 500 }}>{seller.profiles.location || 'N/A'}</span>
+              <span style={{ fontWeight: 500 }}>{profile?.location || 'N/A'}</span>
             </div>
             <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '1rem', borderBottom: '1px solid var(--color-border)' }}>
               <span style={{ color: 'var(--color-text-muted)' }}>Joined</span>
@@ -146,28 +187,7 @@ export default async function SellerDetailsPage({ params }: { params: Promise<{ 
 
         <div className="admin-card">
           <h3 style={{ marginBottom: '1.5rem', fontSize: '1.1rem', fontWeight: 600 }}>Documents</h3>
-          
-          {seller.id_document_url ? (
-            <div style={{ marginBottom: '1rem' }}>
-              <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem' }}>ID Document (Front)</p>
-              <a href={seller.id_document_url} target="_blank" rel="noreferrer" style={{ display: 'block', padding: '1rem', background: 'var(--color-bg-alt)', borderRadius: '6px', textAlign: 'center', textDecoration: 'none', color: 'var(--color-primary)', fontWeight: 500 }}>
-                View Front Document
-              </a>
-            </div>
-          ) : (
-            <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>No front ID uploaded.</p>
-          )}
-
-          {seller.id_document_back_url ? (
-            <div style={{ marginBottom: '1rem' }}>
-              <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '0.5rem' }}>ID Document (Back)</p>
-              <a href={seller.id_document_back_url} target="_blank" rel="noreferrer" style={{ display: 'block', padding: '1rem', background: 'var(--color-bg-alt)', borderRadius: '6px', textAlign: 'center', textDecoration: 'none', color: 'var(--color-primary)', fontWeight: 500 }}>
-                View Back Document
-              </a>
-            </div>
-          ) : (
-            <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>No back ID uploaded.</p>
-          )}
+          <SellerDocumentViewer frontUrl={signedFrontUrl} backUrl={signedBackUrl} />
         </div>
       </div>
     </div>
