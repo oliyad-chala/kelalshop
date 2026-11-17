@@ -128,7 +128,9 @@ export function CartDrawer() {
                       {item.product.name}
                     </Link>
                     <p className="text-xs text-slate-400 mt-0.5 truncate">by {item.product.shopperName}</p>
-                    <p className="text-sm font-bold text-amber-600 mt-1">{formatPrice(item.product.price)}</p>
+                    <p className="text-sm font-bold text-amber-600 mt-1">
+                      {item.product.price <= 0 ? 'Price on Call' : formatPrice(item.product.price)}
+                    </p>
                   </div>
 
                   {/* Qty controls + remove */}

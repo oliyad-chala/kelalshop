@@ -87,10 +87,6 @@ export function ProductCard({ product, view = 'grid' }: ProductCardProps) {
             <span className="text-[11px] font-semibold text-rose-600 bg-rose-50 px-2 py-1 rounded-lg border border-rose-100">
               Sold Out
             </span>
-          ) : isPriceOnCall(product) ? (
-            <Link href={`/products/${product.id}?contact=open`} className="flex items-center justify-center w-10 h-10 rounded-xl bg-amber-100 text-amber-600 border border-amber-200 hover:bg-amber-500 hover:text-white transition-colors" title="Contact Seller">
-              <Phone className="w-5 h-5" />
-            </Link>
           ) : (
             <Link href={`/products/${product.id}`} className="flex items-center justify-center w-10 h-10 rounded-xl bg-orange-50 text-amber-500 border border-amber-100 hover:bg-amber-500 hover:text-white transition-colors">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

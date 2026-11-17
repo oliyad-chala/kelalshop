@@ -149,7 +149,7 @@ export function CheckoutForm({ shipping, userProfile }: CheckoutFormProps) {
                 <p className="text-xs text-slate-400 mt-0.5">by {item.product.shopperName} · qty {item.quantity}</p>
               </div>
               <span className="font-bold text-navy-900 text-sm shrink-0">
-                {formatPrice(item.product.price * item.quantity)}
+                {item.product.price <= 0 ? 'Price on Call' : formatPrice(item.product.price * item.quantity)}
               </span>
             </li>
           ))}

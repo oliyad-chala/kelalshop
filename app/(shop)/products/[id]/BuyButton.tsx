@@ -111,40 +111,28 @@ export function BuyButton({ product, seller, currentUserId }: BuyButtonProps) {
 
   return (
     <>
-      {isOnCall ? (
+      <div className="flex gap-3">
+        <Button 
+          size="lg" 
+          variant="outline" 
+          className="flex-1 border-amber-500 text-amber-600 hover:bg-amber-50 font-semibold disabled:border-slate-200 disabled:text-slate-400 disabled:bg-slate-50 disabled:cursor-not-allowed" 
+          disabled={isSold || loadingCart}
+          onClick={handleAddToCart}
+          loading={loadingCart}
+        >
+          {isSold ? 'Sold Out' : 'Add to Cart'}
+        </Button>
+
         <Button 
           size="lg" 
           variant="primary" 
-          className="w-full bg-amber-500 hover:bg-amber-400 text-navy-950 font-bold flex items-center justify-center gap-2 shadow-sm py-3" 
+          className="flex-1 bg-amber-500 hover:bg-amber-400 text-navy-950 font-bold flex items-center justify-center gap-2 shadow-sm" 
           onClick={handleShowContact}
         >
-          <Phone className="w-5 h-5" />
-          <span>Show Contact (Price on Call)</span>
+          <Phone className="w-4 h-4" />
+          <span>Show Contact</span>
         </Button>
-      ) : (
-        <div className="flex gap-3">
-          <Button 
-            size="lg" 
-            variant="outline" 
-            className="flex-1 border-amber-500 text-amber-600 hover:bg-amber-50 font-semibold disabled:border-slate-200 disabled:text-slate-400 disabled:bg-slate-50 disabled:cursor-not-allowed" 
-            disabled={isSold || loadingCart}
-            onClick={handleAddToCart}
-            loading={loadingCart}
-          >
-            {isSold ? 'Sold Out' : 'Add to Cart'}
-          </Button>
-
-          <Button 
-            size="lg" 
-            variant="primary" 
-            className="flex-1 bg-amber-500 hover:bg-amber-400 text-navy-950 font-bold flex items-center justify-center gap-2 shadow-sm" 
-            onClick={handleShowContact}
-          >
-            <Phone className="w-4 h-4" />
-            <span>Show Contact</span>
-          </Button>
-        </div>
-      )}
+      </div>
 
       {/* Direct Deal Rating Button */}
       {sellerId && sellerId !== 'mock' && sellerId !== userId && (
