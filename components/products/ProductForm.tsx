@@ -1,6 +1,7 @@
 'use client'
 
 import { useActionState, useState, useRef } from 'react'
+import { Phone } from 'lucide-react'
 import { createProduct } from '@/lib/actions/products'
 import { Card, CardHeader } from '@/components/ui/Card'
 import { Input, Textarea } from '@/components/ui/Input'
@@ -26,6 +27,7 @@ export function ProductForm({ categories, isVerified = true, isLimitReached = fa
   const [previews, setPreviews] = useState<string[]>([])
   const [fileError, setFileError] = useState<string | null>(null)
   const [selectedCategory, setSelectedCategory] = useState<string>('')
+  const [isPriceOnCall, setIsPriceOnCall] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
   const isOther = categories.find(c => c.id === selectedCategory)?.name === 'Other'
@@ -157,24 +159,64 @@ export function ProductForm({ categories, isVerified = true, isLimitReached = fa
           />
 
           <div className="grid sm:grid-cols-2 gap-6">
-            {/* Price */}
-            <div className="flex flex-col gap-1.5">
-              <label htmlFor="price" className="text-sm font-medium text-navy-900">
-                Price (ETB) <span className="text-red-500">*</span>
+            {/* Price Column */}
+            <div className="flex flex-col gap-2">
+              <label className="text-sm font-medium text-navy-900">
+                Price (ETB) {!isPriceOnCall && <span className="text-red-500">*</span>}
               </label>
-              <div className="relative">
-                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">ETB</span>
-                <input
-                  id="price"
-                  name="price"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  required
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 pl-12 text-sm text-navy-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
-                  placeholder="0.00"
-                />
+
+              {/* Pricing Mode Toggle: Fixed Price vs Price on Call */}
+              <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-100 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => setIsPriceOnCall(false)}
+                  className={`py-1.5 px-3 text-xs font-bold rounded-lg transition-all ${
+                    !isPriceOnCall
+                      ? 'bg-white text-navy-950 shadow-sm border border-slate-200/60'
+                      : 'text-slate-500 hover:text-navy-900'
+                  }`}
+                >
+                  Fixed Price
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsPriceOnCall(true)}
+                  className={`py-1.5 px-3 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                    isPriceOnCall
+                      ? 'bg-amber-500 text-white shadow-sm'
+                      : 'text-slate-500 hover:text-navy-900'
+                  }`}
+                >
+                  <Phone className="w-3.5 h-3.5" />
+                  <span>Price on Call</span>
+                </button>
               </div>
+              <input type="hidden" name="attr_price_type" value={isPriceOnCall ? 'on_call' : 'fixed'} />
+
+              {!isPriceOnCall ? (
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 font-medium text-sm">ETB</span>
+                  <input
+                    id="price"
+                    name="price"
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    required={!isPriceOnCall}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 pl-12 text-sm text-navy-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400"
+                    placeholder="0.00"
+                  />
+                </div>
+              ) : (
+                <div className="rounded-xl border border-amber-200 bg-amber-50/70 px-3 py-2.5 flex items-center gap-2.5 text-amber-900">
+                  <Phone className="w-4 h-4 text-amber-500 shrink-0" />
+                  <div className="text-xs">
+                    <span className="font-bold text-amber-950 block text-xs">Price on Call</span>
+                    <p className="text-slate-500 text-[11px] leading-tight mt-0.5">Buyers will see "Price on Call" and contact you directly to negotiate.</p>
+                  </div>
+                  <input type="hidden" name="price" value="0" />
+                </div>
+              )}
             </div>
 
             {/* Category */}

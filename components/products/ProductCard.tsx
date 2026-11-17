@@ -3,8 +3,9 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
+import { Phone } from 'lucide-react'
 import { Card } from '@/components/ui/Card'
-import { formatPrice } from '@/lib/utils/formatters'
+import { formatPrice, isPriceOnCall } from '@/lib/utils/formatters'
 import type { ProductWithDetails } from '@/types/app.types'
 import { useWishlist } from '@/lib/context/WishlistContext'
 import { useRouter } from 'next/navigation'
@@ -70,15 +71,26 @@ export function ProductCard({ product, view = 'grid' }: ProductCardProps) {
         </Link>
         
         <div className="flex items-center justify-between mb-3">
-          <div className="font-bold text-xl text-navy-950">
-            {/* Split 'ETB 37.42' into 'Br 37.42' roughly based on user image */}
-            <span className="text-sm font-semibold mr-1">Br</span>
-            {formatPrice(product.price).replace(/[^0-9.,]/g, '')}
-          </div>
+          {isPriceOnCall(product) ? (
+            <div className="font-extrabold text-sm text-amber-600 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200/60 inline-flex items-center gap-1.5">
+              <Phone className="w-3.5 h-3.5 text-amber-500" />
+              <span>Price on Call</span>
+            </div>
+          ) : (
+            <div className="font-bold text-xl text-navy-950">
+              {/* Split 'ETB 37.42' into 'Br 37.42' roughly based on user image */}
+              <span className="text-sm font-semibold mr-1">Br</span>
+              {formatPrice(product.price).replace(/[^0-9.,]/g, '')}
+            </div>
+          )}
           {isSold ? (
             <span className="text-[11px] font-semibold text-rose-600 bg-rose-50 px-2 py-1 rounded-lg border border-rose-100">
               Sold Out
             </span>
+          ) : isPriceOnCall(product) ? (
+            <Link href={`/products/${product.id}?contact=open`} className="flex items-center justify-center w-10 h-10 rounded-xl bg-amber-100 text-amber-600 border border-amber-200 hover:bg-amber-500 hover:text-white transition-colors" title="Contact Seller">
+              <Phone className="w-5 h-5" />
+            </Link>
           ) : (
             <Link href={`/products/${product.id}`} className="flex items-center justify-center w-10 h-10 rounded-xl bg-orange-50 text-amber-500 border border-amber-100 hover:bg-amber-500 hover:text-white transition-colors">
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

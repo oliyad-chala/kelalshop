@@ -24,15 +24,21 @@ export async function sendTelegramProductCards(
   const safeWebUrl = !baseUrl || baseUrl.includes('localhost') ? 'https://kelalshop.com' : baseUrl
 
   for (const product of products) {
+    const isOnCall = Number(product.price) === 0 || (product as any).price_type === 'on_call' || (product as any).attributes?.price_type === 'on_call'
+
     const productKeyboard = new InlineKeyboard()
-      .text('⚡ Buy in Telegram', `buy_prod_${product.id}`)
-      .row()
+    if (!isOnCall) {
+      productKeyboard.text('⚡ Buy in Telegram', `buy_prod_${product.id}`).row()
+    } else {
+      productKeyboard.url('📞 Contact Seller', `${safeWebUrl}/products/${product.id}?contact=open`).row()
+    }
+    productKeyboard
       .url('🌐 View on Website', `${safeWebUrl}/products/${product.id}`)
       .url('📦 More Qty / Bulk', `${safeWebUrl}/products/${product.id}`)
 
     const caption =
       `🛍️ <b>${escapeHtml(product.name)}</b>\n` +
-      `💰 Price: <b>${formatEtb(Number(product.price))}</b>\n` +
+      `💰 Price: <b>${isOnCall ? 'Price on Call' : formatEtb(Number(product.price))}</b>\n` +
       `✨ <i>Verified &amp; Available on KelalShop</i>`
 
     if (product.image) {

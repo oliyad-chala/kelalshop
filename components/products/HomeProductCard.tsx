@@ -4,7 +4,8 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { formatETB } from '@/lib/utils/formatters'
+import { Phone } from 'lucide-react'
+import { formatETB, isPriceOnCall } from '@/lib/utils/formatters'
 import type { ProductWithDetails } from '@/types/app.types'
 import { useCart } from '@/lib/context/CartContext'
 import { useWishlist } from '@/lib/context/WishlistContext'
@@ -27,6 +28,7 @@ export function HomeProductCard({ product, discount, endsAt }: HomeProductCardPr
 
   const isSaved = wishlistItems.includes(product.id)
   const isSold = product.is_available === false
+  const isOnCall = isPriceOnCall(product)
 
   const primaryImage =
     product.product_images?.find((img) => img.is_primary)?.url ||
@@ -146,17 +148,26 @@ export function HomeProductCard({ product, discount, endsAt }: HomeProductCardPr
         <div className="mt-auto flex items-end justify-between gap-2 relative z-10">
           <div className="space-y-1">
             {/* Price row */}
-            <div className="flex items-baseline gap-1 flex-wrap">
-              <span className="text-sm font-bold text-navy-950">
-                <span className="text-[10px] font-semibold mr-0.5">Br</span>
-                {fmtPrice(discountedPrice)}
-              </span>
-              {originalPrice && (
-                <span className="text-[10px] text-slate-400 line-through">
-                  {fmtPrice(originalPrice)}
+            {isOnCall ? (
+              <div className="flex items-center gap-1">
+                <span className="text-[11px] font-extrabold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/60 inline-flex items-center gap-1">
+                  <Phone className="w-2.5 h-2.5" />
+                  Price on Call
                 </span>
-              )}
-            </div>
+              </div>
+            ) : (
+              <div className="flex items-baseline gap-1 flex-wrap">
+                <span className="text-sm font-bold text-navy-950">
+                  <span className="text-[10px] font-semibold mr-0.5">Br</span>
+                  {fmtPrice(discountedPrice)}
+                </span>
+                {originalPrice && (
+                  <span className="text-[10px] text-slate-400 line-through">
+                    {fmtPrice(originalPrice)}
+                  </span>
+                )}
+              </div>
+            )}
 
             {/* Rating */}
             <div className="flex items-center gap-1 text-[10px] text-slate-400">
@@ -167,28 +178,42 @@ export function HomeProductCard({ product, discount, endsAt }: HomeProductCardPr
             </div>
           </div>
 
-          {/* Add to Cart button (Small Icon) */}
-          <button
-            onClick={handleAddToCart}
-            disabled={isSold}
-            aria-label={isSold ? "Sold out" : "Add to cart"}
-            className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-all duration-200 ${added
-                ? 'bg-green-500 text-white scale-110'
-                : !isSold
-                  ? 'bg-amber-100 hover:bg-amber-500 text-amber-600 hover:text-white active:scale-95'
-                  : 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-60'
-              }`}
-          >
-            {added ? (
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-              </svg>
-            ) : (
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
-            )}
-          </button>
+          {/* Action button */}
+          {isOnCall ? (
+            <button
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                router.push(`/products/${product.id}?contact=open`)
+              }}
+              aria-label="Price on Call - Contact seller"
+              className="w-7 h-7 rounded-full flex items-center justify-center shrink-0 bg-amber-100 hover:bg-amber-500 text-amber-600 hover:text-white transition-all active:scale-95"
+            >
+              <Phone className="w-3.5 h-3.5" />
+            </button>
+          ) : (
+            <button
+              onClick={handleAddToCart}
+              disabled={isSold}
+              aria-label={isSold ? "Sold out" : "Add to cart"}
+              className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 transition-all duration-200 ${added
+                  ? 'bg-green-500 text-white scale-110'
+                  : !isSold
+                    ? 'bg-amber-100 hover:bg-amber-500 text-amber-600 hover:text-white active:scale-95'
+                    : 'bg-slate-100 text-slate-400 cursor-not-allowed opacity-60'
+                }`}
+            >
+              {added ? (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              )}
+            </button>
+          )}
         </div>
       </div>
     </div>

@@ -100,7 +100,7 @@ export async function startInChatCheckout(ctx: CustomerBotContext, productId: st
 
   const { data: product, error } = await supabase
     .from('products')
-    .select('id, name, price, shopper_id, is_available, approval_status, product_images(url, is_primary), profiles:shopper_id(full_name, phone)')
+    .select('id, name, price, shopper_id, is_available, approval_status, attributes, product_images(url, is_primary), profiles:shopper_id(full_name, phone)')
     .eq('id', productId)
     .single()
 
@@ -112,6 +112,20 @@ export async function startInChatCheckout(ctx: CustomerBotContext, productId: st
   }
   if (product.approval_status !== 'approved') {
     return ctx.reply('⚠️ This product is pending admin approval and cannot be purchased yet.')
+  }
+
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://kelalshop.com'
+  const safeWebUrl = !baseUrl || baseUrl.includes('localhost') ? 'https://kelalshop.com' : baseUrl
+
+  if (Number(product.price) <= 0 || (product as any).attributes?.price_type === 'on_call') {
+    return ctx.reply(
+      `📞 <b>${escapeHtml(product.name)}</b> is <b>Price on Call</b>.\n\n` +
+      `Please contact the seller directly to negotiate and arrange the purchase:`,
+      {
+        parse_mode: 'HTML',
+        reply_markup: new InlineKeyboard().url('📞 Contact Seller', `${safeWebUrl}/products/${product.id}?contact=open`)
+      }
+    )
   }
 
   const primaryImage = product.product_images?.find((i: any) => i.is_primary)?.url || product.product_images?.[0]?.url || null
@@ -131,8 +145,6 @@ export async function startInChatCheckout(ctx: CustomerBotContext, productId: st
 
   checkoutSessions.set(chatId, session)
 
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://kelalshop.com'
-  const safeWebUrl = !baseUrl || baseUrl.includes('localhost') ? 'https://kelalshop.com' : baseUrl
   const productWebUrl = `${safeWebUrl}/products/${product.id}`
 
   const cancelKeyboard = new InlineKeyboard().text('❌ Cancel Order', 'checkout_cancel')

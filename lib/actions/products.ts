@@ -51,7 +51,9 @@ export async function createProduct(
   const rawName = formData.get('name') as string
   const customName = formData.get('custom_name') as string | null
   const description = formData.get('description') as string
-  const price = Number(formData.get('price'))
+  const priceType = (formData.get('attr_price_type') as string) || 'fixed'
+  const rawPrice = formData.get('price')
+  const price = priceType === 'on_call' ? 0 : Number(rawPrice)
   const stock = Number(formData.get('stock') ?? 1)
   const category_id = formData.get('category_id') as string | null
   const location = formData.get('location') as string | null
@@ -85,6 +87,9 @@ export async function createProduct(
       attributes[cleanKey] = value.toString().trim()
     }
   })
+  if (priceType) {
+    attributes['price_type'] = priceType
+  }
 
   // 1. Insert product
   const { data: productResult, error: insertError } = await supabase
@@ -319,7 +324,9 @@ export async function updateProduct(
   const rawName = formData.get('name') as string
   const customName = formData.get('custom_name') as string | null
   const description = formData.get('description') as string
-  const price = Number(formData.get('price'))
+  const priceType = (formData.get('attr_price_type') as string) || 'fixed'
+  const rawPrice = formData.get('price')
+  const price = priceType === 'on_call' ? 0 : Number(rawPrice)
   const stock = Number(formData.get('stock') ?? 1)
   const category_id = formData.get('category_id') as string | null
   const location = formData.get('location') as string | null
@@ -337,6 +344,9 @@ export async function updateProduct(
       attributes[cleanKey] = value.toString().trim()
     }
   })
+  if (priceType) {
+    attributes['price_type'] = priceType
+  }
 
   // Check images
   const imageFiles = formData.getAll('images') as File[]

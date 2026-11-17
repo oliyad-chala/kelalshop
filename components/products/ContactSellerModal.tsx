@@ -186,7 +186,9 @@ export function ContactSellerModal({
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-bold text-navy-900 truncate">{product.name}</div>
                 <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-sm font-extrabold text-amber-600">{formatPrice(product.price)}</span>
+                  <span className="text-sm font-extrabold text-amber-600">
+                    {product.price <= 0 || (product as any).attributes?.price_type === 'on_call' ? 'Price on Call' : formatPrice(product.price)}
+                  </span>
                   {isSold && (
                     <span className="text-[10px] font-bold uppercase tracking-wider bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
                       Sold Out

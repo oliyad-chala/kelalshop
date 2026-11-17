@@ -6,7 +6,8 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { Avatar } from '@/components/ui/Avatar'
-import { formatPrice, getRatingStars, formatRating } from '@/lib/utils/formatters'
+import { Phone } from 'lucide-react'
+import { formatPrice, getRatingStars, formatRating, isPriceOnCall } from '@/lib/utils/formatters'
 import { ShopperBadge } from '@/components/shoppers/ShopperBadge'
 import { BuyButton } from './BuyButton'
 import { MOCK_PRODUCTS } from '@/lib/constants/mock-data'
@@ -227,21 +228,28 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
             </div>
 
             <div className="mb-6 border-b border-slate-100 pb-6">
-              <div className="flex flex-wrap items-baseline gap-3">
-                <span className="text-2xl font-bold text-amber-600">
-                  {formatPrice(resolvedPrice.price)}
-                </span>
-                {resolvedPrice.onSale && (
-                  <>
-                    <span className="text-lg text-slate-400 line-through">
-                      {formatPrice(resolvedPrice.originalPrice)}
-                    </span>
-                    <span className="text-sm font-bold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
-                      -{resolvedPrice.discountPct}% Flash Sale
-                    </span>
-                  </>
-                )}
-              </div>
+              {isPriceOnCall(product) ? (
+                <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-800">
+                  <Phone className="w-5 h-5 text-amber-500" />
+                  <span className="text-xl sm:text-2xl font-extrabold text-amber-600 tracking-tight">Price on Call</span>
+                </div>
+              ) : (
+                <div className="flex flex-wrap items-baseline gap-3">
+                  <span className="text-2xl font-bold text-amber-600">
+                    {formatPrice(resolvedPrice.price)}
+                  </span>
+                  {resolvedPrice.onSale && (
+                    <>
+                      <span className="text-lg text-slate-400 line-through">
+                        {formatPrice(resolvedPrice.originalPrice)}
+                      </span>
+                      <span className="text-sm font-bold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">
+                        -{resolvedPrice.discountPct}% Flash Sale
+                      </span>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="prose prose-sm text-slate-600 mb-6 flex-1 text-sm">
@@ -322,6 +330,8 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                   image: primaryImage,
                   shopperName: product.profiles?.full_name || 'Shopper',
                   shopperId: product.shopper_id || 'mock',
+                  isOnCall: isPriceOnCall(product),
+                  attributes: product.attributes,
                 }}
                 seller={{
                   id: product.shopper_id || 'mock',

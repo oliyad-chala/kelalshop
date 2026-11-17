@@ -12,6 +12,21 @@ export function formatPrice(etbAmount: number): string {
   return formatETB(etbAmount)
 }
 
+export function isPriceOnCall(product?: { price?: number | null; attributes?: any; price_type?: string | null } | null): boolean {
+  if (!product) return false
+  if (product.price_type === 'on_call') return true
+  if (product.attributes?.price_type === 'on_call') return true
+  if (Number(product.price) === 0 && product.attributes?.price_type === 'on_call') return true
+  return false
+}
+
+export function formatProductPrice(product: { price: number; attributes?: any; price_type?: string | null }): string {
+  if (isPriceOnCall(product)) {
+    return 'Price on Call'
+  }
+  return formatPrice(product.price)
+}
+
 // Date formatting
 export function formatDate(dateString: string): string {
   return new Intl.DateTimeFormat('en-ET', {

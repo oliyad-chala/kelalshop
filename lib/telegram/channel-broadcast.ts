@@ -58,9 +58,10 @@ export async function broadcastProductToTelegramChannel(productId: string): Prom
     }
 
     // Build attractive, formatted message
+    const isOnCall = Number(product.price) === 0 || (product as any).price_type === 'on_call' || (product as any).attributes?.price_type === 'on_call'
     let caption = `✨ <b>New Arrival on KelalShop!</b>\n\n`
     caption += `🛍️ <b>${escapeHtml(product.name)}</b>\n\n`
-    caption += `💰 <b>Price:</b> ${formatEtb(product.price)}\n`
+    caption += `💰 <b>Price:</b> ${isOnCall ? 'Price on Call' : formatEtb(product.price)}\n`
     caption += `📍 <b>Location:</b> ${escapeHtml(location)}\n`
     caption += `🏪 <b>Seller:</b> ${escapeHtml(sellerName)}\n`
     if (sellerPhone) {
